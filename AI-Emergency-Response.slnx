@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EmergencyResponse.Api/EmergencyResponse.Api.csproj" />
+    <Project Path="src/EmergencyResponse.Application/EmergencyResponse.Application.csproj" />
+    <Project Path="src/EmergencyResponse.Domain/EmergencyResponse.Domain.csproj" />
+    <Project Path="src/EmergencyResponse.Infrastructure/EmergencyResponse.Infrastructure.csproj" />
+    <Project Path="src/EmergencyResponse.Web/EmergencyResponse.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EmergencyResponse.IntegrationTests/EmergencyResponse.IntegrationTests.csproj" />
+    <Project Path="tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj" />
+  </Folder>
+</Solution>
