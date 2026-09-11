@@ -1,6 +1,8 @@
+using EmergencyResponse.Api.Common.ErrorHandling;
 using EmergencyResponse.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using EmergencyResponse.Infrastructure.Persistence.Seed;
+
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +16,12 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+builder.Services.AddProblemDetails();
+
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -30,6 +38,10 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.MapHealthChecks("/health");
+
+app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
 
