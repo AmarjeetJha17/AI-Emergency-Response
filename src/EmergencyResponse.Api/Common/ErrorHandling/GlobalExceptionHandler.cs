@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
+﻿using EmergencyResponse.Application.Exceptions;
+
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EmergencyResponse.Api.Common.ErrorHandling;
 
-public sealed class GlobalExceptionHandler
-    : IExceptionHandler
+public sealed class GlobalExceptionHandler : IExceptionHandler
 {
     private readonly ILogger<GlobalExceptionHandler> _logger;
 
@@ -26,18 +27,28 @@ public sealed class GlobalExceptionHandler
             "Unhandled exception. TraceId: {TraceId}",
             traceId);
 
+        var statusCode = StatusCodes.Status500InternalServerError;
+
+        if (exception is UnauthorizedException)
+        {
+            statusCode = StatusCodes.Status401Unauthorized;
+        }
+        else if (exception is ConflictException)
+        {
+            statusCode = StatusCodes.Status409Conflict;
+        }
+
         var problem = new ProblemDetails
         {
-            Status = StatusCodes.Status500InternalServerError,
-            Title = "An unexpected error occurred.",
-            Detail = "The server encountered an unexpected error.",
+            Status = statusCode,
+            Title = "An error occurred.",
+            Detail = exception.Message,
             Instance = httpContext.Request.Path
         };
 
         problem.Extensions["traceId"] = traceId;
 
-        httpContext.Response.StatusCode =
-            StatusCodes.Status500InternalServerError;
+        httpContext.Response.StatusCode = statusCode;
 
         await httpContext.Response.WriteAsJsonAsync(
             problem,
