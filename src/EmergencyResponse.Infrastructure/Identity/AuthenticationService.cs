@@ -1,6 +1,7 @@
 ﻿using EmergencyResponse.Application.DTOs.Authentication;
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Application.Exceptions;
+using EmergencyResponse.Application.Common.Roles;
 
 using Microsoft.AspNetCore.Identity;
 
@@ -11,13 +12,16 @@ public sealed class AuthenticationService
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly IJwtTokenService _jwtTokenService;
 
     public AuthenticationService(
         UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager)
+        SignInManager<ApplicationUser> signInManager,
+        IJwtTokenService jwtTokenService)
     {
         _userManager = userManager;
         _signInManager = signInManager;
+        _jwtTokenService = jwtTokenService;
     }
 
     public async Task<UserResponse> RegisterAsync(
@@ -57,6 +61,19 @@ public sealed class AuthenticationService
             throw new InvalidOperationException(errors);
         }
 
+        var roleResult = await _userManager.AddToRoleAsync(
+            user,
+            ApplicationRoles.Citizen);
+
+        if (!roleResult.Succeeded)
+        {
+            var errors = string.Join(
+                "; ",
+                roleResult.Errors.Select(x => x.Description));
+
+            throw new InvalidOperationException(errors);
+        }
+
         return new UserResponse
         {
             Id = user.Id,
@@ -92,12 +109,31 @@ public sealed class AuthenticationService
                 "Invalid email or password.");
         }
 
+        var roles = await _userManager.GetRolesAsync(user);
+
+        var userInfo = new AuthenticationUserInfo
+        {
+            Id = user.Id,
+            Email = user.Email!,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Roles = roles.ToArray()
+        };
+
+        var (token, expiresAtUtc) =
+            await _jwtTokenService.GenerateTokenAsync(userInfo);
+
         user.LastLoginAtUtc = DateTime.UtcNow;
 
         await _userManager.UpdateAsync(user);
 
         return new AuthenticationResponse
         {
+            AccessToken = token,
+            ExpiresAtUtc = expiresAtUtc,
+
+            Roles = roles.ToArray(),
+
             User = new UserResponse
             {
                 Id = user.Id,

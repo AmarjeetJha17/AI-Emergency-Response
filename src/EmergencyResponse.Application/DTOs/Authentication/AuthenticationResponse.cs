@@ -7,4 +7,7 @@ public sealed record AuthenticationResponse
     public DateTime ExpiresAtUtc { get; init; }
 
     public UserResponse User { get; init; } = null!;
+
+    public IReadOnlyCollection<string> Roles { get; init; }
+        = Array.Empty<string>();
 }

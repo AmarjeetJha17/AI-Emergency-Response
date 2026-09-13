@@ -1,4 +1,4 @@
-﻿namespace EmergencyResponse.Api.Configuration;
+﻿namespace EmergencyResponse.Application.Common.Configuration;
 
 public sealed class JwtOptions
 {

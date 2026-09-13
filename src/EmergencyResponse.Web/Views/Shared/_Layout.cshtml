@@ -27,6 +27,39 @@
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
                     </ul>
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <span class="navbar-text me-3">
+                            Hello, @User.Identity.Name
+                        </span>
+
+                        <form asp-controller="Account"
+                              asp-action="Logout"
+                              method="post"
+                              class="d-inline">
+
+                            @Html.AntiForgeryToken()
+
+                            <button type="submit"
+                                    class="btn btn-outline-danger">
+                                Logout
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <a class="btn btn-outline-primary me-2"
+                           asp-controller="Account"
+                           asp-action="Login">
+                            Login
+                        </a>
+
+                        <a class="btn btn-primary"
+                           asp-controller="Account"
+                           asp-action="Register">
+                            Register
+                        </a>
+                    }
                 </div>
             </div>
         </nav>
