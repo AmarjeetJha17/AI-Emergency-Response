@@ -60,6 +60,24 @@
                             Register
                         </a>
                     }
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link"
+                               asp-controller="Incidents"
+                               asp-action="Index">
+                                Incidents
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link"
+                               asp-controller="Incidents"
+                               asp-action="Create">
+                                Report Emergency
+                            </a>
+                        </li>
+                    }
                 </div>
             </div>
         </nav>

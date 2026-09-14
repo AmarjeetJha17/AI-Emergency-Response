@@ -13,13 +13,16 @@ public sealed class IncidentService : IIncidentService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IIncidentNumberGenerator _numberGenerator;
+    private readonly ICurrentUserService _currentUserService;
 
     public IncidentService(
         ApplicationDbContext dbContext,
-        IIncidentNumberGenerator numberGenerator)
+        IIncidentNumberGenerator numberGenerator,
+        ICurrentUserService currentUserService)
     {
         _dbContext = dbContext;
         _numberGenerator = numberGenerator;
+        _currentUserService = currentUserService;
     }
 
     public async Task<IncidentResponse> CreateAsync(
@@ -46,6 +49,7 @@ public sealed class IncidentService : IIncidentService
         var incident = new Incident
         {
             Id = Guid.NewGuid(),
+            ReporterUserId = _currentUserService.UserId,
             IncidentNumber = incidentNumber,
             Title = request.Title.Trim(),
             Description = request.Description.Trim(),
@@ -164,7 +168,7 @@ public sealed class IncidentService : IIncidentService
         };
     }
 
-    public async Task<PagedResult<IncidentListItem>> GetPagedAsync(
+    public Task<PagedResult<IncidentListItem>> GetPagedAsync(
     int page,
     int pageSize,
     string? search,
@@ -172,6 +176,56 @@ public sealed class IncidentService : IIncidentService
     string? status,
     string? severity,
     CancellationToken cancellationToken = default)
+    {
+        return GetPagedInternalAsync(
+            page,
+            pageSize,
+            search,
+            incidentTypeId,
+            status,
+            severity,
+            reporterUserId: null,
+            cancellationToken);
+    }
+
+    public Task<PagedResult<IncidentListItem>> GetPagedForCurrentUserAsync(
+        int page,
+        int pageSize,
+        string? search,
+        Guid? incidentTypeId,
+        string? status,
+        string? severity,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = _currentUserService.UserId;
+
+        if (!_currentUserService.IsAuthenticated
+            || string.IsNullOrWhiteSpace(userId))
+        {
+            throw new UnauthorizedAccessException(
+                "The current user could not be identified.");
+        }
+
+        return GetPagedInternalAsync(
+            page,
+            pageSize,
+            search,
+            incidentTypeId,
+            status,
+            severity,
+            userId,
+            cancellationToken);
+    }
+
+    private async Task<PagedResult<IncidentListItem>> GetPagedInternalAsync(
+        int page,
+        int pageSize,
+        string? search,
+        Guid? incidentTypeId,
+        string? status,
+        string? severity,
+        string? reporterUserId,
+        CancellationToken cancellationToken)
     {
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -181,6 +235,12 @@ public sealed class IncidentService : IIncidentService
             .Include(x => x.IncidentType)
             .Include(x => x.Locations)
             .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(reporterUserId))
+        {
+            query = query.Where(
+                x => x.ReporterUserId == reporterUserId);
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {

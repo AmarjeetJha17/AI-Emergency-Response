@@ -1,0 +1,236 @@
+﻿@model EmergencyResponse.Application.DTOs.Incidents.CreateIncidentRequest
+
+@{
+    ViewData["Title"] = "Report Emergency";
+}
+
+<div class="container py-4">
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+
+                    <h2 class="mb-2">Report an Emergency</h2>
+
+                    <p class="text-muted mb-4">
+                        Provide as much accurate information as possible.
+                    </p>
+
+                    <form asp-action="Create" method="post">
+
+                        <div asp-validation-summary="ModelOnly"
+                             class="text-danger mb-3">
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Title"
+                                   class="form-label">
+                                Incident Title
+                            </label>
+
+                            <input asp-for="Title"
+                                   class="form-control"
+                                   placeholder="Example: Flood near bridge" />
+
+                            <span asp-validation-for="Title"
+                                  class="text-danger">
+                            </span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="IncidentTypeId"
+                                   class="form-label">
+                                Incident Type
+                            </label>
+
+                            <select asp-for="IncidentTypeId"
+                                    class="form-select">
+
+                                <option value="">
+                                    Select incident type
+                                </option>
+
+                                @foreach (var type in ViewBag.IncidentTypes)
+                                {
+                                    <option value="@type.Id">
+                                        @type.Name
+                                    </option>
+                                }
+
+                            </select>
+
+                            <span asp-validation-for="IncidentTypeId"
+                                  class="text-danger">
+                            </span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Description"
+                                   class="form-label">
+                                What happened?
+                            </label>
+
+                            <textarea asp-for="Description"
+                                      class="form-control"
+                                      rows="5"
+                                      placeholder="Describe the emergency...">
+                            </textarea>
+
+                            <span asp-validation-for="Description"
+                                  class="text-danger">
+                            </span>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <h5>Location</h5>
+
+                        <div class="row">
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Latitude"
+                                       class="form-label">
+                                    Latitude
+                                </label>
+
+                                <input asp-for="Latitude"
+                                       class="form-control" />
+
+                                <span asp-validation-for="Latitude"
+                                      class="text-danger">
+                                </span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Longitude"
+                                       class="form-label">
+                                    Longitude
+                                </label>
+
+                                <input asp-for="Longitude"
+                                       class="form-control" />
+
+                                <span asp-validation-for="Longitude"
+                                      class="text-danger">
+                                </span>
+                            </div>
+
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Address"
+                                   class="form-label">
+                                Address
+                            </label>
+
+                            <input asp-for="Address"
+                                   class="form-control" />
+                        </div>
+
+                        <div class="row">
+
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="City"
+                                       class="form-label">
+                                    City
+                                </label>
+
+                                <input asp-for="City"
+                                       class="form-control" />
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="District"
+                                       class="form-label">
+                                    District
+                                </label>
+
+                                <input asp-for="District"
+                                       class="form-control" />
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="State"
+                                       class="form-label">
+                                    State
+                                </label>
+
+                                <input asp-for="State"
+                                       class="form-control" />
+                            </div>
+
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <h5>Impact</h5>
+
+                        <div class="row">
+
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="PeopleAffected"
+                                       class="form-label">
+                                    People Affected
+                                </label>
+
+                                <input asp-for="PeopleAffected"
+                                       type="number"
+                                       min="0"
+                                       class="form-control" />
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="VehiclesAffected"
+                                       class="form-label">
+                                    Vehicles Affected
+                                </label>
+
+                                <input asp-for="VehiclesAffected"
+                                       type="number"
+                                       min="0"
+                                       class="form-control" />
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="Casualties"
+                                       class="form-label">
+                                    Casualties
+                                </label>
+
+                                <input asp-for="Casualties"
+                                       type="number"
+                                       min="0"
+                                       class="form-control" />
+                            </div>
+
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+
+                            <a asp-action="Index"
+                               class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+
+                            <button type="submit"
+                                    class="btn btn-danger">
+                                Submit Emergency Report
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

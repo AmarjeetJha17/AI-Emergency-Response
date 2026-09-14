@@ -1,0 +1,104 @@
+﻿@model EmergencyResponse.Application.DTOs.Incidents.IncidentResponse
+
+@{
+    ViewData["Title"] = "Incident Details";
+}
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2>@Model.Title</h2>
+            <div class="text-muted">
+                @Model.IncidentNumber
+            </div>
+        </div>
+
+        <a asp-action="Index"
+           class="btn btn-outline-secondary">
+            Back
+        </a>
+
+    </div>
+
+    <div class="row g-4">
+
+        <div class="col-lg-8">
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+
+                    <h5>Description</h5>
+
+                    <p>
+                        @Model.Description
+                    </p>
+
+                    <hr />
+
+                    <div class="row">
+
+                        <div class="col-md-6">
+                            <strong>Type</strong>
+                            <div>@Model.IncidentType</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <strong>Status</strong>
+                            <div>@Model.Status</div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <div class="col-lg-4">
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+
+                    <h5>Priority</h5>
+
+                    <p class="mb-1">
+                        Severity:
+                        <strong>@Model.Severity</strong>
+                    </p>
+
+                    <p>
+                        Priority:
+                        <strong>@Model.Priority</strong>
+                    </p>
+
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+
+                    <h5>Location</h5>
+
+                    <p class="mb-1">
+                        @Model.Address
+                    </p>
+
+                    <p class="mb-0">
+                        @Model.City
+                    </p>
+
+                    <small class="text-muted">
+                        @Model.Latitude,
+                        @Model.Longitude
+                    </small>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

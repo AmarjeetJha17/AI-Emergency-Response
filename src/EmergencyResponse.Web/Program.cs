@@ -46,6 +46,15 @@ builder.Services
         })
     .AddHttpMessageHandler<BearerTokenHandler>();
 
+builder.Services
+    .AddHttpClient<IIncidentTypeApiClient, IncidentTypeApiClient>(
+        client =>
+        {
+            client.BaseAddress = new Uri(
+                builder.Configuration["ApiSettings:BaseUrl"]!);
+        })
+    .AddHttpMessageHandler<BearerTokenHandler>();
+
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddTransient<BearerTokenHandler>();

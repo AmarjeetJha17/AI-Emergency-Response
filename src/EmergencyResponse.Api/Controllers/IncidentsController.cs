@@ -66,7 +66,7 @@ public class IncidentsController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var result =
-            await _incidentService.GetPagedAsync(
+            await _incidentService.GetPagedForCurrentUserAsync(
                 page,
                 pageSize,
                 search,

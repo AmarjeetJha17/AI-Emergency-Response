@@ -1,16 +1,20 @@
+using System.Text;
+
 using EmergencyResponse.Api.Common.ErrorHandling;
+using EmergencyResponse.Api.Services;
+using EmergencyResponse.Application.Common.Configuration;
+using EmergencyResponse.Application.Common.Roles;
+using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Infrastructure.Identity;
 using EmergencyResponse.Infrastructure.Persistence;
 using EmergencyResponse.Infrastructure.Persistence.Seed;
-using EmergencyResponse.Application.Interfaces;
-using Microsoft.Extensions.Options;
+using EmergencyResponse.Infrastructure.Services;
+
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using EmergencyResponse.Application.Common.Configuration;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using EmergencyResponse.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -101,6 +105,45 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IIncidentService,
     IncidentService>();
+
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddScoped<
+    ICurrentUserService,
+    CurrentUserService>();
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        "OperatorAccess",
+        policy =>
+        {
+            policy.RequireRole(
+                ApplicationRoles.Operator,
+                ApplicationRoles.EmergencyAdmin,
+                ApplicationRoles.SystemAdmin);
+        });
+
+    options.AddPolicy(
+        "ResponderAccess",
+        policy =>
+        {
+            policy.RequireRole(
+                ApplicationRoles.Responder,
+                ApplicationRoles.Operator,
+                ApplicationRoles.EmergencyAdmin,
+                ApplicationRoles.SystemAdmin);
+        });
+
+    options.AddPolicy(
+        "AdministrationAccess",
+        policy =>
+        {
+            policy.RequireRole(
+                ApplicationRoles.EmergencyAdmin,
+                ApplicationRoles.SystemAdmin);
+        });
+});
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 

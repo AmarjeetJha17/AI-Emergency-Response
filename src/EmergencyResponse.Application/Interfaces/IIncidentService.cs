@@ -21,4 +21,13 @@ public interface IIncidentService
         string? status,
         string? severity,
         CancellationToken cancellationToken = default);
+
+    Task<PagedResult<IncidentListItem>> GetPagedForCurrentUserAsync(
+        int page,
+        int pageSize,
+        string? search,
+        Guid? incidentTypeId,
+        string? status,
+        string? severity,
+        CancellationToken cancellationToken = default);
 }

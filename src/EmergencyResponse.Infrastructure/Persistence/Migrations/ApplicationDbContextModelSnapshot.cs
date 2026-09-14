@@ -212,6 +212,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("ReportedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("ReporterUserId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Severity")
                         .HasColumnType("int");
 
