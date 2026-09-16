@@ -1,6 +1,8 @@
 using EmergencyResponse.Domain.Common;
 using EmergencyResponse.Domain.Enums;
 
+using Microsoft.Data.SqlTypes;
+
 namespace EmergencyResponse.Domain.Entities;
 
 public class Incident : BaseEntity
@@ -49,4 +51,31 @@ public class Incident : BaseEntity
 
     public ICollection<AIAnalysis> AIAnalyses { get; set; }
         = new List<AIAnalysis>();
+
+    public int SeverityScore { get; set; }
+
+    public int PriorityScore { get; set; }
+
+    public string? SeverityReasonsJson { get; set; }
+
+    public string? PriorityReasonsJson { get; set; }
+
+    public SqlVector<float>? Embedding { get; set; }
+
+    public string? EmbeddingModel { get; set; }
+
+    public DateTime? EmbeddingGeneratedAtUtc { get; set; }
+
+    public DuplicateDetectionStatus DuplicateDetectionStatus { get; set; }
+        = DuplicateDetectionStatus.NotStarted;
+
+    public DateTime? DuplicateDetectionCompletedAtUtc { get; set; }
+
+    public string? DuplicateDetectionFailureReason { get; set; }
+
+    public bool IsCanonical { get; set; } = true;
+
+    public Guid? CanonicalIncidentId { get; set; }
+
+    public Incident? CanonicalIncident { get; set; }
 }

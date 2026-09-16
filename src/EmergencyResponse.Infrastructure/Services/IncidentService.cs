@@ -1,4 +1,6 @@
-﻿using EmergencyResponse.Application.DTOs.Common;
+﻿using EmergencyResponse.Application.AI.Interfaces;
+using EmergencyResponse.Application.AI.Jobs;
+using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.DTOs.Incidents;
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Domain.Entities;
@@ -14,15 +16,18 @@ public sealed class IncidentService : IIncidentService
     private readonly ApplicationDbContext _dbContext;
     private readonly IIncidentNumberGenerator _numberGenerator;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAIAnalysisQueue _aiQueue;
 
     public IncidentService(
         ApplicationDbContext dbContext,
         IIncidentNumberGenerator numberGenerator,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IAIAnalysisQueue aiQueue)
     {
         _dbContext = dbContext;
         _numberGenerator = numberGenerator;
         _currentUserService = currentUserService;
+        _aiQueue = aiQueue;
     }
 
     public async Task<IncidentResponse> CreateAsync(
@@ -97,6 +102,11 @@ public sealed class IncidentService : IIncidentService
         await _dbContext.SaveChangesAsync(
             cancellationToken);
 
+
+        await _aiQueue.EnqueueAsync(
+            new IncidentAIJob(incident.Id),
+            cancellationToken);
+
         return new IncidentResponse
         {
             Id = incident.Id,
@@ -105,6 +115,8 @@ public sealed class IncidentService : IIncidentService
             Description = incident.Description,
             IncidentType = incidentType.Name,
             Status = incident.Status.ToString(),
+            DuplicateDetectionStatus = incident.DuplicateDetectionStatus,
+            HasDuplicateCandidates = false,
             Severity = incident.Severity.ToString(),
             Priority = incident.Priority.ToString(),
             Latitude = request.Latitude,
@@ -127,6 +139,7 @@ public sealed class IncidentService : IIncidentService
                 .AsNoTracking()
                 .Include(x => x.IncidentType)
                 .Include(x => x.Locations)
+                .Include(x => x.CanonicalIncident)
                 .FirstOrDefaultAsync(
                     x => x.Id == id,
                     cancellationToken);
@@ -136,10 +149,35 @@ public sealed class IncidentService : IIncidentService
             return null;
         }
 
+        var hasDuplicateCandidates =
+            await _dbContext.IncidentDuplicateMatches
+                .AnyAsync(
+                    x =>
+                        x.SourceIncidentId == incident.Id &&
+                        !x.Reviewed &&
+                        x.DuplicateScore >= 0.75,
+                    cancellationToken);
+
         var location =
             incident.Locations
                 .FirstOrDefault(x => x.IsPrimary)
             ?? incident.Locations.FirstOrDefault();
+
+        var relatedIncidents =
+            await _dbContext.IncidentRelations
+                .AsNoTracking()
+                .Where(
+                    x => x.ParentIncidentId == incident.Id &&
+                         x.RelationType == EmergencyResponse.Domain.Enums.IncidentRelationType.Duplicate)
+                .OrderBy(x => x.CreatedAtUtc)
+                .Select(
+                    x => new RelatedIncidentResponse
+                    {
+                        Id = x.RelatedIncidentId,
+                        IncidentNumber = x.RelatedIncident.IncidentNumber,
+                        RelationType = x.RelationType.ToString()
+                    })
+                .ToListAsync(cancellationToken);
 
         return new IncidentResponse
         {
@@ -151,6 +189,11 @@ public sealed class IncidentService : IIncidentService
             IncidentType = incident.IncidentType.Name,
 
             Status = incident.Status.ToString(),
+            DuplicateDetectionStatus = incident.DuplicateDetectionStatus,
+            HasDuplicateCandidates = hasDuplicateCandidates,
+            CanonicalIncidentId = incident.CanonicalIncidentId,
+            CanonicalIncidentNumber = incident.CanonicalIncident?.IncidentNumber,
+            RelatedIncidents = relatedIncidents,
             Severity = incident.Severity.ToString(),
             Priority = incident.Priority.ToString(),
 

@@ -1,10 +1,12 @@
 using System.Text;
 
 using EmergencyResponse.Api.Common.ErrorHandling;
+using EmergencyResponse.Api.Hubs;
 using EmergencyResponse.Api.Services;
 using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Application.Common.Roles;
 using EmergencyResponse.Application.Interfaces;
+using EmergencyResponse.Infrastructure.AI;
 using EmergencyResponse.Infrastructure.Identity;
 using EmergencyResponse.Infrastructure.Persistence;
 using EmergencyResponse.Infrastructure.Persistence.Seed;
@@ -96,6 +98,26 @@ builder.Services
 
                 ClockSkew = TimeSpan.FromSeconds(30)
             };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken =
+                    context.Request.Query["access_token"];
+
+                var path =
+                    context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.StartsWithSegments("/hubs/incidents"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddScoped<
@@ -145,6 +167,35 @@ builder.Services.AddAuthorization(options =>
         });
 });
 
+builder.Services.AddAI(builder.Configuration);
+
+builder.Services.Configure<AIOptions>(
+    builder.Configuration.GetSection(
+        AIOptions.SectionName));
+
+builder.Services.AddSignalR();
+
+builder.Services.AddScoped<
+    IIncidentNotificationService,
+    IncidentNotificationService>();
+
+builder.Services.AddCors(
+    options =>
+    {
+        options.AddPolicy(
+            "WebClient",
+            policy =>
+            {
+                policy
+                    .WithOrigins(
+                        "http://localhost:5021",
+                        "https://localhost:7201")
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+            });
+    });
+
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddProblemDetails();
@@ -192,9 +243,13 @@ app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
 
+app.UseCors("WebClient");
+
 app.UseAuthentication();
 
 app.UseAuthorization();
+
+app.MapHub<IncidentHub>("/hubs/incidents");
 
 app.MapControllers();
 

@@ -14,6 +14,17 @@ public sealed record IncidentResponse
 
     public string Status { get; init; } = null!;
 
+    public DuplicateDetectionStatus DuplicateDetectionStatus { get; init; }
+
+    public bool HasDuplicateCandidates { get; init; }
+
+    public Guid? CanonicalIncidentId { get; init; }
+
+    public string? CanonicalIncidentNumber { get; init; }
+
+    public IReadOnlyList<RelatedIncidentResponse> RelatedIncidents { get; init; }
+        = Array.Empty<RelatedIncidentResponse>();
+
     public string Severity { get; init; } = null!;
 
     public string Priority { get; init; } = null!;

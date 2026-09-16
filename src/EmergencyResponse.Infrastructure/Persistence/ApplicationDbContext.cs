@@ -39,6 +39,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    public DbSet<IncidentDuplicateMatch>
+        IncidentDuplicateMatches
+        => Set<IncidentDuplicateMatch>();
+
+    public DbSet<IncidentRelation> IncidentRelations => Set<IncidentRelation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

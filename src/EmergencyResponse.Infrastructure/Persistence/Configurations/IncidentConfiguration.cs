@@ -83,5 +83,32 @@ public class IncidentConfiguration
             .WithOne(x => x.Incident)
             .HasForeignKey(x => x.IncidentId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Property(x => x.SeverityScore)
+            .IsRequired();
+
+        builder.Property(x => x.PriorityScore)
+            .IsRequired();
+
+        builder.Property(x => x.SeverityReasonsJson)
+            .HasColumnType("nvarchar(max)");
+
+        builder.Property(x => x.PriorityReasonsJson)
+            .HasColumnType("nvarchar(max)");
+
+        builder.Property(x => x.Embedding)
+            .HasColumnType("vector(1536)");
+
+        builder.Property(x => x.EmbeddingModel)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.EmbeddingGeneratedAtUtc);
+
+        builder.HasOne(x => x.CanonicalIncident)
+            .WithMany()
+            .HasForeignKey(x => x.CanonicalIncidentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => x.CanonicalIncidentId);
     }
 }
