@@ -1,4 +1,5 @@
 using EmergencyResponse.Domain.Common;
+using EmergencyResponse.Domain.Enums;
 
 namespace EmergencyResponse.Domain.Entities;
 
@@ -25,4 +26,9 @@ public class AIAnalysis : BaseEntity
     public bool HumanReviewed { get; set; }
 
     public string? HumanDecision { get; set; }
+
+    public AIAnalysisStatus Status { get; set; }
+
+    public string? FailureReason { get; set; }
+    public string? ExtractedFactsJson { get; set; }
 }
