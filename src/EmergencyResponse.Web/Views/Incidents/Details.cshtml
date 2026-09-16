@@ -102,3 +102,55 @@
     </div>
 
 </div>
+
+@if (Model.HasDuplicateCandidates)
+{
+    <div class="alert alert-warning d-flex justify-content-between align-items-center">
+        <div>
+            <strong>Possible duplicate incidents detected.</strong>
+            <div class="small">
+                Review the related reports before taking further action.
+            </div>
+        </div>
+
+        <a asp-action="Duplicates"
+           asp-route-id="@Model.Id"
+           class="btn btn-warning">
+            Review Duplicates
+        </a>
+    </div>
+}
+
+@if (Model.CanonicalIncidentId.HasValue)
+{
+    <div class="alert alert-info">
+        This incident has been identified as a duplicate of
+        <a asp-action="Details"
+           asp-route-id="@Model.CanonicalIncidentId">
+            @Model.CanonicalIncidentNumber
+        </a>.
+    </div>
+}
+
+@if (Model.RelatedIncidents.Count > 0)
+{
+    <div class="card mt-4">
+        <div class="card-header">
+            <strong>Related Incident Reports</strong>
+        </div>
+
+        <div class="list-group list-group-flush">
+            @foreach (var relatedIncident in Model.RelatedIncidents)
+            {
+                <a class="list-group-item list-group-item-action"
+                   asp-action="Details"
+                   asp-route-id="@relatedIncident.Id">
+                    @relatedIncident.IncidentNumber
+                    <span class="text-muted">
+                        @relatedIncident.RelationType
+                    </span>
+                </a>
+            }
+        </div>
+    </div>
+}

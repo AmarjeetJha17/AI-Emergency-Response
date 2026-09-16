@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 
+using EmergencyResponse.Application.AI.DTOs;
 using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.DTOs.Incidents;
 
@@ -46,6 +47,49 @@ public sealed class IncidentApiClient : IIncidentApiClient
         return await response.Content
             .ReadFromJsonAsync<IncidentResponse>(
                 cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<DuplicateIncidentCandidate>>
+        GetDuplicatesAsync(
+            Guid incidentId,
+            CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            $"api/incidents/{incidentId}/duplicates",
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var envelope =
+            await response.Content.ReadFromJsonAsync<
+                ApiResponseEnvelope<IReadOnlyList<DuplicateIncidentCandidate>>>(
+                cancellationToken);
+
+        return envelope?.Data ?? Array.Empty<DuplicateIncidentCandidate>();
+    }
+
+    public async Task ReviewDuplicateAsync(
+        Guid incidentId,
+        Guid matchId,
+        ReviewDuplicateIncidentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.PostAsJsonAsync(
+            $"api/incidents/{incidentId}/duplicates/{matchId}/review",
+            request,
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task<IncidentResponse?> GetByIdAsync(
@@ -124,5 +168,10 @@ public sealed class IncidentApiClient : IIncidentApiClient
         return await response.Content
             .ReadFromJsonAsync<PagedResult<IncidentListItem>>(
                 cancellationToken);
+    }
+
+    private sealed class ApiResponseEnvelope<T>
+    {
+        public T? Data { get; init; }
     }
 }

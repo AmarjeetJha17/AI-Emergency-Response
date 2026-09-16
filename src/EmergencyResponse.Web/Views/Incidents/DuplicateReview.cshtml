@@ -1,0 +1,186 @@
+﻿@using EmergencyResponse.Web.Models.Incidents
+@model DuplicateIncidentReviewViewModel
+
+@{
+    ViewData["Title"] = "Duplicate Incident Review";
+}
+
+<div class="container py-4">
+
+    <div class="mb-4">
+        <h2>Duplicate Incident Review</h2>
+        <p class="text-muted">
+            Compare the reports and record an operational review decision.
+        </p>
+    </div>
+
+    <div class="alert alert-warning">
+        <strong>Possible duplicate detected.</strong>
+        AI-assisted matching is advisory. Review the incident evidence before
+        making a decision.
+    </div>
+
+    <div class="row g-4">
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header">
+                    <strong>Source Incident</strong>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="mb-3">
+                        <small class="text-muted">Incident Number</small>
+                        <div class="fw-semibold">
+                            @Model.SourceIncidentNumber
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted">Type</small>
+                        <div>
+                            @Model.SourceIncidentType
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted">Title</small>
+                        <div>
+                            @Model.SourceTitle
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted">Description</small>
+                        <div>
+                            @Model.SourceDescription
+                        </div>
+                    </div>
+
+                    <div>
+                        <small class="text-muted">Location</small>
+                        <div>
+                            @Model.SourceLocation
+                        </div>
+                    </div>
+
+    <form asp-action="ReviewDuplicate"
+          asp-route-incidentId="@Model.SourceIncidentId"
+          asp-route-matchId="@Model.MatchId"
+          method="post"
+          class="mt-4">
+
+        @Html.AntiForgeryToken()
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label" for="ConfirmedDuplicate">
+                        Review decision
+                    </label>
+
+                    <select class="form-select"
+                            id="ConfirmedDuplicate"
+                            name="ConfirmedDuplicate">
+                        <option value="true">Confirmed Duplicate</option>
+                        <option value="false">Not a duplicate</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="CanonicalIncidentId">
+                        Canonical Incident
+                    </label>
+
+                    <select class="form-select"
+                            id="CanonicalIncidentId"
+                            name="CanonicalIncidentId">
+                        <option value="@Model.SourceIncidentId">
+                            @Model.SourceIncidentNumber
+                        </option>
+
+                        <option value="@Model.CandidateIncidentId">
+                            @Model.CandidateIncidentNumber
+                        </option>
+                    </select>
+
+                    <div class="form-text">
+                        The canonical incident remains the operational record.
+                        The other report will remain preserved as a duplicate.
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="ReviewDecision">
+                        Notes
+                    </label>
+
+                    <textarea class="form-control"
+                              id="ReviewDecision"
+                              name="ReviewDecision"
+                              rows="3"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Save Review Decision
+                </button>
+            </div>
+        </div>
+    </form>
+
+                </div>
+            </div>
+        </div>
+
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header">
+                    <strong>Candidate Incident</strong>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="mb-3">
+                        <small class="text-muted">Incident Number</small>
+                        <div class="fw-semibold">
+                            @Model.CandidateIncidentNumber
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted">Type</small>
+                        <div>
+                            @Model.CandidateIncidentType
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted">Title</small>
+                        <div>
+                            @Model.CandidateTitle
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted">Description</small>
+                        <div>
+                            @Model.CandidateDescription
+                        </div>
+                    </div>
+
+                    <div>
+                        <small class="text-muted">Location</small>
+                        <div>
+                            @Model.CandidateLocation
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>

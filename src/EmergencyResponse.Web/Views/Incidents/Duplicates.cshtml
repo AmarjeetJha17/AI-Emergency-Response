@@ -1,0 +1,118 @@
+﻿@model IReadOnlyList<
+ EmergencyResponse.Application.AI.DTOs.DuplicateIncidentCandidate >
+
+@{
+    ViewData["Title"] = "Possible Duplicate Incidents";
+}
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Possible Duplicate Incidents</h2>
+            <p class="text-muted mb-0">
+                Review related incident reports before taking an operational action.
+            </p>
+        </div>
+
+        <a asp-action="Index"
+           class="btn btn-outline-secondary">
+            Back to Incidents
+        </a>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-success">
+            No duplicate candidates were identified.
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+
+            @foreach (var candidate in Model)
+            {
+                <div class="col-12">
+                    <div class="card shadow-sm">
+
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <strong>
+                                @candidate.IncidentNumber
+                            </strong>
+
+                            <span class="badge bg-warning text-dark">
+                                Review Required
+                            </span>
+                        </div>
+
+                        <div class="card-body">
+
+                            <h5>
+                                @candidate.Title
+                            </h5>
+
+                            <div class="row mt-3">
+
+                                <div class="col-md-3">
+                                    <small class="text-muted">
+                                        Duplicate Score
+                                    </small>
+                                    <div class="fs-4 fw-bold">
+                                        @(candidate.DuplicateScore.ToString("P0"))
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <small class="text-muted">
+                                        Semantic
+                                    </small>
+                                    <div>
+                                        @candidate.SemanticSimilarity.ToString("P0")
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <small class="text-muted">
+                                        Geographic
+                                    </small>
+                                    <div>
+                                        @candidate.GeographicSimilarity.ToString("P0")
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <small class="text-muted">
+                                        Temporal
+                                    </small>
+                                    <div>
+                                        @candidate.TemporalSimilarity.ToString("P0")
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <small class="text-muted">
+                                        Distance
+                                    </small>
+                                    <div>
+                                        @candidate.DistanceKm.ToString("0.##") km
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div class="mt-4">
+                                <a asp-action="DuplicateReview"
+                                   asp-route-id="@candidate.IncidentId"
+                                   class="btn btn-primary">
+                                    Review Incident
+                                </a>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
