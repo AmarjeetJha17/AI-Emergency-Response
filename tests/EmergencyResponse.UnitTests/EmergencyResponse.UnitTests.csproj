@@ -9,9 +9,18 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EmergencyResponse.Api\EmergencyResponse.Api.csproj" />
+    <ProjectReference Include="..\..\src\EmergencyResponse.Application\EmergencyResponse.Application.csproj" />
+    <ProjectReference Include="..\..\src\EmergencyResponse.Domain\EmergencyResponse.Domain.csproj" />
+    <ProjectReference Include="..\..\src\EmergencyResponse.Infrastructure\EmergencyResponse.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\EmergencyResponse.Web\EmergencyResponse.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>
