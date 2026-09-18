@@ -1,3 +1,6 @@
+using EmergencyResponse.Application.Dashboard;
+using EmergencyResponse.Infrastructure.Dashboard;
+
 using System.Text;
 
 using EmergencyResponse.Api.Common.ErrorHandling;
@@ -127,6 +130,10 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IIncidentService,
     IncidentService>();
+
+builder.Services.AddScoped<
+    IDashboardService,
+    DashboardService>();
 
 builder.Services.AddHttpContextAccessor();
 

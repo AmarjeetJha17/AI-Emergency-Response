@@ -78,6 +78,19 @@
                                 Report Emergency
                             </a>
                         </li>
+
+                        @if (User.IsInRole("Operator") ||
+                             User.IsInRole("EmergencyAdmin") ||
+                             User.IsInRole("SystemAdmin"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link"
+                                   asp-controller="Dashboard"
+                                   asp-action="Index">
+                                    Dashboard
+                                </a>
+                            </li>
+                        }
                     }
                 </div>
             </div>

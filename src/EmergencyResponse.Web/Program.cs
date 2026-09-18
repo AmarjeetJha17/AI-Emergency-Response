@@ -55,6 +55,15 @@ builder.Services
         })
     .AddHttpMessageHandler<BearerTokenHandler>();
 
+builder.Services
+    .AddHttpClient<IDashboardApiClient, DashboardApiClient>(
+        client =>
+        {
+            client.BaseAddress = new Uri(
+                builder.Configuration["ApiSettings:BaseUrl"]!);
+        })
+    .AddHttpMessageHandler<BearerTokenHandler>();
+
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddTransient<BearerTokenHandler>();
