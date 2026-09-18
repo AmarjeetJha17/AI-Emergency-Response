@@ -477,6 +477,15 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("AIAnalysisCompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("AIAnalysisRequested")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ContentHash")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -499,8 +508,18 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsProcessed")
                         .HasColumnType("bit");
 
+                    b.Property<int>("MediaType")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("ProcessedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("StoragePath")
                         .IsRequired()
@@ -762,6 +781,85 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.HasIndex("ResourceId");
 
                     b.ToTable("ResourceAssignments", (string)null);
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.VisualAnalysis", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double?>("Confidence")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("ExecutionTimeMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("FindingsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FrameTimestampsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("FramesAnalyzed")
+                        .HasColumnType("int");
+
+                    b.Property<string>("HumanDecision")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("HumanReviewed")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("IncidentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IncidentMediaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModelName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ModelVersion")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PromptVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RawOutputJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double?>("VideoDurationSeconds")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IncidentId");
+
+                    b.HasIndex("IncidentMediaId");
+
+                    b.ToTable("VisualAnalyses");
                 });
 
             modelBuilder.Entity("EmergencyResponse.Infrastructure.Identity.ApplicationUser", b =>
@@ -1140,6 +1238,25 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Navigation("Incident");
 
                     b.Navigation("Resource");
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.VisualAnalysis", b =>
+                {
+                    b.HasOne("EmergencyResponse.Domain.Entities.Incident", "Incident")
+                        .WithMany()
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EmergencyResponse.Domain.Entities.IncidentMedia", "IncidentMedia")
+                        .WithMany()
+                        .HasForeignKey("IncidentMediaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Incident");
+
+                    b.Navigation("IncidentMedia");
                 });
 
             modelBuilder.Entity("EmergencyResponse.Infrastructure.Identity.ApplicationUser", b =>

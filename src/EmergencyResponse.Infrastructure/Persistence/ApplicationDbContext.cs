@@ -45,6 +45,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<IncidentRelation> IncidentRelations => Set<IncidentRelation>();
 
+    public DbSet<VisualAnalysis> VisualAnalyses =>
+        Set<VisualAnalysis>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -1,11 +1,14 @@
 ﻿using Azure.AI.OpenAI;
 using Azure.Identity;
 
+using EmergencyResponse.Application.AI;
 using EmergencyResponse.Application.AI.DuplicateDetection;
 using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Application.Decision.Interfaces;
+using EmergencyResponse.Application.Media;
 using EmergencyResponse.Infrastructure.Decision;
+using EmergencyResponse.Infrastructure.Media;
 using EmergencyResponse.Infrastructure.Persistence.Repositories;
 
 using Microsoft.Extensions.AI;
@@ -109,6 +112,38 @@ public static class DependencyInjection
         services.AddScoped<
             IIncidentConsolidationService,
             IncidentConsolidationService>();
+
+        services.AddSingleton<IIncidentMediaStorage,
+            LocalIncidentMediaStorage>();
+
+        services.AddScoped<
+            IIncidentVisualAnalysisService,
+            IncidentVisualAnalysisService>();
+
+        services.AddScoped<
+            IVisualReviewPolicy,
+            VisualReviewPolicy>();
+
+        services.AddSingleton<
+            IVisualAnalysisQueue,
+            InMemoryVisualAnalysisQueue>();
+
+        services.AddScoped<
+            VisualAnalysisOrchestrationService>();
+
+        services.AddHostedService<
+            VisualAnalysisBackgroundWorker>();
+
+        services.AddScoped<
+            IIncidentMediaService,
+            IncidentMediaService>();
+
+        services.Configure<VideoFrameExtractionOptions>(
+            configuration.GetSection("VideoFrameExtraction"));
+
+        services.AddScoped<
+            IVideoFrameExtractor,
+            FfmpegVideoFrameExtractor>();
 
         return services;
     }
