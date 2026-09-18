@@ -4,6 +4,10 @@ using EmergencyResponse.Application.DTOs.Incidents;
 
 namespace EmergencyResponse.Web.Services;
 
+public sealed record MediaStreamResult(
+    Stream Stream,
+    string ContentType);
+
 public interface IIncidentApiClient
 {
     Task<IncidentResponse?> CreateAsync(
@@ -32,5 +36,31 @@ public interface IIncidentApiClient
         Guid? incidentTypeId = null,
         string? status = null,
         string? severity = null,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<IncidentMediaResponse>> GetMediaAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken = default);
+
+    Task<VisualAnalysisResponse?> GetVisualAnalysisAsync(
+        Guid incidentId,
+        Guid mediaId,
+        CancellationToken cancellationToken = default);
+
+    Task<MediaStreamResult?> GetMediaStreamAsync(
+        Guid incidentId,
+        Guid mediaId,
+        CancellationToken cancellationToken = default);
+
+    Task ReviewVisualAnalysisAsync(
+        Guid incidentId,
+        Guid mediaId,
+        ReviewVisualAnalysisRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<MediaStreamResult?> GetFrameAsync(
+        Guid incidentId,
+        Guid mediaId,
+        int frameNumber,
         CancellationToken cancellationToken = default);
 }

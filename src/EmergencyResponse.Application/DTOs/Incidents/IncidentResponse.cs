@@ -1,4 +1,6 @@
-﻿namespace EmergencyResponse.Application.DTOs.Incidents;
+﻿using EmergencyResponse.Domain.Enums;
+
+namespace EmergencyResponse.Application.DTOs.Incidents;
 
 public sealed record IncidentResponse
 {
@@ -44,4 +46,6 @@ public sealed record IncidentResponse
     public int? Casualties { get; init; }
 
     public DateTime ReportedAtUtc { get; init; }
+
+    public IReadOnlyList<IncidentMediaResponse> VisualEvidence { get; init; } = [];
 }

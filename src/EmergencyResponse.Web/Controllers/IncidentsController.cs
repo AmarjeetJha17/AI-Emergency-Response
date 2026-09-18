@@ -7,6 +7,7 @@ using ApplicationReviewDuplicateIncidentRequest =
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using EmergencyResponse.Domain.Enums;
 
 namespace EmergencyResponse.Web.Controllers;
 
@@ -110,17 +111,41 @@ public class IncidentsController : Controller
         Guid id,
         CancellationToken cancellationToken)
     {
-        var result =
-            await _incidentApiClient.GetByIdAsync(
-                id,
-                cancellationToken);
+        var incident = await _incidentApiClient.GetByIdAsync(
+            id,
+            cancellationToken);
 
-        if (result is null)
+        if (incident is null)
         {
             return NotFound();
         }
 
-        return View(result);
+        var isOperator =
+            User.IsInRole("Operator") ||
+            User.IsInRole("EmergencyAdmin") ||
+            User.IsInRole("SystemAdmin");
+
+        if (isOperator)
+        {
+            var evidence = incident.VisualEvidence
+                .Select(m => new VisualEvidenceViewModel
+                {
+                    IncidentId = id,
+                    MediaId = m.Id,
+                    IncidentNumber = incident.IncidentNumber,
+                    ContentType = m.ContentType,
+                    MediaUrl = Url.Action(
+                        "Media",
+                        "Incidents",
+                        new { incidentId = id, mediaId = m.Id })!,
+                    Analysis = m.Analysis
+                })
+                .ToList();
+
+            ViewBag.VisualEvidence = evidence;
+        }
+
+        return View(incident);
     }
 
     [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
@@ -211,6 +236,88 @@ public class IncidentsController : Controller
 
     [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
     [HttpGet]
+    public async Task<IActionResult> Media(
+        Guid incidentId,
+        Guid mediaId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _incidentApiClient.GetMediaStreamAsync(
+            incidentId,
+            mediaId,
+            cancellationToken);
+
+        if (result is null)
+        {
+            return NotFound();
+        }
+
+        return File(
+            result.Stream,
+            result.ContentType,
+            enableRangeProcessing: true);
+    }
+
+    [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
+    [HttpGet]
+    public async Task<IActionResult> VisualReview(
+        Guid id,
+        Guid mediaId,
+        CancellationToken cancellationToken)
+    {
+        var incident = await _incidentApiClient.GetByIdAsync(
+            id,
+            cancellationToken);
+
+        if (incident is null)
+        {
+            return NotFound();
+        }
+
+        var analysis = await _incidentApiClient.GetVisualAnalysisAsync(
+            id,
+            mediaId,
+            cancellationToken);
+
+        if (analysis is null)
+        {
+            return NotFound();
+        }
+
+        ViewBag.IncidentId = id;
+        ViewBag.MediaId = mediaId;
+        ViewBag.IncidentNumber = incident.IncidentNumber;
+        ViewBag.MediaUrl = Url.Action(
+            "Media",
+            "Incidents",
+            new { incidentId = id, mediaId });
+
+        return View(analysis);
+    }
+
+    [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> VisualReview(
+        Guid id,
+        Guid mediaId,
+        ReviewVisualAnalysisRequest request,
+        CancellationToken cancellationToken)
+    {
+        await _incidentApiClient.ReviewVisualAnalysisAsync(
+            id,
+            mediaId,
+            request,
+            cancellationToken);
+
+        TempData["SuccessMessage"] = "Visual analysis review saved.";
+
+        return RedirectToAction(
+            nameof(Details),
+            new { id });
+    }
+
+    [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
+    [HttpGet]
     public async Task<IActionResult> Duplicates(
         Guid id,
         CancellationToken cancellationToken)
@@ -221,5 +328,32 @@ public class IncidentsController : Controller
                 cancellationToken);
 
         return View(candidates);
+    }
+
+    /// <summary>
+    /// Proxies a single extracted video frame JPEG from the API.
+    /// This action exists so the browser request carries the operator's
+    /// bearer token via BearerTokenHandler — frames are protected content.
+    /// </summary>
+    [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
+    [HttpGet]
+    public async Task<IActionResult> Frame(
+        Guid incidentId,
+        Guid mediaId,
+        int frameNumber,
+        CancellationToken cancellationToken)
+    {
+        var result = await _incidentApiClient.GetFrameAsync(
+            incidentId,
+            mediaId,
+            frameNumber,
+            cancellationToken);
+
+        if (result is null)
+        {
+            return NotFound();
+        }
+
+        return File(result.Stream, result.ContentType);
     }
 }

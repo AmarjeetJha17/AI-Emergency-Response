@@ -1,7 +1,11 @@
 ﻿@model EmergencyResponse.Application.DTOs.Incidents.IncidentResponse
+@using EmergencyResponse.Domain.Enums
+@using EmergencyResponse.Web.Models.Incidents
 
 @{
     ViewData["Title"] = "Incident Details";
+    var visualEvidence = ViewBag.VisualEvidence as List<VisualEvidenceViewModel>
+        ?? new List<VisualEvidenceViewModel>();
 }
 
 <div class="container py-4">
@@ -153,4 +157,288 @@
             }
         </div>
     </div>
+}
+
+@if (User.IsInRole("Operator") || User.IsInRole("EmergencyAdmin") || User.IsInRole("SystemAdmin"))
+{
+    <div class="card shadow-sm mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <strong>Visual Evidence</strong>
+                <div class="small text-muted">
+                    AI-assisted analysis of uploaded incident media
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body">
+            @if (!visualEvidence.Any())
+            {
+                <div class="text-muted">
+                    No visual evidence has been uploaded.
+                </div>
+            }
+            else
+            {
+                <div class="row g-4">
+                    @foreach (var item in visualEvidence)
+                    {
+                        <div class="col-lg-6">
+                            <div class="border rounded p-3" data-evidence-card="@item.MediaId">
+
+                                @{
+                                    var isVideo = item.ContentType.StartsWith("video/");
+                                }
+
+                                @if (isVideo)
+                                {
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <span class="badge bg-dark">VIDEO</span>
+                                        <a href="@item.MediaUrl"
+                                           target="_blank"
+                                           class="btn btn-sm btn-outline-secondary">
+                                            &#9654; Original video
+                                        </a>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="mb-2">
+                                        <span class="badge bg-secondary">IMAGE</span>
+                                    </div>
+
+                                    <button type="button"
+                                            class="btn btn-link p-0 w-100"
+                                            onclick="openEvidence('@item.MediaUrl')">
+                                        <img src="@item.MediaUrl"
+                                             alt="Incident evidence"
+                                             class="img-fluid rounded" />
+                                    </button>
+                                }
+
+                                @if (item.Analysis is not null)
+                                {
+                                    <hr />
+
+                                    <div class="mb-2 d-flex flex-wrap gap-2 align-items-center">
+                                        <span class="small text-muted">AI Analysis</span>
+                                        <span class="badge @(item.Analysis.Status == VisualAnalysisStatus.RequiresReview ? "bg-warning text-dark" : item.Analysis.Status == VisualAnalysisStatus.Failed ? "bg-danger" : "bg-success")"
+                                              data-analysis-status="@item.MediaId">
+                                            @item.Analysis.Status
+                                        </span>
+                                    </div>
+
+                                    @if (item.Analysis.HumanReviewed)
+                                    {
+                                        <div class="mb-2 d-flex flex-wrap gap-2 align-items-center">
+                                            <span class="small text-muted">Human Review</span>
+                                            <span class="badge @(item.Analysis.HumanReviewOutcome == "Rejected" ? "bg-danger" : "bg-primary")">
+                                                @item.Analysis.HumanReviewOutcome
+                                            </span>
+                                            @if (!string.IsNullOrWhiteSpace(item.Analysis.HumanDecision))
+                                            {
+                                                <span class="small text-muted fst-italic">@item.Analysis.HumanDecision</span>
+                                            }
+                                        </div>
+                                    }
+
+                                    @if (isVideo && item.Analysis.FramesAnalyzed.HasValue)
+                                    {
+                                        <div class="small text-muted mb-2">
+                                            @item.Analysis.FramesAnalyzed frames analyzed
+                                            @if (item.Analysis.VideoDurationSeconds.HasValue)
+                                            {
+                                                var dur = TimeSpan.FromSeconds(item.Analysis.VideoDurationSeconds.Value);
+                                                <span>&#8226; Duration: @dur.ToString(@"mm\:ss")</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-1">@item.Analysis.SceneDescription</p>
+                                    }
+
+                                    <div class="small text-muted mb-2">
+                                        Confidence: @item.Analysis.Confidence.ToString("P0")
+                                    </div>
+
+                                    @if (item.Analysis.DetectedHazards.Any())
+                                    {
+                                        <div class="mt-2 d-flex flex-wrap gap-1">
+                                            @foreach (var hazard in item.Analysis.DetectedHazards)
+                                            {
+                                                <span class="badge bg-danger">@hazard</span>
+                                            }
+                                        </div>
+                                    }
+
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-6">
+                                            <span class="small text-muted">Flooding</span>
+                                            <div>@(item.Analysis.FloodingVisible ? "Yes" : "No")</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="small text-muted">Road blocked</span>
+                                            <div>@(item.Analysis.RoadAppearsBlocked ? "Yes" : "No")</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="small text-muted">Fire</span>
+                                            <div>@(item.Analysis.FireVisible ? "Yes" : "No")</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="small text-muted">Smoke</span>
+                                            <div>@(item.Analysis.SmokeVisible ? "Yes" : "No")</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="small text-muted">Structural damage</span>
+                                            <div>@(item.Analysis.StructuralDamageVisible ? "Yes" : "No")</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="small text-muted">People trapped</span>
+                                            <div>@(item.Analysis.PeopleAppearTrapped ? "Yes" : "No")</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="small text-muted">Immediate danger</span>
+                                            <div>@(item.Analysis.ImmediateDangerVisible ? "Yes" : "No")</div>
+                                        </div>
+                                        @if (item.Analysis.EstimatedVehiclesAffected.HasValue)
+                                        {
+                                            <div class="col-6">
+                                                <span class="small text-muted">Vehicles affected</span>
+                                                <div>@item.Analysis.EstimatedVehiclesAffected</div>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(item.Analysis.RecommendedResponse))
+                                    {
+                                        <div class="mt-3 p-2 bg-light rounded">
+                                            <span class="small text-muted">Recommended Response</span>
+                                            <div>@item.Analysis.RecommendedResponse</div>
+                                        </div>
+                                    }
+
+                                    @if (isVideo && item.Analysis.FrameFindings.Any())
+                                    {
+                                        <button type="button"
+                                                class="btn btn-outline-primary btn-sm mt-3 w-100"
+                                                onclick="openFrameFindings('@item.IncidentId', '@item.MediaId', '@System.Text.Json.JsonSerializer.Serialize(item.Analysis.FrameFindings)')">
+                                            View Frame Findings
+                                        </button>
+                                    }
+
+                                    @if (item.Analysis.Status == VisualAnalysisStatus.RequiresReview)
+                                    {
+                                        <div class="alert alert-warning mt-3">
+                                            <strong>Human review required.</strong>
+                                            <div class="small mt-1">
+                                                This visual analysis contains evidence requiring
+                                                operator verification.
+                                            </div>
+                                            <a asp-action="VisualReview"
+                                               asp-route-id="@Model.Id"
+                                               asp-route-mediaId="@item.MediaId"
+                                               class="btn btn-warning btn-sm mt-2">
+                                                Review Analysis
+                                            </a>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="mt-2">
+                                        <span class="badge bg-secondary"
+                                              data-analysis-status="@item.MediaId">
+                                            Analyzing&hellip;
+                                        </span>
+                                    </div>
+                                }
+
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <ejs-dialog id="evidenceDialog"
+                width="90%"
+                height="90%"
+                showCloseIcon="true"
+                visible="false"
+                isModal="true"
+                header="Incident Evidence">
+    </ejs-dialog>
+
+    <ejs-dialog id="frameDialog"
+                width="95%"
+                height="95%"
+                showCloseIcon="true"
+                visible="false"
+                isModal="true"
+                header="Frame Findings">
+    </ejs-dialog>
+}
+
+@section Scripts {
+    <script>
+        function openEvidence(imageUrl) {
+            const dialog =
+                document.getElementById('evidenceDialog')
+                    .ej2_instances[0];
+
+            dialog.content =
+                `<div class="h-100 d-flex align-items-center justify-content-center">
+                    <img src="${imageUrl}"
+                         alt="Emergency evidence"
+                         style="max-width:100%; max-height:100%; object-fit:contain;" />
+                 </div>`;
+
+            dialog.show();
+        }
+
+        function openFrameFindings(incidentId, mediaId, json) {
+            const frames = JSON.parse(json);
+            const dialog = document.getElementById('frameDialog').ej2_instances[0];
+
+            const rows = frames.map(f => {
+                const mm = String(Math.floor(f.timestampSeconds / 60)).padStart(2, '0');
+                const ss = String(Math.floor(f.timestampSeconds % 60)).padStart(2, '0');
+                const hazards = (f.detectedHazards || []).length
+                    ? f.detectedHazards.map(h => `<span class="badge bg-danger me-1">${h}</span>`).join('')
+                    : '<span class="text-muted">None</span>';
+
+                // Frame image proxied through the Web MVC action so the bearer
+                // token is applied automatically by BearerTokenHandler.
+                const frameUrl =
+                    `/Incidents/Frame?incidentId=${incidentId}&mediaId=${mediaId}&frameNumber=${f.frameNumber}`;
+
+                return `<div class="border rounded p-3 mb-3">
+                    <div class="fw-bold mb-2">${mm}:${ss}</div>
+                    <div class="mb-2 text-center bg-dark rounded overflow-hidden" style="max-height:220px">
+                        <img src="${frameUrl}"
+                             alt="Frame at ${mm}:${ss}"
+                             class="img-fluid"
+                             style="max-height:220px;object-fit:contain;"
+                             onerror="this.closest('.mb-2').style.display='none'" />
+                    </div>
+                    <p class="mb-1 small">${f.sceneDescription || ''}</p>
+                    <div class="mb-1"><span class="small text-muted">Hazards: </span>${hazards}</div>
+                    <div class="row g-1 small mt-1">
+                        <div class="col-6">Flooding: ${f.floodingVisible ? 'Yes' : 'No'}</div>
+                        <div class="col-6">Road blocked: ${f.roadAppearsBlocked ? 'Yes' : 'No'}</div>
+                        <div class="col-6">Fire: ${f.fireVisible ? 'Yes' : 'No'}</div>
+                        <div class="col-6">Smoke: ${f.smokeVisible ? 'Yes' : 'No'}</div>
+                        <div class="col-6">Immediate danger: ${f.immediateDangerVisible ? 'Yes' : 'No'}</div>
+                        <div class="col-6">People trapped: ${f.peopleAppearTrapped ? 'Yes' : 'No'}</div>
+                    </div>
+                    <div class="small text-muted mt-1">Confidence: ${(f.confidence * 100).toFixed(0)}%</div>
+                </div>`;
+            }).join('');
+
+            dialog.content = `<div style="overflow-y:auto;max-height:80vh;padding:1rem">${rows}</div>`;
+            dialog.show();
+        }
+    </script>
 }

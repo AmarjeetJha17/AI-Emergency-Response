@@ -1,36 +1,36 @@
-﻿"use strict";
+(function () {
+    const apiBase = document.currentScript?.dataset.apiBase ?? '';
 
-const connection = new signalR.HubConnectionBuilder()
-    .withUrl("https://localhost:7191/hubs/incidents", {
-        accessTokenFactory: () =>
-            window.emergencyResponseAccessToken ?? ""
-    })
-    .withAutomaticReconnect()
-    .configureLogging(signalR.LogLevel.Information)
-    .build();
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl(apiBase + '/hubs/incident')
+        .withAutomaticReconnect()
+        .build();
 
-connection.on("IncidentUpdated", function (notification) {
-    console.log("Incident updated:", notification);
+    connection.on('IncidentUpdated', function (event) {
+        if (!event.visualAnalysisAvailable) return;
 
-    window.dispatchEvent(
-        new CustomEvent(
-            "incidentUpdated",
-            {
-                detail: notification
-            }));
-});
+        const badge = document.querySelector(
+            `[data-analysis-status="${event.incidentMediaId ?? ''}"]`
+        );
 
-async function startIncidentHub() {
-    try {
-        await connection.start();
+        if (!badge) return;
 
-        console.log("Incident SignalR connected.");
+        const status = event.visualAnalysisStatus ?? 'Completed';
+
+        badge.textContent = status;
+        badge.className = 'badge ' + statusClass(status);
+    });
+
+    function statusClass(status) {
+        switch (status) {
+            case 'RequiresReview': return 'bg-warning text-dark';
+            case 'Failed':        return 'bg-danger';
+            case 'Rejected':      return 'bg-danger';
+            default:              return 'bg-success';
+        }
     }
-    catch (err) {
-        console.error("SignalR connection failed.", err);
 
-        setTimeout(startIncidentHub, 5000);
-    }
-}
-
-startIncidentHub();
+    connection.start().catch(function (err) {
+        console.warn('SignalR connection failed:', err);
+    });
+}());

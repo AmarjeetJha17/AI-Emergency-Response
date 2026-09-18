@@ -170,8 +170,135 @@ public sealed class IncidentApiClient : IIncidentApiClient
                 cancellationToken);
     }
 
+    public async Task ReviewVisualAnalysisAsync(
+        Guid incidentId,
+        Guid mediaId,
+        ReviewVisualAnalysisRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.PostAsJsonAsync(
+            $"api/incidents/{incidentId}/media/{mediaId}/analysis/review",
+            request,
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+    }
+
     private sealed class ApiResponseEnvelope<T>
     {
         public T? Data { get; init; }
+    }
+
+    public async Task<IReadOnlyList<IncidentMediaResponse>> GetMediaAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            $"api/incidents/{incidentId}/media",
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return Array.Empty<IncidentMediaResponse>();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<IReadOnlyList<IncidentMediaResponse>>(
+                cancellationToken)
+            ?? Array.Empty<IncidentMediaResponse>();
+    }
+
+    public async Task<VisualAnalysisResponse?> GetVisualAnalysisAsync(
+        Guid incidentId,
+        Guid mediaId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            $"api/incidents/{incidentId}/media/{mediaId}/analysis",
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound ||
+            response.StatusCode == HttpStatusCode.Unauthorized ||
+            response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<VisualAnalysisResponse>(
+                cancellationToken);
+    }
+
+    public async Task<MediaStreamResult?> GetMediaStreamAsync(
+        Guid incidentId,
+        Guid mediaId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            $"api/incidents/{incidentId}/media/{mediaId}",
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound ||
+            response.StatusCode == HttpStatusCode.Unauthorized ||
+            response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var contentType =
+            response.Content.Headers.ContentType?.MediaType
+            ?? "application/octet-stream";
+
+        var stream = await response.Content
+            .ReadAsStreamAsync(cancellationToken);
+
+        return new MediaStreamResult(stream, contentType);
+    }
+
+    public async Task<MediaStreamResult?> GetFrameAsync(
+        Guid incidentId,
+        Guid mediaId,
+        int frameNumber,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            $"api/incidents/{incidentId}/media/{mediaId}/analysis/frames/{frameNumber}",
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound ||
+            response.StatusCode == HttpStatusCode.Unauthorized ||
+            response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var contentType =
+            response.Content.Headers.ContentType?.MediaType
+            ?? "image/jpeg";
+
+        var stream = await response.Content
+            .ReadAsStreamAsync(cancellationToken);
+
+        return new MediaStreamResult(stream, contentType);
     }
 }

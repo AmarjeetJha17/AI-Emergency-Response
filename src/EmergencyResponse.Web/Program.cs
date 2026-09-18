@@ -59,6 +59,18 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddTransient<BearerTokenHandler>();
 
+var syncfusionLicense =
+    builder.Configuration["Syncfusion:LicenseKey"];
+
+if (string.IsNullOrWhiteSpace(syncfusionLicense))
+{
+    throw new InvalidOperationException(
+        "Syncfusion license key is not configured.");
+}
+
+Syncfusion.Licensing.SyncfusionLicenseProvider
+    .RegisterLicense(syncfusionLicense);
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

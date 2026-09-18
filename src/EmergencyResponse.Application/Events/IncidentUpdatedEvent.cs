@@ -23,4 +23,10 @@ public sealed record IncidentUpdatedEvent
     public int PriorityScore { get; init; }
 
     public string UpdateType { get; init; } = null!;
+
+    public bool VisualAnalysisAvailable { get; init; }
+
+    public VisualAnalysisStatus? VisualAnalysisStatus { get; init; }
+
+    public Guid? IncidentMediaId { get; init; }
 }

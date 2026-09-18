@@ -9,6 +9,8 @@ using EmergencyResponse.Infrastructure.Persistence;
 
 using Microsoft.EntityFrameworkCore;
 
+using System.Text.Json;
+
 namespace EmergencyResponse.Infrastructure.Services;
 
 public sealed class IncidentService : IIncidentService
@@ -179,6 +181,95 @@ public sealed class IncidentService : IIncidentService
                     })
                 .ToListAsync(cancellationToken);
 
+        var mediaItems = await _dbContext.IncidentMedia
+            .AsNoTracking()
+            .Where(x => x.IncidentId == id)
+            .OrderBy(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var latestAnalyses = await _dbContext.VisualAnalyses
+            .AsNoTracking()
+            .Where(x => x.IncidentId == id)
+            .GroupBy(x => x.IncidentMediaId)
+            .Select(g => g.OrderByDescending(x => x.CreatedAtUtc).First())
+            .ToListAsync(cancellationToken);
+
+        var analysisByMediaId = latestAnalyses.ToDictionary(x => x.IncidentMediaId);
+
+        var visualEvidence = mediaItems.Select(m =>
+        {
+            analysisByMediaId.TryGetValue(m.Id, out var analysis);
+
+            VisualAnalysisResponse? analysisResponse = null;
+            if (analysis is not null)
+            {
+                var findings = analysis.FindingsJson is not null
+                    ? JsonSerializer.Deserialize<Application.AI.VisualAnalysis.VisualAnalysisResult>(
+                        analysis.FindingsJson,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                    : null;
+
+                analysisResponse = new VisualAnalysisResponse
+                {
+                    Id = analysis.Id,
+                    IncidentMediaId = analysis.IncidentMediaId,
+                    Status = analysis.Status,
+                    SceneDescription = findings?.SceneDescription ?? string.Empty,
+                    DetectedHazards = findings?.DetectedHazards ?? [],
+                    VisibleEmergencyIndicators = findings?.VisibleEmergencyIndicators ?? [],
+                    EstimatedPeopleAffected = findings?.EstimatedPeopleAffected,
+                    EstimatedVehiclesAffected = findings?.EstimatedVehiclesAffected,
+                    PeopleAppearTrapped = findings?.PeopleAppearTrapped ?? false,
+                    RoadAppearsBlocked = findings?.RoadAppearsBlocked ?? false,
+                    StructuralDamageVisible = findings?.StructuralDamageVisible ?? false,
+                    FireVisible = findings?.FireVisible ?? false,
+                    FloodingVisible = findings?.FloodingVisible ?? false,
+                    SmokeVisible = findings?.SmokeVisible ?? false,
+                    ImmediateDangerVisible = findings?.ImmediateDangerVisible ?? false,
+                    RecommendedResponse = findings?.RecommendedResponse,
+                    Confidence = findings?.Confidence ?? analysis.Confidence ?? 0,
+                    HumanReviewed = analysis.HumanReviewed,
+                    HumanDecision = analysis.HumanDecision,
+                    FramesAnalyzed = analysis.FramesAnalyzed,
+                    VideoDurationSeconds = analysis.VideoDurationSeconds,
+                    FrameFindings = findings?.FrameFindings
+                        .Select(f => new VisualFrameFindingResponse
+                        {
+                            FrameNumber = f.FrameNumber,
+                            TimestampSeconds = f.TimestampSeconds,
+                            SceneDescription = f.SceneDescription,
+                            DetectedHazards = f.DetectedHazards,
+                            EstimatedPeopleAffected = f.EstimatedPeopleAffected,
+                            EstimatedVehiclesAffected = f.EstimatedVehiclesAffected,
+                            PeopleAppearTrapped = f.PeopleAppearTrapped,
+                            RoadAppearsBlocked = f.RoadAppearsBlocked,
+                            StructuralDamageVisible = f.StructuralDamageVisible,
+                            FireVisible = f.FireVisible,
+                            FloodingVisible = f.FloodingVisible,
+                            SmokeVisible = f.SmokeVisible,
+                            ImmediateDangerVisible = f.ImmediateDangerVisible,
+                            Confidence = f.Confidence
+                        })
+                        .ToList() ?? []
+                };
+            }
+
+            return new IncidentMediaResponse
+            {
+                Id = m.Id,
+                IncidentId = m.IncidentId,
+                ContentType = m.ContentType,
+                SizeBytes = m.SizeBytes,
+                CreatedAtUtc = m.CreatedAtUtc,
+                AIAnalysisRequested = m.AIAnalysisRequested,
+                MediaType = m.MediaType,
+                VisualAnalysisStatus = analysis?.Status,
+                VisualAnalysisConfidence = analysis?.Confidence,
+                MediaUrl = $"/api/incidents/{id}/media/{m.Id}",
+                Analysis = analysisResponse
+            };
+        }).ToList();
+
         return new IncidentResponse
         {
             Id = incident.Id,
@@ -207,7 +298,8 @@ public sealed class IncidentService : IIncidentService
             VehiclesAffected = incident.VehiclesAffected,
             Casualties = incident.Casualties,
 
-            ReportedAtUtc = incident.ReportedAtUtc
+            ReportedAtUtc = incident.ReportedAtUtc,
+            VisualEvidence = visualEvidence
         };
     }
 
