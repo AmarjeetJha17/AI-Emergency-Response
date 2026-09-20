@@ -21,18 +21,34 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using EmergencyResponse.Application.Validators.Authentication;
+
 var builder = WebApplication.CreateBuilder(args);
 
 
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (builder.Environment.IsEnvironment("Test"))
+    {
+        options.UseSqlite(
+            builder.Configuration.GetConnectionString("DefaultConnection"));
+    }
+    else
+    {
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString("DefaultConnection"));
+    }
+});
 
 builder.Services.AddDataProtection();
 
@@ -224,6 +240,11 @@ using (var scope = app.Services.CreateScope())
 
     var userManager =
         services.GetRequiredService<UserManager<ApplicationUser>>();
+
+    if (app.Environment.IsEnvironment("Test"))
+    {
+        await dbContext.Database.EnsureCreatedAsync();
+    }
 
     await DatabaseSeeder.SeedAsync(dbContext);
 

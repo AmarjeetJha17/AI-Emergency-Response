@@ -8,6 +8,7 @@
   <ItemGroup>
     <PackageReference Include="Syncfusion.AspNetCore.Charts" Version="34.1.29" />
     <PackageReference Include="Syncfusion.AspNetCore.Grid" Version="34.1.29" />
+    <PackageReference Include="Syncfusion.AspNetCore.Navigations" Version="34.1.29" />
     <PackageReference Include="Syncfusion.AspNetCore.Popups" Version="34.1.29" />
     <PackageReference Include="Syncfusion.AspNetCore.Themes" Version="34.1.29" />
     <PackageReference Include="Syncfusion.Licensing" Version="34.1.29" />

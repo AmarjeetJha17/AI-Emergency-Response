@@ -1,24 +1,77 @@
 (function () {
     const apiBase = document.currentScript?.dataset.apiBase ?? '';
 
+    function getToken() {
+        const meta = document.querySelector('meta[name="signalr-token"]');
+        return meta ? meta.content : '';
+    }
+
+    const token = getToken();
+    if (!token) {
+        return;
+    }
+
+    const isDashboard = document.getElementById('emergencyDashboard') !== null;
+
     const connection = new signalR.HubConnectionBuilder()
-        .withUrl(apiBase + '/hubs/incident')
+        .withUrl(apiBase + '/hubs/incidents', {
+            accessTokenFactory: getToken
+        })
         .withAutomaticReconnect()
         .build();
 
+    // ── Connection Lifecycle ────────────────────────────────────────────────
+    connection.onreconnecting(function () {
+        if (isDashboard) {
+            setConnectionStatus('Reconnecting...', 'bg-warning text-dark');
+        }
+    });
+
+    connection.onreconnected(function () {
+        if (isDashboard) {
+            setConnectionStatus('Live', 'bg-success');
+            refreshDashboard();
+        }
+    });
+
+    connection.onclose(function () {
+        if (isDashboard) {
+            setConnectionStatus('Disconnected', 'bg-danger');
+        }
+    });
+
+    // ── Dashboard Live Update Listener ───────────────────────────────────────
+    connection.on('DashboardUpdated', async function (event) {
+        console.log('[SignalR] Dashboard update received:', event);
+        if (isDashboard) {
+            await refreshDashboard();
+        }
+    });
+
+    // ── Incident Details Page Listener ───────────────────────────────────────
     connection.on('IncidentUpdated', function (event) {
-        if (!event.visualAnalysisAvailable) return;
+        console.debug('[SignalR] IncidentUpdated', event);
 
-        const badge = document.querySelector(
-            `[data-analysis-status="${event.incidentMediaId ?? ''}"]`
-        );
+        // Visual analysis badge update (Incident Details page)
+        if (event.visualAnalysisAvailable && event.incidentMediaId) {
+            const badge = document.querySelector(
+                '[data-analysis-status="' + event.incidentMediaId + '"]'
+            );
+            if (badge) {
+                const status = event.visualAnalysisStatus ?? 'Completed';
+                badge.textContent = status;
+                badge.className = 'badge ' + statusClass(status);
+            }
+        }
 
-        if (!badge) return;
-
-        const status = event.visualAnalysisStatus ?? 'Completed';
-
-        badge.textContent = status;
-        badge.className = 'badge ' + statusClass(status);
+        // Auto-reload Incident Details when AI/visual pipeline finishes
+        if (!isDashboard && (event.updateType === 'AI_ANALYSIS_COMPLETED' ||
+            event.updateType === 'VISUAL_ANALYSIS_COMPLETED')) {
+            const waiting = document.querySelector('[data-analysis-status]');
+            if (waiting && waiting.classList.contains('bg-secondary')) {
+                setTimeout(function () { location.reload(); }, 1500);
+            }
+        }
     });
 
     function statusClass(status) {
@@ -30,7 +83,185 @@
         }
     }
 
-    connection.start().catch(function (err) {
-        console.warn('SignalR connection failed:', err);
-    });
+    // ── Dashboard Updaters ──────────────────────────────────────────────────
+    function setConnectionStatus(text, cssClass) {
+        const element = document.getElementById('dashboardConnectionIndicator');
+        if (!element) return;
+        element.textContent = text;
+        element.className = 'badge ' + cssClass;
+    }
+
+    function setText(id, value) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value ?? 0;
+        }
+    }
+
+    function updateDashboardSummary(summary) {
+        if (!summary) return;
+
+        const critical = summary.criticalIncidents ?? summary.CriticalIncidents ?? 0;
+        const high = summary.highIncidents ?? summary.HighIncidents ?? 0;
+        const active = summary.activeIncidents ?? summary.ActiveIncidents ?? 0;
+        const unassigned = summary.unassignedIncidents ?? summary.UnassignedIncidents ?? 0;
+        const aiReview = summary.awaitingAIReview ?? summary.AwaitingAIReview ?? 0;
+        const dupReview = summary.awaitingDuplicateReview ?? summary.AwaitingDuplicateReview ?? 0;
+        const visReview = summary.awaitingVisualReview ?? summary.AwaitingVisualReview ?? 0;
+
+        setText('criticalIncidentCount', critical);
+        setText('highIncidentCount', high);
+        setText('activeIncidentCount', active);
+        setText('unassignedIncidentCount', unassigned);
+
+        setText('aiReviewCount', aiReview);
+        setText('duplicateReviewCount', dupReview);
+        setText('visualReviewCount', visReview);
+
+        setText('notesActiveCount', active);
+        setText('notesUnassignedCount', unassigned);
+        setText('notesPendingReviewCount', aiReview + dupReview + visReview);
+    }
+
+    function updateIncidentGrid(incidents) {
+        const element = document.getElementById('incidentGrid');
+        const grid = element?.ej2_instances?.[0];
+        if (!grid || !Array.isArray(incidents)) return;
+
+        const normalized = incidents.map(function (item) {
+            return {
+                ...item,
+                Id: item.Id ?? item.id,
+                IncidentNumber: item.IncidentNumber ?? item.incidentNumber,
+                IncidentType: item.IncidentType ?? item.incidentType,
+                Title: item.Title ?? item.title,
+                Severity: item.Severity ?? item.severity,
+                Priority: item.Priority ?? item.priority,
+                Status: item.Status ?? item.status,
+                CreatedAtUtc: item.CreatedAtUtc ?? item.createdAtUtc,
+                IsAssigned: item.IsAssigned ?? item.isAssigned,
+                RequiresAIReview: item.RequiresAIReview ?? item.requiresAIReview,
+                HasDuplicateCandidates: item.HasDuplicateCandidates ?? item.hasDuplicateCandidates,
+                HasVisualReview: item.HasVisualReview ?? item.hasVisualReview,
+                DetailsUrl: item.DetailsUrl ?? item.detailsUrl
+            };
+        });
+
+        grid.dataSource = normalized;
+    }
+
+    function updateSeverityChart(data) {
+        const element = document.getElementById('severityChart');
+        const chart = element?.ej2_instances?.[0];
+        if (!chart || !Array.isArray(data)) return;
+
+        const normalized = data.map(function (item) {
+            return {
+                ...item,
+                Label: item.Label ?? item.label,
+                Value: item.Value ?? item.value
+            };
+        });
+
+        chart.series[0].dataSource = normalized;
+        chart.refresh();
+    }
+
+    function updateIncidentTrendChart(data) {
+        const element = document.getElementById('incidentTrendChart');
+        const chart = element?.ej2_instances?.[0];
+        if (!chart || !Array.isArray(data)) return;
+
+        const normalized = data.map(function (item) {
+            return {
+                ...item,
+                Date: item.Date ?? item.date,
+                Count: item.Count ?? item.count
+            };
+        });
+
+        chart.series[0].dataSource = normalized;
+        chart.refresh();
+    }
+
+    function updateReviewQueueChart(data) {
+        const element = document.getElementById('reviewQueueChart');
+        const chart = element?.ej2_instances?.[0];
+        if (!chart || !Array.isArray(data)) return;
+
+        const normalized = data.map(function (item) {
+            return {
+                ...item,
+                Category: item.Category ?? item.category,
+                Count: item.Count ?? item.count
+            };
+        });
+
+        chart.series[0].dataSource = normalized;
+        chart.refresh();
+    }
+
+    function updateDashboardTimestamp(updatedAtUtc) {
+        const element = document.getElementById('dashboardLastUpdated');
+        if (!element) return;
+        const timestamp = updatedAtUtc ? new Date(updatedAtUtc) : new Date();
+        element.textContent = 'Updated ' + timestamp.toLocaleTimeString();
+    }
+
+    let _refreshDebounce = null;
+    async function refreshDashboard() {
+        if (!isDashboard) return;
+
+        clearTimeout(_refreshDebounce);
+        _refreshDebounce = setTimeout(async function () {
+            try {
+                const response = await fetch('/Dashboard/Snapshot', {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Dashboard request failed: ' + response.status);
+                }
+
+                const data = await response.json();
+
+                updateDashboardSummary(data.summary);
+                updateIncidentGrid(data.incidents);
+                updateSeverityChart(data.severityDistribution);
+                updateIncidentTrendChart(data.incidentTrend);
+                updateReviewQueueChart(data.reviewQueue);
+                updateDashboardTimestamp(data.updatedAtUtc);
+            }
+            catch (error) {
+                console.error('[SignalR] Dashboard refresh failed:', error);
+            }
+        }, 150);
+    }
+
+    // ── Start Realtime ───────────────────────────────────────────────────────
+    async function startRealtime() {
+        try {
+            await connection.start();
+
+            if (isDashboard) {
+                setConnectionStatus('Live', 'bg-success');
+                await refreshDashboard();
+                console.log('[SignalR] Dashboard SignalR connected & initialized.');
+            } else {
+                console.log('[SignalR] Incident realtime connected.');
+            }
+        }
+        catch (error) {
+            console.error('[SignalR] Connection failed:', error);
+            if (isDashboard) {
+                setConnectionStatus('Connection failed', 'bg-danger');
+            }
+        }
+    }
+
+    startRealtime();
 }());

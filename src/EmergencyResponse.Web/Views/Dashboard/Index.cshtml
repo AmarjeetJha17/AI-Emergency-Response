@@ -1,15 +1,27 @@
 @model EmergencyResponse.Web.Models.Dashboard.DashboardViewModel
-@using EmergencyResponse.Domain.Enums
 
 @{
     ViewData["Title"] = "Emergency Operations Dashboard";
 }
 
-<div class="container-fluid py-4">
+<div id="emergencyDashboard" class="container-fluid py-4">
 
     <div class="mb-4">
-        <h1 class="h3 mb-1">Emergency Operations Dashboard</h1>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+            <h1 class="h3 mb-0">Emergency Operations Dashboard</h1>
+            <div class="d-flex align-items-center gap-2">
+                <span id="dashboardConnectionIndicator" class="badge bg-secondary">
+                    Connecting...
+                </span>
+                <span id="dashboardLastUpdated" class="small text-muted">
+                </span>
+            </div>
+        </div>
         <p class="text-muted mb-0">Live operational overview of emergency incidents.</p>
+        <div class="small text-muted">
+            Data retrieved:
+            @DateTime.Now.ToString("dd MMM yyyy HH:mm:ss")
+        </div>
     </div>
 
     @* Primary KPI cards *@
@@ -19,7 +31,7 @@
             <div class="card shadow-sm border-start border-danger border-4">
                 <div class="card-body">
                     <div class="text-muted small">Critical</div>
-                    <div class="display-6 fw-bold text-danger">
+                    <div class="display-6 fw-bold text-danger" id="criticalIncidentCount">
                         @Model.Summary.CriticalIncidents
                     </div>
                     <div class="text-muted small mt-1">Incidents</div>
@@ -31,7 +43,7 @@
             <div class="card shadow-sm border-start border-warning border-4">
                 <div class="card-body">
                     <div class="text-muted small">High</div>
-                    <div class="display-6 fw-bold text-warning">
+                    <div class="display-6 fw-bold text-warning" id="highIncidentCount">
                         @Model.Summary.HighIncidents
                     </div>
                     <div class="text-muted small mt-1">Incidents</div>
@@ -43,7 +55,7 @@
             <div class="card shadow-sm border-start border-primary border-4">
                 <div class="card-body">
                     <div class="text-muted small">Active</div>
-                    <div class="display-6 fw-bold text-primary">
+                    <div class="display-6 fw-bold text-primary" id="activeIncidentCount">
                         @Model.Summary.ActiveIncidents
                     </div>
                     <div class="text-muted small mt-1">Open incidents</div>
@@ -55,7 +67,7 @@
             <div class="card shadow-sm border-start border-secondary border-4">
                 <div class="card-body">
                     <div class="text-muted small">Unassigned</div>
-                    <div class="display-6 fw-bold">
+                    <div class="display-6 fw-bold" id="unassignedIncidentCount">
                         @Model.Summary.UnassignedIncidents
                     </div>
                     <div class="text-muted small mt-1">No responder</div>
@@ -74,7 +86,7 @@
                     <div class="fs-2 text-warning">&#9888;</div>
                     <div>
                         <div class="text-muted small">Awaiting AI Review</div>
-                        <div class="fs-3 fw-bold">@Model.Summary.AwaitingAIReview</div>
+                        <div class="fs-3 fw-bold" id="aiReviewCount">@Model.Summary.AwaitingAIReview</div>
                     </div>
                 </div>
             </div>
@@ -86,7 +98,7 @@
                     <div class="fs-2 text-info">&#8645;</div>
                     <div>
                         <div class="text-muted small">Awaiting Duplicate Review</div>
-                        <div class="fs-3 fw-bold">@Model.Summary.AwaitingDuplicateReview</div>
+                        <div class="fs-3 fw-bold" id="duplicateReviewCount">@Model.Summary.AwaitingDuplicateReview</div>
                     </div>
                 </div>
             </div>
@@ -98,7 +110,7 @@
                     <div class="fs-2 text-secondary">&#128247;</div>
                     <div>
                         <div class="text-muted small">Awaiting Visual Review</div>
-                        <div class="fs-3 fw-bold">@Model.Summary.AwaitingVisualReview</div>
+                        <div class="fs-3 fw-bold" id="visualReviewCount">@Model.Summary.AwaitingVisualReview</div>
                     </div>
                 </div>
             </div>
@@ -106,121 +118,367 @@
 
     </div>
 
-    @* Recent incident queue table *@
-    @if (Model.Incidents.Any())
+    @* Incident Command Grid *@
+    @if (!Model.GridItems.Any())
     {
-        <div class="card shadow-sm mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <strong>Recent Incidents</strong>
-                <a asp-controller="Incidents" asp-action="Index"
-                   class="btn btn-sm btn-outline-secondary">
-                    View all
-                </a>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover mb-0 align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Number</th>
-                            <th>Title</th>
-                            <th>Type</th>
-                            <th>Severity</th>
-                            <th>Priority</th>
-                            <th>Status</th>
-                            <th>Reported</th>
-                            <th>Flags</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model.Incidents)
-                        {
-                            <tr>
-                                <td>
-                                    <a asp-controller="Incidents"
-                                       asp-action="Details"
-                                       asp-route-id="@item.Id"
-                                       class="fw-semibold text-decoration-none">
-                                        @item.IncidentNumber
-                                    </a>
-                                </td>
-                                <td class="text-truncate" style="max-width:220px">
-                                    @item.Title
-                                </td>
-                                <td>
-                                    <span class="text-muted small">@item.IncidentType</span>
-                                </td>
-                                <td>
-                                    @{
-                                        var severityClass = item.Severity switch
-                                        {
-                                            SeverityLevel.Critical => "bg-danger",
-                                            SeverityLevel.High     => "bg-warning text-dark",
-                                            SeverityLevel.Moderate => "bg-info text-dark",
-                                            _                      => "bg-secondary"
-                                        };
-                                    }
-                                    <span class="badge @severityClass">@item.Severity</span>
-                                </td>
-                                <td>
-                                    @{
-                                        var priorityClass = item.Priority switch
-                                        {
-                                            PriorityLevel.Critical => "bg-danger",
-                                            PriorityLevel.High     => "bg-warning text-dark",
-                                            PriorityLevel.Normal   => "bg-info text-dark",
-                                            _                      => "bg-secondary"
-                                        };
-                                    }
-                                    <span class="badge @priorityClass">@item.Priority</span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-light text-dark border">
-                                        @item.Status
-                                    </span>
-                                </td>
-                                <td class="text-muted small text-nowrap">
-                                    @{
-                                        var age = DateTime.UtcNow - item.CreatedAtUtc;
-                                        var ageText = age.TotalMinutes < 60
-                                            ? $"{(int)age.TotalMinutes}m ago"
-                                            : age.TotalHours < 24
-                                                ? $"{(int)age.TotalHours}h ago"
-                                                : $"{(int)age.TotalDays}d ago";
-                                    }
-                                    @ageText
-                                </td>
-                                <td>
-                                    <div class="d-flex gap-1 flex-wrap">
-                                        @if (!item.IsAssigned)
-                                        {
-                                            <span class="badge bg-secondary" title="Unassigned">U</span>
-                                        }
-                                        @if (item.RequiresAIReview)
-                                        {
-                                            <span class="badge bg-warning text-dark" title="AI review required">AI</span>
-                                        }
-                                        @if (item.HasDuplicateCandidates)
-                                        {
-                                            <span class="badge bg-info text-dark" title="Duplicate candidates">DUP</span>
-                                        }
-                                        @if (item.HasVisualReview)
-                                        {
-                                            <span class="badge bg-primary" title="Visual review required">VIS</span>
-                                        }
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+        <div class="alert alert-success m-3">
+            No incidents currently require operational attention.
         </div>
     }
     else
     {
-        <div class="alert alert-light border text-muted">
-            No incidents reported yet.
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">
+                <div class="fw-semibold">Active Incident Queue</div>
+                <div class="small text-muted">Latest operational incidents</div>
+            </div>
+
+            <div class="card-body p-0">
+
+                <ejs-grid id="incidentGrid"
+                          dataSource="@Model.GridItems"
+                          toolbar="@(new List<string>() { "Search", "ColumnChooser" })"
+                          allowPaging="true"
+                          allowSorting="true"
+                          allowFiltering="true"
+                          allowResizing="true"
+                          allowReordering="true"
+                          showColumnChooser="true"
+                          height="500">
+
+                    <e-grid-pageSettings pageSize="10" pageSizes="true">
+                    </e-grid-pageSettings>
+
+                    <e-grid-filterSettings type="Menu">
+                    </e-grid-filterSettings>
+
+                    <e-grid-columns>
+
+                        <e-grid-column field="IncidentNumber"
+                                       headerText="Incident"
+                                       width="150"
+                                       freeze="Left">
+                        </e-grid-column>
+
+                        <e-grid-column field="IncidentType"
+                                       headerText="Type"
+                                       width="130">
+                        </e-grid-column>
+
+                        <e-grid-column field="Title"
+                                       headerText="Description"
+                                       width="280">
+                        </e-grid-column>
+
+                        <e-grid-column field="Severity"
+                                       headerText="Severity"
+                                       width="130"
+                                       template="#severityTemplate"
+                                       filter="@(new { type = "CheckBox" })">
+                        </e-grid-column>
+
+                        <e-grid-column field="Priority"
+                                       headerText="Priority"
+                                       width="110"
+                                       template="#priorityTemplate"
+                                       filter="@(new { type = "CheckBox" })">
+                        </e-grid-column>
+
+                        <e-grid-column field="Status"
+                                       headerText="Status"
+                                       width="140"
+                                       filter="@(new { type = "CheckBox" })">
+                        </e-grid-column>
+
+                        <e-grid-column field="CreatedAtUtc"
+                                       headerText="Created"
+                                       type="dateTime"
+                                       format="dd-MMM-yyyy HH:mm"
+                                       width="180">
+                        </e-grid-column>
+
+                        <e-grid-column headerText="Alerts"
+                                       width="180"
+                                       template="#alertTemplate"
+                                       allowSorting="false"
+                                       allowFiltering="false">
+                        </e-grid-column>
+
+                        <e-grid-column headerText="Actions"
+                                       width="110"
+                                       template="#incidentActions"
+                                       allowSorting="false"
+                                       allowFiltering="false">
+                        </e-grid-column>
+
+                    </e-grid-columns>
+
+                </ejs-grid>
+
+            </div>
         </div>
     }
+
+    @* Operational Analytics Section *@
+    <div class="row g-4 mt-1">
+
+        <div class="col-xl-5">
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header">
+                    <div class="fw-semibold">
+                        Incidents by Severity
+                    </div>
+
+                    <div class="small text-muted">
+                        Current incident distribution
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    @if (Model.SeverityDistribution.Sum(x => x.Value) == 0)
+                    {
+                        <div class="text-muted text-center py-5">
+                            No incident data available.
+                        </div>
+                    }
+                    else
+                    {
+                        <ejs-accumulationchart id="severityChart"
+                                               height="320"
+                                               enableSmartLabels="true">
+
+                            <e-accumulationchart-legendsettings
+                                visible="true"
+                                position="Bottom">
+                            </e-accumulationchart-legendsettings>
+
+                            <e-accumulation-series-collection>
+
+                                <e-accumulation-series
+                                    dataSource="@Model.SeverityDistribution"
+                                    xName="Label"
+                                    yName="Value"
+                                    innerRadius="60%"
+                                    radius="85%"
+                                    type="Pie">
+                                </e-accumulation-series>
+
+                            </e-accumulation-series-collection>
+
+                        </ejs-accumulationchart>
+                    }
+                </div>
+
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header">
+                    <div class="fw-semibold">
+                        Incident Volume
+                    </div>
+
+                    <div class="small text-muted">
+                        Daily reports over the last 7 days
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    @if (Model.IncidentTrend.Sum(x => x.Count) == 0)
+                    {
+                        <div class="text-muted text-center py-5">
+                            No incidents reported during this period.
+                        </div>
+                    }
+                    else
+                    {
+                        <ejs-chart id="incidentTrendChart"
+                                   height="320">
+
+                            <e-chart-primaryxaxis
+                                valueType="DateTime"
+                                labelFormat="dd MMM">
+                            </e-chart-primaryxaxis>
+
+                            <e-chart-primaryyaxis
+                                title="Incidents">
+                            </e-chart-primaryyaxis>
+
+                            <e-chart-tooltipsettings
+                                enable="true">
+                            </e-chart-tooltipsettings>
+
+                            <e-series-collection>
+
+                                <e-series
+                                    dataSource="@Model.IncidentTrend"
+                                    xName="Date"
+                                    yName="Count"
+                                    type="Line"
+                                    width="3">
+                                </e-series>
+
+                            </e-series-collection>
+
+                        </ejs-chart>
+                    }
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row g-4 mt-1 mb-4">
+
+        <div class="col-xl-6">
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header">
+                    <div class="fw-semibold">
+                        Review Queue
+                    </div>
+
+                    <div class="small text-muted">
+                        Items waiting for human review
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    @if (Model.ReviewQueue.Sum(x => x.Count) == 0)
+                    {
+                        <div class="text-muted text-center py-5">
+                            No pending reviews.
+                        </div>
+                    }
+                    else
+                    {
+                        <ejs-chart id="reviewQueueChart"
+                                   height="320">
+
+                            <e-chart-primaryxaxis
+                                valueType="Category">
+                            </e-chart-primaryxaxis>
+
+                            <e-chart-primaryyaxis
+                                title="Pending reviews"
+                                minimum="0">
+                            </e-chart-primaryyaxis>
+
+                            <e-chart-tooltipsettings
+                                enable="true">
+                            </e-chart-tooltipsettings>
+
+                            <e-series-collection>
+
+                                <e-series
+                                    dataSource="@Model.ReviewQueue"
+                                    xName="Category"
+                                    yName="Count"
+                                    type="Column">
+                                </e-series>
+
+                            </e-series-collection>
+
+                        </ejs-chart>
+                    }
+                </div>
+
+            </div>
+        </div>
+
+        <div class="col-xl-6">
+            <div class="card shadow-sm h-100">
+
+                <div class="card-header">
+                    <div class="fw-semibold">
+                        Operational Notes
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="d-flex flex-column gap-3">
+
+                        <div>
+                            <div class="small text-muted">
+                                Active incidents
+                            </div>
+
+                            <div class="fs-5 fw-semibold" id="notesActiveCount">
+                                @Model.Summary.ActiveIncidents
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="small text-muted">
+                                Unassigned incidents
+                            </div>
+
+                            <div class="fs-5 fw-semibold" id="notesUnassignedCount">
+                                @Model.Summary.UnassignedIncidents
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="small text-muted">
+                                Total pending review items
+                            </div>
+
+                            <div class="fs-5 fw-semibold" id="notesPendingReviewCount">
+                                @(Model.Summary.AwaitingAIReview
+                                + Model.Summary.AwaitingDuplicateReview
+                                + Model.Summary.AwaitingVisualReview)
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    @* Grid cell templates *@
+    <script id="severityTemplate" type="text/x-template">
+        ${if(Severity === 'Critical')}
+            <span class="badge bg-danger">Critical</span>
+        ${else if(Severity === 'High')}
+            <span class="badge bg-warning text-dark">High</span>
+        ${else if(Severity === 'Moderate')}
+            <span class="badge bg-info text-dark">Moderate</span>
+        ${else}
+            <span class="badge bg-secondary">Low</span>
+        ${/if}
+    </script>
+
+    <script id="priorityTemplate" type="text/x-template">
+        ${if(Priority === 'Critical')}
+            <strong class="text-danger">${Priority}</strong>
+        ${else if(Priority === 'High')}
+            <strong class="text-warning">${Priority}</strong>
+        ${else}
+            <strong>${Priority}</strong>
+        ${/if}
+    </script>
+
+    <script id="alertTemplate" type="text/x-template">
+        ${if(HasDuplicateCandidates)}
+            <span class="badge bg-warning text-dark me-1" title="Duplicate review required">Duplicate</span>
+        ${/if}
+        ${if(HasVisualReview)}
+            <span class="badge bg-info text-dark me-1" title="Visual review required">Visual</span>
+        ${/if}
+        ${if(RequiresAIReview)}
+            <span class="badge bg-secondary" title="AI review required">AI</span>
+        ${/if}
+    </script>
+
+    <script id="incidentActions" type="text/x-template">
+        <a href="${DetailsUrl}" class="btn btn-sm btn-outline-primary">View</a>
+    </script>
 
 </div>

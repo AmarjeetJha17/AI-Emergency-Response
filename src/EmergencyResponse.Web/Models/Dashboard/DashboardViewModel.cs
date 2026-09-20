@@ -11,4 +11,8 @@ public sealed class DashboardViewModel
     public IReadOnlyList<DashboardChartPoint> SeverityDistribution { get; init; } = [];
 
     public IReadOnlyList<DashboardTimeSeriesPoint> IncidentTrend { get; init; } = [];
+
+    public IReadOnlyList<DashboardIncidentGridItem> GridItems { get; init; } = [];
+
+    public IReadOnlyList<DashboardReviewPoint> ReviewQueue { get; init; } = [];
 }

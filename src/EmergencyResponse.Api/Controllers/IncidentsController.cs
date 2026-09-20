@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 using EmergencyResponse.Api.Common;
 using EmergencyResponse.Application.AI.DTOs;
@@ -11,6 +11,8 @@ using EmergencyResponse.Domain.Enums;
 using EmergencyResponse.Application.DTOs.Incidents;
 using EmergencyResponse.Application.Events;
 using EmergencyResponse.Application.Interfaces;
+using EmergencyResponse.Application.Realtime;
+
 using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.Media;
 using EmergencyResponse.Domain.Entities;
@@ -67,6 +69,15 @@ public class IncidentsController : ControllerBase
             await _incidentService.CreateAsync(
                 request,
                 cancellationToken);
+
+        await _notificationService.NotifyDashboardUpdatedAsync(
+            new DashboardUpdatedEvent
+            {
+                Reason = DashboardUpdateReasons.IncidentCreated,
+                IncidentId = result.Id,
+                UpdatedAtUtc = DateTime.UtcNow
+            },
+            cancellationToken);
 
         return CreatedAtAction(
             nameof(GetById),
@@ -255,6 +266,15 @@ public class IncidentsController : ControllerBase
                     UpdateType = "DUPLICATE_REVIEWED"
                 },
                 cancellationToken);
+
+        await _notificationService.NotifyDashboardUpdatedAsync(
+            new DashboardUpdatedEvent
+            {
+                Reason = DashboardUpdateReasons.IncidentReviewed,
+                IncidentId = incidentId,
+                UpdatedAtUtc = DateTime.UtcNow
+            },
+            cancellationToken);
 
         return Ok(
             ApiResponse<IncidentDuplicateMatch>.Ok(match));
@@ -641,7 +661,57 @@ public class IncidentsController : ControllerBase
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        await _notificationService.NotifyDashboardUpdatedAsync(
+            new DashboardUpdatedEvent
+            {
+                Reason = DashboardUpdateReasons.IncidentReviewed,
+                IncidentId = incidentId,
+                UpdatedAtUtc = DateTime.UtcNow
+            },
+            cancellationToken);
+
         return NoContent();
+    }
+
+    [Authorize(Policy = "OperatorAccess")]
+    [HttpPatch("{id:guid}/status")]
+    public async Task<ActionResult<IncidentResponse>> UpdateStatus(
+        Guid id,
+        [FromBody] UpdateIncidentStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Status))
+        {
+            return BadRequest("Status is required.");
+        }
+
+        try
+        {
+            var result = await _incidentService.UpdateStatusAsync(
+                id,
+                request,
+                cancellationToken);
+
+            if (result is null)
+            {
+                return NotFound();
+            }
+
+            await _notificationService.NotifyDashboardUpdatedAsync(
+                new DashboardUpdatedEvent
+                {
+                    Reason = DashboardUpdateReasons.IncidentUpdated,
+                    IncidentId = id,
+                    UpdatedAtUtc = DateTime.UtcNow
+                },
+                cancellationToken);
+
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
     }
 
     [Authorize]
@@ -653,10 +723,24 @@ public class IncidentsController : ControllerBase
         [FromQuery] Guid? incidentTypeId = null,
         [FromQuery] string? status = null,
         [FromQuery] string? severity = null,
+        [FromQuery] bool myReportsOnly = false,
         CancellationToken cancellationToken = default)
     {
-        var result =
-            await _incidentService.GetPagedForCurrentUserAsync(
+        var isPrivileged =
+            _currentUserService.IsInRole(ApplicationRoles.Operator) ||
+            _currentUserService.IsInRole(ApplicationRoles.EmergencyAdmin) ||
+            _currentUserService.IsInRole(ApplicationRoles.SystemAdmin);
+
+        var result = (isPrivileged && !myReportsOnly)
+            ? await _incidentService.GetPagedAsync(
+                page,
+                pageSize,
+                search,
+                incidentTypeId,
+                status,
+                severity,
+                cancellationToken)
+            : await _incidentService.GetPagedForCurrentUserAsync(
                 page,
                 pageSize,
                 search,
