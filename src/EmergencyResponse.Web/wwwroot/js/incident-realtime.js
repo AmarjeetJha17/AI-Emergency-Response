@@ -32,6 +32,9 @@
             setConnectionStatus('Live', 'bg-success');
             refreshDashboard();
         }
+        if (window.emergencyMapState && typeof window.emergencyMapState.refreshMap === 'function') {
+            window.emergencyMapState.refreshMap();
+        }
     });
 
     connection.onclose(function () {
@@ -40,17 +43,24 @@
         }
     });
 
-    // ── Dashboard Live Update Listener ───────────────────────────────────────
+    // ── Dashboard & Map Live Update Listener ─────────────────────────────────
     connection.on('DashboardUpdated', async function (event) {
         console.log('[SignalR] Dashboard update received:', event);
         if (isDashboard) {
             await refreshDashboard();
         }
+        if (window.emergencyMapState && typeof window.emergencyMapState.refreshMap === 'function') {
+            await window.emergencyMapState.refreshMap();
+        }
     });
 
-    // ── Incident Details Page Listener ───────────────────────────────────────
+    // ── Incident Details & Map Page Listener ─────────────────────────────────
     connection.on('IncidentUpdated', function (event) {
         console.debug('[SignalR] IncidentUpdated', event);
+
+        if (window.emergencyMapState && typeof window.emergencyMapState.refreshMap === 'function') {
+            window.emergencyMapState.refreshMap();
+        }
 
         // Visual analysis badge update (Incident Details page)
         if (event.visualAnalysisAvailable && event.incidentMediaId) {

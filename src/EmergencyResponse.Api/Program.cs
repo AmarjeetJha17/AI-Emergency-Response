@@ -1,5 +1,7 @@
 using EmergencyResponse.Application.Dashboard;
+using EmergencyResponse.Application.Map;
 using EmergencyResponse.Infrastructure.Dashboard;
+using EmergencyResponse.Infrastructure.Map;
 
 using System.Text;
 
@@ -151,6 +153,10 @@ builder.Services.AddScoped<
     IDashboardService,
     DashboardService>();
 
+builder.Services.AddScoped<
+    IEmergencyMapService,
+    EmergencyMapService>();
+
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddScoped<
@@ -195,6 +201,10 @@ builder.Services.AddAI(builder.Configuration);
 builder.Services.Configure<AIOptions>(
     builder.Configuration.GetSection(
         AIOptions.SectionName));
+
+builder.Services.Configure<MapOptions>(
+    builder.Configuration.GetSection(
+        MapOptions.SectionName));
 
 builder.Services.AddSignalR();
 

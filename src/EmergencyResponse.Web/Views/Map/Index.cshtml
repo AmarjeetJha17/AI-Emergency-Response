@@ -1,0 +1,91 @@
+@model EmergencyResponse.Web.Models.Map.EmergencyMapViewModel
+
+@{
+    ViewData["Title"] = "Live Emergency Map";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="~/css/emergency-map.css" asp-append-version="true" />
+}
+
+<div class="container-fluid py-3">
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="h4 mb-0 fw-bold">Live Emergency Map</h2>
+                <span class="badge bg-success-subtle text-success border border-success d-inline-flex align-items-center gap-1 px-2 py-1">
+                    <span class="live-indicator-dot"></span> Live
+                </span>
+            </div>
+            <div class="text-muted small">Real-time situational awareness and spatial tracking of active incidents</div>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+            <span id="mapLastUpdated" class="text-muted small me-2"></span>
+            <button id="btnRefreshMap" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" title="Refresh Map Incidents">
+                <span id="mapRefreshSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                <span>↻ Refresh</span>
+            </button>
+            <a asp-controller="Dashboard" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                Dashboard
+            </a>
+            <a asp-controller="Incidents" asp-action="Index" class="btn btn-primary btn-sm">
+                Incident List
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="map-stats-bar">
+        <div class="map-stat-badge">
+            <span>Total Active:</span>
+            <span id="statTotal" class="badge bg-primary">0</span>
+        </div>
+        <div class="map-stat-badge">
+            <span class="map-legend-dot dot-critical"></span>
+            <span>Critical:</span>
+            <span id="statCritical" class="badge bg-danger">0</span>
+        </div>
+        <div class="map-stat-badge">
+            <span class="map-legend-dot dot-high"></span>
+            <span>High:</span>
+            <span id="statHigh" class="badge bg-warning text-dark">0</span>
+        </div>
+        <div class="map-stat-badge">
+            <span class="map-legend-dot dot-medium"></span>
+            <span>Medium:</span>
+            <span id="statMedium" class="badge bg-info text-dark">0</span>
+        </div>
+        <div class="map-stat-badge">
+            <span class="map-legend-dot dot-low"></span>
+            <span>Low:</span>
+            <span id="statLow" class="badge bg-success">0</span>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div class="emergency-map-container">
+        <div id="emergencyMap"></div>
+    </div>
+</div>
+
+<script type="application/json" id="emergencyMapConfig">
+@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new
+{
+    initialIncidents = Model.Incidents,
+    tileUrl = Model.TileUrl,
+    attribution = Model.Attribution,
+    defaultLatitude = Model.DefaultLatitude,
+    defaultLongitude = Model.DefaultLongitude,
+    defaultZoom = Model.DefaultZoom
+}, new System.Text.Json.JsonSerializerOptions
+{
+    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+}))
+</script>
+
+@section Scripts {
+    <script src="~/lib/leaflet/dist/leaflet.js"></script>
+    <script src="~/js/emergency-map.js" asp-append-version="true"></script>
+}

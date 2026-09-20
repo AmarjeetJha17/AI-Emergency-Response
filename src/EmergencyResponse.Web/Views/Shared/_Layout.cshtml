@@ -1,4 +1,6 @@
-﻿<!DOCTYPE html>
+@using Microsoft.Extensions.Configuration
+@inject IConfiguration _config
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -8,7 +10,15 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/EmergencyResponse.Web.styles.css" asp-append-version="true" />
-
+    <link rel="stylesheet"
+          href="~/_content/Syncfusion.AspNetCore.Themes/styles/fluent2.css" />
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        var _token = User.FindFirst(
+            EmergencyResponse.Application.Common.Authentication.AuthenticationConstants.AccessTokenClaim)?.Value ?? string.Empty;
+        <meta name="signalr-token" content="@_token" />
+    }
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
     <header>
@@ -20,6 +30,8 @@
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+
+                    @* Primary navigation links *@
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
@@ -27,94 +39,139 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
-                    </ul>
-                    @if (User.Identity?.IsAuthenticated == true)
-                    {
-                        <span class="navbar-text me-3">
-                            Hello, @User.Identity.Name
-                        </span>
 
-                        <form asp-controller="Account"
-                              asp-action="Logout"
-                              method="post"
-                              class="d-inline">
-
-                            @Html.AntiForgeryToken()
-
-                            <button type="submit"
-                                    class="btn btn-outline-danger">
-                                Logout
-                            </button>
-                        </form>
-                    }
-                    else
-                    {
-                        <a class="btn btn-outline-primary me-2"
-                           asp-controller="Account"
-                           asp-action="Login">
-                            Login
-                        </a>
-
-                        <a class="btn btn-primary"
-                           asp-controller="Account"
-                           asp-action="Register">
-                            Register
-                        </a>
-                    }
-                    @if (User.Identity?.IsAuthenticated == true)
-                    {
-                        <li class="nav-item">
-                            <a class="nav-link"
-                               asp-controller="Incidents"
-                               asp-action="Index">
-                                Incidents
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
-                            <a class="nav-link"
-                               asp-controller="Incidents"
-                               asp-action="Create">
-                                Report Emergency
-                            </a>
-                        </li>
-
-                        @if (User.IsInRole("Operator") ||
-                             User.IsInRole("EmergencyAdmin") ||
-                             User.IsInRole("SystemAdmin"))
+                        @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item">
-                                <a class="nav-link"
-                                   asp-controller="Dashboard"
+                                <a class="nav-link text-dark"
+                                   asp-controller="Incidents"
                                    asp-action="Index">
-                                    Dashboard
+                                    Incidents
                                 </a>
                             </li>
+
+                            <li class="nav-item">
+                                <a class="nav-link text-dark"
+                                   asp-controller="Incidents"
+                                   asp-action="Create">
+                                    Report Emergency
+                                </a>
+                            </li>
+
+                            @if (User.IsInRole("Operator") ||
+                                 User.IsInRole("EmergencyAdmin") ||
+                                 User.IsInRole("SystemAdmin"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark"
+                                       asp-controller="Dashboard"
+                                       asp-action="Index">
+                                        Dashboard
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark"
+                                       asp-controller="Map"
+                                       asp-action="Index">
+                                        Live Map
+                                    </a>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark"
+                                       asp-controller="Incidents"
+                                       asp-action="MyReports">
+                                        My Reports
+                                    </a>
+                                </li>
+                            }
                         }
-                    }
+                    </ul>
+
+                    @* Right-side auth controls *@
+                    <div class="d-flex align-items-center gap-2">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <span class="navbar-text me-1">
+                                Hello, @User.Identity.Name
+                            </span>
+
+                            <form asp-controller="Account"
+                                  asp-action="Logout"
+                                  method="post"
+                                  class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit"
+                                        class="btn btn-outline-danger btn-sm">
+                                    Logout
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <a class="btn btn-outline-primary btn-sm"
+                               asp-controller="Account"
+                               asp-action="Login">
+                                Login
+                            </a>
+
+                            <a class="btn btn-primary btn-sm"
+                               asp-controller="Account"
+                               asp-action="Register">
+                                Register
+                            </a>
+                        }
+                    </div>
+
                 </div>
             </div>
         </nav>
     </header>
+
     <div class="container">
         <main role="main" class="pb-3">
+
+            @* Flash messages set via TempData by controller actions *@
+            @if (TempData["SuccessMessage"] is string successMsg)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @successMsg
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["ErrorMessage"] is string errorMsg)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @errorMsg
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
             @RenderBody()
         </main>
     </div>
 
-<footer class="border-top footer text-muted">
-    <div class="container">
-        &copy; 2026 - EmergencyResponse.Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-    </div>
-</footer>
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2026 - EmergencyResponse.Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+        </div>
+    </footer>
+
+    <script src="~/_content/Syncfusion.AspNetCore.Navigations/scripts/sf-toolbar.min.js"></script>
+    <script src="~/_content/Syncfusion.AspNetCore.Navigations/scripts/sf-context-menu.min.js"></script>
+    <script src="~/_content/Syncfusion.AspNetCore.Grid/scripts/sf-grid.min.js"></script>
+    <script src="~/_content/Syncfusion.AspNetCore.Charts/scripts/sf-chart.min.js"></script>
+    <script src="~/_content/Syncfusion.AspNetCore.Charts/scripts/sf-accumulation-chart.min.js"></script>
     <ejs-scripts></ejs-scripts>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-<script src="~/js/site.js" asp-append-version="true"></script>
-    <script src="_content/Syncfusion.AspNetCore.Popups/scripts/sf-dialog.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/_content/Syncfusion.AspNetCore.Popups/scripts/sf-dialog.min.js"></script>
     <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
     <script src="~/js/incident-realtime.js"
-            data-api-base="@(Context.Request.Scheme + "://" + Context.Request.Host)"></script>
+            data-api-base="@(_config["ApiSettings:BaseUrl"]?.TrimEnd('/') ?? string.Empty)"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

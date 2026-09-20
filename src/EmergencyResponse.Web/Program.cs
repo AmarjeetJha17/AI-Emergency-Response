@@ -1,3 +1,4 @@
+using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Web.Services;
 using EmergencyResponse.Web.Services.Api;
 
@@ -63,6 +64,19 @@ builder.Services
                 builder.Configuration["ApiSettings:BaseUrl"]!);
         })
     .AddHttpMessageHandler<BearerTokenHandler>();
+
+builder.Services
+    .AddHttpClient<IEmergencyMapApiClient, EmergencyMapApiClient>(
+        client =>
+        {
+            client.BaseAddress = new Uri(
+                builder.Configuration["ApiSettings:BaseUrl"]!);
+        })
+    .AddHttpMessageHandler<BearerTokenHandler>();
+
+builder.Services.Configure<MapOptions>(
+    builder.Configuration.GetSection(
+        MapOptions.SectionName));
 
 builder.Services.AddHttpContextAccessor();
 
