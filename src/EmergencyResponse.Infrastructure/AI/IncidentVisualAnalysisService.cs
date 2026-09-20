@@ -1,54 +1,35 @@
-﻿#pragma warning disable OPENAI001
-
-using System.ClientModel.Primitives;
 using System.Diagnostics;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 
+using Azure.Core;
 using Azure.Identity;
 
 using EmergencyResponse.Application.AI;
 using EmergencyResponse.Application.AI.VisualAnalysis;
-
 using EmergencyResponse.Application.Common.Configuration;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-
-using OpenAI.Responses;
 
 namespace EmergencyResponse.Infrastructure.AI;
 
 public sealed class IncidentVisualAnalysisService
     : IIncidentVisualAnalysisService
 {
-    private readonly ResponsesClient _client;
+    private readonly HttpClient _httpClient;
     private readonly AIOptions _options;
+    private readonly ILogger<IncidentVisualAnalysisService> _logger;
 
     public IncidentVisualAnalysisService(
-        IOptions<AIOptions> options)
+        HttpClient httpClient,
+        IOptions<AIOptions> options,
+        ILogger<IncidentVisualAnalysisService> logger)
     {
+        _httpClient = httpClient;
         _options = options.Value;
-
-        var endpoint =
-            _options.Endpoint.TrimEnd('/');
-
-        if (!endpoint.EndsWith(
-                "/openai/v1",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            endpoint += "/openai/v1";
-        }
-
-        var tokenPolicy =
-            new BearerTokenPolicy(
-                new DefaultAzureCredential(),
-                "https://ai.azure.com/.default");
-
-        _client = new ResponsesClient(
-            authenticationPolicy: tokenPolicy,
-            options: new ResponsesClientOptions
-            {
-                Endpoint = new Uri(endpoint)
-            });
+        _logger = logger;
     }
 
     public async Task<VisualAnalysisResult> AnalyzeImageAsync(
@@ -60,85 +41,88 @@ public sealed class IncidentVisualAnalysisService
         var stopwatch = Stopwatch.StartNew();
 
         using var memory = new MemoryStream();
+        await imageStream.CopyToAsync(memory, cancellationToken);
+        var base64 = Convert.ToBase64String(memory.ToArray());
 
-        await imageStream.CopyToAsync(
-            memory,
-            cancellationToken);
+        var schemaJson = BuildSchemaJson();
+        var prompt = BuildPrompt(incidentContext);
 
-        var imageData =
-            BinaryData.FromBytes(
-                memory.ToArray());
-
-        var schema =
-            BuildSchema();
-
-        var prompt =
-            BuildPrompt(incidentContext);
-
-        var options =
-            new CreateResponseOptions
+        var requestObj = new
+        {
+            messages = new object[]
             {
-                Model = _options.Deployment,
-
-                InputItems =
+                new
                 {
-                    ResponseItem.CreateUserMessageItem(
-                    [
-                        ResponseContentPart.CreateInputTextPart(
-                            prompt),
-
-                        ResponseContentPart.CreateInputImagePart(
-                            imageData,
-                            contentType)
-                    ])
-                },
-
-                TextOptions =
-                    new ResponseTextOptions
+                    role = "user",
+                    content = new object[]
                     {
-                        TextFormat =
-                            ResponseTextFormat
-                                .CreateJsonSchemaFormat(
-                                    "VisualAnalysisResult",
-                                    schema,
-                                    jsonSchemaIsStrict: true)
+                        new { type = "text", text = prompt },
+                        new { type = "image_url", image_url = new { url = $"data:{contentType};base64,{base64}" } }
                     }
-            };
+                }
+            },
+            response_format = new
+            {
+                type = "json_schema",
+                json_schema = new
+                {
+                    name = "VisualAnalysisResult",
+                    strict = true,
+                    schema = JsonDocument.Parse(schemaJson).RootElement
+                }
+            }
+        };
 
-        var response =
-            await _client.CreateResponseAsync(
-                options,
-                cancellationToken);
+        var endpoint = _options.Endpoint.TrimEnd('/');
+        var deployment = _options.Deployment;
+        var url = $"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version=2024-08-01-preview";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        await ApplyAuthenticationAsync(request, cancellationToken);
+
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(requestObj),
+            Encoding.UTF8,
+            "application/json");
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError(
+                "Azure AI Foundry vision call failed. Status: {StatusCode}, Body: {ResponseBody}",
+                response.StatusCode,
+                responseBody);
+
+            throw new HttpRequestException(
+                $"Azure AI Foundry vision call failed with HTTP {response.StatusCode}: {responseBody}");
+        }
 
         stopwatch.Stop();
 
-        var responseResult = response.Value;
+        _logger.LogInformation(
+            "Incident visual analysis completed in {ElapsedMs} ms using {Deployment}.",
+            stopwatch.ElapsedMilliseconds,
+            deployment);
 
-        var output = string.Concat(
-            responseResult.OutputItems
-                .OfType<MessageResponseItem>()
-                .SelectMany(m => m.Content)
-                .OfType<ResponseContentPart>()
-                .Where(p => p.Kind == ResponseContentPartKind.OutputText)
-                .Select(p => p.Text));
+        using var doc = JsonDocument.Parse(responseBody);
+        var content = doc.RootElement
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString();
 
-        if (string.IsNullOrWhiteSpace(output))
+        if (string.IsNullOrWhiteSpace(content))
         {
-            throw new InvalidOperationException(
-                "Vision model returned an empty response.");
+            throw new InvalidOperationException("Vision model returned an empty response.");
         }
 
-        var result =
-            JsonSerializer.Deserialize<VisualAnalysisResult>(
-                output,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+        var result = JsonSerializer.Deserialize<VisualAnalysisResult>(
+            content,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-        return result
-            ?? throw new InvalidOperationException(
-                "Vision model response could not be parsed.");
+        return result ?? throw new InvalidOperationException("Vision model response could not be parsed.");
     }
 
     public async Task<VisualAnalysisResult> AnalyzeVideoFramesAsync(
@@ -148,65 +132,91 @@ public sealed class IncidentVisualAnalysisService
     {
         if (frames.Count == 0)
         {
-            throw new InvalidOperationException(
-                "No frames were extracted from the video.");
+            throw new InvalidOperationException("No frames were extracted from the video.");
         }
 
-        var schema = BuildVideoSchema();
+        var schemaJson = BuildVideoSchemaJson();
         var prompt = BuildVideoPrompt(incidentContext, frames);
 
-        var contentParts = new List<ResponseContentPart>
+        var contentParts = new List<object>
         {
-            ResponseContentPart.CreateInputTextPart(prompt)
+            new { type = "text", text = prompt }
         };
 
         foreach (var frame in frames)
         {
-            contentParts.Add(
-                ResponseContentPart.CreateInputImagePart(
-                    BinaryData.FromBytes(frame.ImageBytes),
-                    "image/jpeg"));
+            var base64 = Convert.ToBase64String(frame.ImageBytes);
+            contentParts.Add(new
+            {
+                type = "image_url",
+                image_url = new { url = $"data:image/jpeg;base64,{base64}" }
+            });
         }
 
-        var options = new CreateResponseOptions
+        var requestObj = new
         {
-            Model = _options.Deployment,
-            InputItems =
+            messages = new object[]
             {
-                ResponseItem.CreateUserMessageItem(contentParts)
+                new
+                {
+                    role = "user",
+                    content = contentParts.ToArray()
+                }
             },
-            TextOptions = new ResponseTextOptions
+            response_format = new
             {
-                TextFormat = ResponseTextFormat.CreateJsonSchemaFormat(
-                    "VideoAnalysisResult",
-                    schema,
-                    jsonSchemaIsStrict: true)
+                type = "json_schema",
+                json_schema = new
+                {
+                    name = "VideoAnalysisResult",
+                    strict = true,
+                    schema = JsonDocument.Parse(schemaJson).RootElement
+                }
             }
         };
 
-        var response = await _client.CreateResponseAsync(
-            options,
-            cancellationToken);
+        var endpoint = _options.Endpoint.TrimEnd('/');
+        var deployment = _options.Deployment;
+        var url = $"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version=2024-08-01-preview";
 
-        var output = string.Concat(
-            response.Value.OutputItems
-                .OfType<MessageResponseItem>()
-                .SelectMany(m => m.Content)
-                .OfType<ResponseContentPart>()
-                .Where(p => p.Kind == ResponseContentPartKind.OutputText)
-                .Select(p => p.Text));
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        await ApplyAuthenticationAsync(request, cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(output))
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(requestObj),
+            Encoding.UTF8,
+            "application/json");
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException(
-                "Vision model returned an empty response.");
+            _logger.LogError(
+                "Azure AI Foundry video analysis call failed. Status: {StatusCode}, Body: {ResponseBody}",
+                response.StatusCode,
+                responseBody);
+
+            throw new HttpRequestException(
+                $"Azure AI Foundry video analysis call failed with HTTP {response.StatusCode}: {responseBody}");
+        }
+
+        using var doc = JsonDocument.Parse(responseBody);
+        var content = doc.RootElement
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString();
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            throw new InvalidOperationException("Vision model returned an empty response.");
         }
 
         var videoResult = JsonSerializer.Deserialize<VideoAnalysisModelResult>(
-            output,
+            content,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-            ?? throw new InvalidOperationException(
-                "Vision model response could not be parsed.");
+            ?? throw new InvalidOperationException("Vision model response could not be parsed.");
 
         var frameFindings = videoResult.FrameFindings
             .Select((f, i) => new VisualFrameFinding
@@ -234,8 +244,24 @@ public sealed class IncidentVisualAnalysisService
             videoResult.VisibleEmergencyIndicators);
     }
 
-    private string BuildPrompt(
-        string? incidentContext)
+    private async Task ApplyAuthenticationAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(_options.ApiKey))
+        {
+            request.Headers.Add("api-key", _options.ApiKey);
+        }
+        else
+        {
+            var credential = new DefaultAzureCredential();
+            var token = await credential.GetTokenAsync(
+                new TokenRequestContext(["https://cognitiveservices.azure.com/.default"]),
+                cancellationToken);
+
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
+        }
+    }
+
+    private string BuildPrompt(string? incidentContext)
     {
         return $"""
             Analyze this emergency incident image.
@@ -281,55 +307,53 @@ public sealed class IncidentVisualAnalysisService
             """;
     }
 
-    private static BinaryData BuildVideoSchema()
+    private static string BuildVideoSchemaJson()
     {
-        return BinaryData.FromString(
-            """
-            {
-              "type": "object",
-              "properties": {
-                "frameFindings": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "sceneDescription": { "type": "string" },
-                      "detectedHazards": { "type": "array", "items": { "type": "string" } },
-                      "estimatedPeopleAffected": { "type": ["integer", "null"] },
-                      "estimatedVehiclesAffected": { "type": ["integer", "null"] },
-                      "peopleAppearTrapped": { "type": "boolean" },
-                      "roadAppearsBlocked": { "type": "boolean" },
-                      "structuralDamageVisible": { "type": "boolean" },
-                      "fireVisible": { "type": "boolean" },
-                      "floodingVisible": { "type": "boolean" },
-                      "smokeVisible": { "type": "boolean" },
-                      "immediateDangerVisible": { "type": "boolean" },
-                      "confidence": { "type": "number" }
-                    },
-                    "required": [
-                      "sceneDescription", "detectedHazards",
-                      "estimatedPeopleAffected", "estimatedVehiclesAffected",
-                      "peopleAppearTrapped", "roadAppearsBlocked",
-                      "structuralDamageVisible", "fireVisible",
-                      "floodingVisible", "smokeVisible",
-                      "immediateDangerVisible", "confidence"
-                    ],
-                    "additionalProperties": false
-                  }
+        return """
+        {
+          "type": "object",
+          "properties": {
+            "frameFindings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "sceneDescription": { "type": "string" },
+                  "detectedHazards": { "type": "array", "items": { "type": "string" } },
+                  "estimatedPeopleAffected": { "type": ["integer", "null"] },
+                  "estimatedVehiclesAffected": { "type": ["integer", "null"] },
+                  "peopleAppearTrapped": { "type": "boolean" },
+                  "roadAppearsBlocked": { "type": "boolean" },
+                  "structuralDamageVisible": { "type": "boolean" },
+                  "fireVisible": { "type": "boolean" },
+                  "floodingVisible": { "type": "boolean" },
+                  "smokeVisible": { "type": "boolean" },
+                  "immediateDangerVisible": { "type": "boolean" },
+                  "confidence": { "type": "number" }
                 },
-                "visibleEmergencyIndicators": {
-                  "type": "array",
-                  "items": { "type": "string" }
-                },
-                "recommendedResponse": { "type": ["string", "null"] }
-              },
-              "required": ["frameFindings", "visibleEmergencyIndicators", "recommendedResponse"],
-              "additionalProperties": false
-            }
-            """);
+                "required": [
+                  "sceneDescription", "detectedHazards",
+                  "estimatedPeopleAffected", "estimatedVehiclesAffected",
+                  "peopleAppearTrapped", "roadAppearsBlocked",
+                  "structuralDamageVisible", "fireVisible",
+                  "floodingVisible", "smokeVisible",
+                  "immediateDangerVisible", "confidence"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "visibleEmergencyIndicators": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "recommendedResponse": { "type": ["string", "null"] }
+          },
+          "required": ["frameFindings", "visibleEmergencyIndicators", "recommendedResponse"],
+          "additionalProperties": false
+        }
+        """;
     }
 
-    // Internal model matching the video JSON schema
     private sealed class VideoAnalysisModelResult
     {
         public List<FrameFindingModel> FrameFindings { get; init; } = [];
@@ -353,80 +377,79 @@ public sealed class IncidentVisualAnalysisService
         public double Confidence { get; init; }
     }
 
-    private static BinaryData BuildSchema()
+    private static string BuildSchemaJson()
     {
-        return BinaryData.FromString(
-            """
-            {
-              "type": "object",
-              "properties": {
-                "sceneDescription": {
-                  "type": "string"
-                },
-                "detectedHazards": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "visibleEmergencyIndicators": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "estimatedPeopleAffected": {
-                  "type": ["integer", "null"]
-                },
-                "estimatedVehiclesAffected": {
-                  "type": ["integer", "null"]
-                },
-                "peopleAppearTrapped": {
-                  "type": "boolean"
-                },
-                "roadAppearsBlocked": {
-                  "type": "boolean"
-                },
-                "structuralDamageVisible": {
-                  "type": "boolean"
-                },
-                "fireVisible": {
-                  "type": "boolean"
-                },
-                "floodingVisible": {
-                  "type": "boolean"
-                },
-                "smokeVisible": {
-                  "type": "boolean"
-                },
-                "immediateDangerVisible": {
-                  "type": "boolean"
-                },
-                "recommendedResponse": {
-                  "type": ["string", "null"]
-                },
-                "confidence": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "sceneDescription",
-                "detectedHazards",
-                "visibleEmergencyIndicators",
-                "estimatedPeopleAffected",
-                "estimatedVehiclesAffected",
-                "peopleAppearTrapped",
-                "roadAppearsBlocked",
-                "structuralDamageVisible",
-                "fireVisible",
-                "floodingVisible",
-                "smokeVisible",
-                "immediateDangerVisible",
-                "recommendedResponse",
-                "confidence"
-              ],
-              "additionalProperties": false
+        return """
+        {
+          "type": "object",
+          "properties": {
+            "sceneDescription": {
+              "type": "string"
+            },
+            "detectedHazards": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "visibleEmergencyIndicators": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "estimatedPeopleAffected": {
+              "type": ["integer", "null"]
+            },
+            "estimatedVehiclesAffected": {
+              "type": ["integer", "null"]
+            },
+            "peopleAppearTrapped": {
+              "type": "boolean"
+            },
+            "roadAppearsBlocked": {
+              "type": "boolean"
+            },
+            "structuralDamageVisible": {
+              "type": "boolean"
+            },
+            "fireVisible": {
+              "type": "boolean"
+            },
+            "floodingVisible": {
+              "type": "boolean"
+            },
+            "smokeVisible": {
+              "type": "boolean"
+            },
+            "immediateDangerVisible": {
+              "type": "boolean"
+            },
+            "recommendedResponse": {
+              "type": ["string", "null"]
+            },
+            "confidence": {
+              "type": "number"
             }
-            """);
+          },
+          "required": [
+            "sceneDescription",
+            "detectedHazards",
+            "visibleEmergencyIndicators",
+            "estimatedPeopleAffected",
+            "estimatedVehiclesAffected",
+            "peopleAppearTrapped",
+            "roadAppearsBlocked",
+            "structuralDamageVisible",
+            "fireVisible",
+            "floodingVisible",
+            "smokeVisible",
+            "immediateDangerVisible",
+            "recommendedResponse",
+            "confidence"
+          ],
+          "additionalProperties": false
+        }
+        """;
     }
 }

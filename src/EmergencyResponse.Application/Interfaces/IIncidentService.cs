@@ -30,4 +30,15 @@ public interface IIncidentService
         string? status,
         string? severity,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Transitions an incident to a new status, validates the transition is
+    /// permitted, and appends a <see cref="Domain.Entities.IncidentStatusHistory"/> record.
+    /// Returns the updated incident, or null if not found.
+    /// Throws <see cref="InvalidOperationException"/> for illegal transitions.
+    /// </summary>
+    Task<IncidentResponse?> UpdateStatusAsync(
+        Guid id,
+        UpdateIncidentStatusRequest request,
+        CancellationToken cancellationToken = default);
 }

@@ -1,8 +1,9 @@
-﻿@model IReadOnlyList<
+@model IReadOnlyList<
  EmergencyResponse.Application.AI.DTOs.DuplicateIncidentCandidate >
 
 @{
     ViewData["Title"] = "Possible Duplicate Incidents";
+    var sourceIncidentId = ViewBag.SourceIncidentId as Guid?;
 }
 
 <div class="container py-4">
@@ -15,9 +16,10 @@
             </p>
         </div>
 
-        <a asp-action="Index"
+        <a asp-action="Details"
+           asp-route-id="@sourceIncidentId"
            class="btn btn-outline-secondary">
-            Back to Incidents
+            Back to Incident
         </a>
     </div>
 
@@ -102,8 +104,10 @@
                             </div>
 
                             <div class="mt-4">
+                                @* Route to the source incident so the review action loads
+                                   the correct source vs. this candidate comparison. *@
                                 <a asp-action="DuplicateReview"
-                                   asp-route-id="@candidate.IncidentId"
+                                   asp-route-id="@sourceIncidentId"
                                    class="btn btn-primary">
                                     Review Incident
                                 </a>

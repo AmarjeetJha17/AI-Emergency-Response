@@ -1,4 +1,4 @@
-﻿using Azure.AI.OpenAI;
+using Azure.AI.OpenAI;
 using Azure.Identity;
 
 using EmergencyResponse.Application.AI;
@@ -42,12 +42,15 @@ public static class DependencyInjection
             throw new InvalidOperationException(
                 "AI deployment is not configured.");
         }
+        var azureClient = !string.IsNullOrWhiteSpace(options.ApiKey)
+            ? new AzureOpenAIClient(
+                new Uri(options.Endpoint),
+                new System.ClientModel.ApiKeyCredential(options.ApiKey))
+            : new AzureOpenAIClient(
+                new Uri(options.Endpoint),
+                new AzureCliCredential());
 
-        var credential = new AzureCliCredential();
-
-        var azureClient = new AzureOpenAIClient(
-            new Uri(options.Endpoint),
-            credential);
+        services.AddSingleton(azureClient);
 
         var chatClient =
             azureClient
@@ -116,7 +119,7 @@ public static class DependencyInjection
         services.AddSingleton<IIncidentMediaStorage,
             LocalIncidentMediaStorage>();
 
-        services.AddScoped<
+        services.AddHttpClient<
             IIncidentVisualAnalysisService,
             IncidentVisualAnalysisService>();
 
@@ -146,5 +149,130 @@ public static class DependencyInjection
             FfmpegVideoFrameExtractor>();
 
         return services;
+    }
+}
+
+
+public static class DependencyInjectionTest
+{
+    /// <summary>
+    /// Registers the minimum AI infrastructure required for integration tests
+    /// without touching Azure credentials or real AI endpoints.
+    /// Real AI service interfaces are replaced by the test factory with no-op stubs.
+    /// </summary>
+    public static IServiceCollection AddTestAI(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<AIOptions>(
+            configuration.GetSection(AIOptions.SectionName));
+
+        services.AddSingleton<ISeverityEngine, SeverityEngine>();
+        services.AddSingleton<IPriorityEngine, PriorityEngine>();
+        services.AddScoped<IIncidentDecisionService, IncidentDecisionService>();
+
+        services.AddSingleton<IAIAnalysisQueue, InMemoryAIAnalysisQueue>();
+        services.AddScoped<IIncidentAIJobProcessor, IncidentAIJobProcessor>();
+        services.AddHostedService<IncidentAIBackgroundWorker>();
+        services.AddSingleton<IAIReviewPolicy, AIReviewPolicy>();
+
+        services.AddScoped<IAIAnalysisRepository, AIAnalysisRepository>();
+        services.AddScoped<IIncidentAIOrchestrationService, IncidentAIOrchestrationService>();
+
+        services.AddScoped<IIncidentConsolidationService, IncidentConsolidationService>();
+
+        services.AddSingleton<IIncidentMediaStorage, LocalIncidentMediaStorage>();
+        services.AddSingleton<IVisualAnalysisQueue, InMemoryVisualAnalysisQueue>();
+        services.AddScoped<VisualAnalysisOrchestrationService>();
+        services.AddHostedService<VisualAnalysisBackgroundWorker>();
+        services.AddScoped<IIncidentMediaService, IncidentMediaService>();
+
+        services.Configure<VideoFrameExtractionOptions>(
+            configuration.GetSection("VideoFrameExtraction"));
+
+        // IIncidentAnalysisService, IIncidentVisualAnalysisService,
+        // IVideoFrameExtractor, IIncidentEmbeddingService, IDuplicateIncidentService
+        // are injected as no-ops by the test WebApplicationFactory.
+        // Register null-safe stubs here so DI doesn't fail before the factory
+        // gets a chance to replace them.
+        services.AddScoped<IIncidentAnalysisService, NullIncidentAnalysisService>();
+        services.AddScoped<IIncidentVisualAnalysisService, NullIncidentVisualAnalysisService>();
+        services.AddScoped<IVideoFrameExtractor, NullVideoFrameExtractor>();
+        services.AddScoped<IIncidentEmbeddingService, NullIncidentEmbeddingService>();
+        services.AddScoped<IDuplicateIncidentService, NullDuplicateIncidentService>();
+
+        return services;
+    }
+
+    // ── Null-object stubs for test environment ────────────────────────────
+
+    private sealed class NullIncidentAnalysisService : IIncidentAnalysisService
+    {
+        public Task<EmergencyResponse.Application.AI.DTOs.IncidentAnalysisResult> AnalyzeAsync(
+            EmergencyResponse.Application.AI.DTOs.IncidentAnalysisInput input,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new EmergencyResponse.Application.AI.DTOs.IncidentAnalysisResult
+            {
+                IncidentType      = input.IncidentType ?? "Unknown",
+                SeverityCandidate = "Low",
+                Facts             = new EmergencyResponse.Application.AI.DTOs.EmergencyFacts(),
+                Confidence        = 0.5
+            });
+    }
+
+    private sealed class NullIncidentVisualAnalysisService : IIncidentVisualAnalysisService
+    {
+        public Task<EmergencyResponse.Application.AI.VisualAnalysis.VisualAnalysisResult> AnalyzeImageAsync(
+            Stream imageStream, string contentType, string? incidentContext,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new EmergencyResponse.Application.AI.VisualAnalysis.VisualAnalysisResult
+            {
+                SceneDescription = "Test",
+                Confidence       = 0.5
+            });
+
+        public Task<EmergencyResponse.Application.AI.VisualAnalysis.VisualAnalysisResult> AnalyzeVideoFramesAsync(
+            IReadOnlyList<EmergencyResponse.Application.Media.VideoFrame> frames,
+            string? incidentContext,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new EmergencyResponse.Application.AI.VisualAnalysis.VisualAnalysisResult
+            {
+                SceneDescription = "Test",
+                Confidence       = 0.5
+            });
+    }
+
+    private sealed class NullVideoFrameExtractor : IVideoFrameExtractor
+    {
+        public Task<IReadOnlyList<EmergencyResponse.Application.Media.VideoFrame>>
+            ExtractRepresentativeFramesAsync(
+                Stream videoStream,
+                CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<EmergencyResponse.Application.Media.VideoFrame>>(
+                Array.Empty<EmergencyResponse.Application.Media.VideoFrame>());
+    }
+
+    private sealed class NullIncidentEmbeddingService : IIncidentEmbeddingService
+    {
+        public Task<ReadOnlyMemory<float>> GenerateAsync(
+            string text,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new ReadOnlyMemory<float>(new float[1536]));
+    }
+
+    private sealed class NullDuplicateIncidentService : IDuplicateIncidentService
+    {
+        public Task<IReadOnlyList<EmergencyResponse.Application.AI.DTOs.DuplicateIncidentCandidate>>
+            FindCandidatesAsync(
+                Guid incidentId,
+                int maxCandidates = 20,
+                CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<EmergencyResponse.Application.AI.DTOs.DuplicateIncidentCandidate>>(
+                Array.Empty<EmergencyResponse.Application.AI.DTOs.DuplicateIncidentCandidate>());
+
+        public Task GenerateEmbeddingAsync(
+            Guid incidentId,
+            CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

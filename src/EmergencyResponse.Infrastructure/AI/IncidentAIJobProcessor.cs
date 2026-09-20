@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 using EmergencyResponse.Application.AI.DTOs;
 using EmergencyResponse.Application.AI.Interfaces;
@@ -7,6 +7,7 @@ using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Application.Decision.Interfaces;
 using EmergencyResponse.Application.Events;
 using EmergencyResponse.Application.Interfaces;
+using EmergencyResponse.Application.Realtime;
 using EmergencyResponse.Domain.Entities;
 using EmergencyResponse.Domain.Enums;
 using EmergencyResponse.Infrastructure.Persistence;
@@ -122,6 +123,15 @@ public sealed class IncidentAIJobProcessor
                     DateTime.UtcNow;
 
                 await _dbContext.SaveChangesAsync(
+                    cancellationToken);
+
+                await _notificationService.NotifyDashboardUpdatedAsync(
+                    new DashboardUpdatedEvent
+                    {
+                        Reason = DashboardUpdateReasons.DuplicateDetected,
+                        IncidentId = incident.Id,
+                        UpdatedAtUtc = DateTime.UtcNow
+                    },
                     cancellationToken);
             }
             catch (Exception ex)
@@ -253,6 +263,15 @@ public sealed class IncidentAIJobProcessor
                         UpdateType = "AI_ANALYSIS_COMPLETED"
                     },
                     cancellationToken);
+
+            await _notificationService.NotifyDashboardUpdatedAsync(
+                new DashboardUpdatedEvent
+                {
+                    Reason = DashboardUpdateReasons.AIAnalysisCompleted,
+                    IncidentId = incident.Id,
+                    UpdatedAtUtc = DateTime.UtcNow
+                },
+                cancellationToken);
 
             _logger.LogInformation(
                 "AI processing completed for incident {IncidentId}. " +

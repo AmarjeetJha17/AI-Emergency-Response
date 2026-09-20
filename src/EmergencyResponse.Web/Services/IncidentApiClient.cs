@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Json;
 
 using EmergencyResponse.Application.AI.DTOs;
@@ -124,11 +124,17 @@ public sealed class IncidentApiClient : IIncidentApiClient
         Guid? incidentTypeId = null,
         string? status = null,
         string? severity = null,
+        bool myReportsOnly = false,
         CancellationToken cancellationToken = default)
     {
         var query =
             $"api/incidents?page={page}" +
             $"&pageSize={pageSize}";
+
+        if (myReportsOnly)
+        {
+            query += "&myReportsOnly=true";
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -300,5 +306,32 @@ public sealed class IncidentApiClient : IIncidentApiClient
             .ReadAsStreamAsync(cancellationToken);
 
         return new MediaStreamResult(stream, contentType);
+    }
+
+    public async Task<IncidentResponse?> UpdateStatusAsync(
+        Guid id,
+        UpdateIncidentStatusRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.PatchAsJsonAsync(
+            $"api/incidents/{id}/status",
+            request,
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<IncidentResponse>(
+                cancellationToken);
     }
 }

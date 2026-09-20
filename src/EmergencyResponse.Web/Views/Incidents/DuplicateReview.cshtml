@@ -1,4 +1,4 @@
-﻿@using EmergencyResponse.Web.Models.Incidents
+@using EmergencyResponse.Web.Models.Incidents
 @model DuplicateIncidentReviewViewModel
 
 @{
@@ -7,11 +7,19 @@
 
 <div class="container py-4">
 
-    <div class="mb-4">
-        <h2>Duplicate Incident Review</h2>
-        <p class="text-muted">
-            Compare the reports and record an operational review decision.
-        </p>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Duplicate Incident Review</h2>
+            <p class="text-muted mb-0">
+                Compare the reports and record an operational review decision.
+            </p>
+        </div>
+
+        <a asp-action="Duplicates"
+           asp-route-id="@Model.SourceIncidentId"
+           class="btn btn-outline-secondary">
+            Back to Duplicates
+        </a>
     </div>
 
     <div class="alert alert-warning">
@@ -20,163 +28,113 @@
         making a decision.
     </div>
 
-    <div class="row g-4">
+    @* Similarity scores summary bar *@
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row text-center g-3">
+                <div class="col-6 col-md-2">
+                    <div class="fs-4 fw-bold text-primary">
+                        @Model.DuplicateScore.ToString("P0")
+                    </div>
+                    <small class="text-muted">Duplicate Score</small>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="fw-semibold">@Model.SemanticSimilarity.ToString("P0")</div>
+                    <small class="text-muted">Semantic</small>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="fw-semibold">@Model.GeographicSimilarity.ToString("P0")</div>
+                    <small class="text-muted">Geographic</small>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="fw-semibold">@Model.TemporalSimilarity.ToString("P0")</div>
+                    <small class="text-muted">Temporal</small>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="fw-semibold">@Model.DistanceKm.ToString("0.##") km</div>
+                    <small class="text-muted">Distance</small>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="fw-semibold">
+                        @{
+                            var td = Model.TimeDifference;
+                            if (td.TotalMinutes < 60)
+                            {
+                                @($"{(int)td.TotalMinutes} min")
+                            }
+                            else
+                            {
+                                @($"{td.Hours}h {td.Minutes}m")
+                            }
+                        }
+                    </div>
+                    <small class="text-muted">Time Apart</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Side-by-side incident comparison *@
+    <div class="row g-4 mb-4">
 
         <div class="col-lg-6">
             <div class="card shadow-sm h-100">
-
-                <div class="card-header">
+                <div class="card-header bg-light">
                     <strong>Source Incident</strong>
+                    <span class="ms-2 text-muted small">@Model.SourceIncidentNumber</span>
                 </div>
-
                 <div class="card-body">
 
                     <div class="mb-3">
-                        <small class="text-muted">Incident Number</small>
-                        <div class="fw-semibold">
-                            @Model.SourceIncidentNumber
-                        </div>
+                        <small class="text-muted d-block">Type</small>
+                        <span>@Model.SourceIncidentType</span>
                     </div>
 
                     <div class="mb-3">
-                        <small class="text-muted">Type</small>
-                        <div>
-                            @Model.SourceIncidentType
-                        </div>
+                        <small class="text-muted d-block">Title</small>
+                        <span class="fw-semibold">@Model.SourceTitle</span>
                     </div>
 
                     <div class="mb-3">
-                        <small class="text-muted">Title</small>
-                        <div>
-                            @Model.SourceTitle
-                        </div>
+                        <small class="text-muted d-block">Description</small>
+                        <span>@Model.SourceDescription</span>
                     </div>
 
-                    <div class="mb-3">
-                        <small class="text-muted">Description</small>
-                        <div>
-                            @Model.SourceDescription
-                        </div>
+                    <div class="mb-0">
+                        <small class="text-muted d-block">Location</small>
+                        <span>@Model.SourceLocation</span>
                     </div>
-
-                    <div>
-                        <small class="text-muted">Location</small>
-                        <div>
-                            @Model.SourceLocation
-                        </div>
-                    </div>
-
-    <form asp-action="ReviewDuplicate"
-          asp-route-incidentId="@Model.SourceIncidentId"
-          asp-route-matchId="@Model.MatchId"
-          method="post"
-          class="mt-4">
-
-        @Html.AntiForgeryToken()
-
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label" for="ConfirmedDuplicate">
-                        Review decision
-                    </label>
-
-                    <select class="form-select"
-                            id="ConfirmedDuplicate"
-                            name="ConfirmedDuplicate">
-                        <option value="true">Confirmed Duplicate</option>
-                        <option value="false">Not a duplicate</option>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label" for="CanonicalIncidentId">
-                        Canonical Incident
-                    </label>
-
-                    <select class="form-select"
-                            id="CanonicalIncidentId"
-                            name="CanonicalIncidentId">
-                        <option value="@Model.SourceIncidentId">
-                            @Model.SourceIncidentNumber
-                        </option>
-
-                        <option value="@Model.CandidateIncidentId">
-                            @Model.CandidateIncidentNumber
-                        </option>
-                    </select>
-
-                    <div class="form-text">
-                        The canonical incident remains the operational record.
-                        The other report will remain preserved as a duplicate.
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label" for="ReviewDecision">
-                        Notes
-                    </label>
-
-                    <textarea class="form-control"
-                              id="ReviewDecision"
-                              name="ReviewDecision"
-                              rows="3"></textarea>
-                </div>
-
-                <button type="submit" class="btn btn-primary">
-                    Save Review Decision
-                </button>
-            </div>
-        </div>
-    </form>
 
                 </div>
             </div>
         </div>
-
 
         <div class="col-lg-6">
             <div class="card shadow-sm h-100">
-
-                <div class="card-header">
+                <div class="card-header bg-light">
                     <strong>Candidate Incident</strong>
+                    <span class="ms-2 text-muted small">@Model.CandidateIncidentNumber</span>
                 </div>
-
                 <div class="card-body">
 
                     <div class="mb-3">
-                        <small class="text-muted">Incident Number</small>
-                        <div class="fw-semibold">
-                            @Model.CandidateIncidentNumber
-                        </div>
+                        <small class="text-muted d-block">Type</small>
+                        <span>@Model.CandidateIncidentType</span>
                     </div>
 
                     <div class="mb-3">
-                        <small class="text-muted">Type</small>
-                        <div>
-                            @Model.CandidateIncidentType
-                        </div>
+                        <small class="text-muted d-block">Title</small>
+                        <span class="fw-semibold">@Model.CandidateTitle</span>
                     </div>
 
                     <div class="mb-3">
-                        <small class="text-muted">Title</small>
-                        <div>
-                            @Model.CandidateTitle
-                        </div>
+                        <small class="text-muted d-block">Description</small>
+                        <span>@Model.CandidateDescription</span>
                     </div>
 
-                    <div class="mb-3">
-                        <small class="text-muted">Description</small>
-                        <div>
-                            @Model.CandidateDescription
-                        </div>
-                    </div>
-
-                    <div>
-                        <small class="text-muted">Location</small>
-                        <div>
-                            @Model.CandidateLocation
-                        </div>
+                    <div class="mb-0">
+                        <small class="text-muted d-block">Location</small>
+                        <span>@Model.CandidateLocation</span>
                     </div>
 
                 </div>
@@ -184,3 +142,83 @@
         </div>
 
     </div>
+
+    @* Review decision form — standalone, full-width, below the comparison *@
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <strong>Review Decision</strong>
+        </div>
+
+        <div class="card-body">
+
+            <form asp-action="ReviewDuplicate"
+                  asp-route-incidentId="@Model.SourceIncidentId"
+                  asp-route-matchId="@Model.MatchId"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <div class="row g-3">
+
+                    <div class="col-md-4">
+                        <label class="form-label" for="ConfirmedDuplicate">
+                            Decision
+                        </label>
+                        <select class="form-select"
+                                id="ConfirmedDuplicate"
+                                name="ConfirmedDuplicate">
+                            <option value="true">Confirmed Duplicate</option>
+                            <option value="false">Not a Duplicate</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label" for="CanonicalIncidentId">
+                            Canonical Incident
+                        </label>
+                        <select class="form-select"
+                                id="CanonicalIncidentId"
+                                name="CanonicalIncidentId">
+                            <option value="@Model.SourceIncidentId">
+                                @Model.SourceIncidentNumber (Source)
+                            </option>
+                            <option value="@Model.CandidateIncidentId">
+                                @Model.CandidateIncidentNumber (Candidate)
+                            </option>
+                        </select>
+                        <div class="form-text">
+                            The canonical record remains the operational incident.
+                            The other report is preserved as a duplicate.
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label" for="ReviewDecision">
+                            Notes
+                        </label>
+                        <textarea class="form-control"
+                                  id="ReviewDecision"
+                                  name="ReviewDecision"
+                                  rows="3"
+                                  placeholder="Optional reviewer notes..."></textarea>
+                    </div>
+
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        Save Review Decision
+                    </button>
+                    <a asp-action="Details"
+                       asp-route-id="@Model.SourceIncidentId"
+                       class="btn btn-outline-secondary ms-2">
+                        Cancel
+                    </a>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+</div>

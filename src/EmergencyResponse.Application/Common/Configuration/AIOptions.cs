@@ -1,4 +1,4 @@
-﻿namespace EmergencyResponse.Application.Common.Configuration;
+namespace EmergencyResponse.Application.Common.Configuration;
 
 public sealed class AIOptions
 {
@@ -7,6 +7,8 @@ public sealed class AIOptions
     public string Provider { get; set; } = null!;
 
     public string Endpoint { get; set; } = null!;
+
+    public string? ApiKey { get; set; }
 
     public string Deployment { get; set; } = null!;
 

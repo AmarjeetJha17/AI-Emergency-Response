@@ -58,6 +58,52 @@
                 </div>
             </div>
 
+            @* Media upload — available to all authenticated users on non-terminal incidents *@
+            @{
+                var canUpload = Model.Status is not ("Closed" or "Rejected");
+            }
+            @if (canUpload)
+            {
+                <div class="card shadow-sm mt-4">
+                    <div class="card-header">
+                        <strong>Upload Evidence</strong>
+                        <div class="small text-muted">
+                            Images (JPEG, PNG, WebP, GIF &mdash; max 10 MB) or videos (max 100 MB)
+                        </div>
+                    </div>
+                    <div class="card-body">
+
+                        <form id="uploadForm"
+                              method="post"
+                              enctype="multipart/form-data">
+                            @Html.AntiForgeryToken()
+
+                            <div class="mb-3">
+                                <label class="form-label" for="evidenceFile">
+                                    Select file
+                                </label>
+                                <input class="form-control"
+                                       type="file"
+                                       id="evidenceFile"
+                                       accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/x-msvideo,video/*" />
+                                <div class="form-text">
+                                    AI will automatically analyse the uploaded media.
+                                </div>
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-primary"
+                                    id="uploadBtn">
+                                Upload
+                            </button>
+
+                            <div id="uploadStatus" class="mt-2 small"></div>
+                        </form>
+
+                    </div>
+                </div>
+            }
+
         </div>
 
         <div class="col-lg-4">
@@ -65,20 +111,145 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
 
-                    <h5>Priority</h5>
+                    <h5 class="mb-3">Severity &amp; Priority</h5>
 
-                    <p class="mb-1">
-                        Severity:
-                        <strong>@Model.Severity</strong>
-                    </p>
+                    @{
+                        var sevClass = Model.Severity switch
+                        {
+                            "Critical" => "bg-danger",
+                            "High"     => "bg-warning",
+                            "Moderate" => "bg-info",
+                            _          => "bg-secondary"
+                        };
+                        var priClass = Model.Priority switch
+                        {
+                            "Critical" => "bg-danger",
+                            "High"     => "bg-warning",
+                            "Normal"   => "bg-info",
+                            _          => "bg-secondary"
+                        };
+                    }
 
-                    <p>
-                        Priority:
-                        <strong>@Model.Priority</strong>
-                    </p>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">Severity</span>
+                            <span class="badge @sevClass">@Model.Severity</span>
+                        </div>
+                        <div class="progress" style="height:8px" title="Score: @Model.SeverityScore / 100">
+                            <div class="progress-bar @sevClass"
+                                 role="progressbar"
+                                 style="width:@Model.SeverityScore%"
+                                 aria-valuenow="@Model.SeverityScore"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                        <div class="text-end small text-muted mt-1">@Model.SeverityScore / 100</div>
+                        @if (Model.SeverityReasons.Any())
+                        {
+                            <ul class="list-unstyled mt-2 mb-0">
+                                @foreach (var r in Model.SeverityReasons)
+                                {
+                                    <li class="small text-muted">
+                                        <span class="me-1 text-@(sevClass.Replace("bg-",""))">&#10003;</span>@r
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">Priority</span>
+                            <span class="badge @priClass">@Model.Priority</span>
+                        </div>
+                        <div class="progress" style="height:8px" title="Score: @Model.PriorityScore / 100">
+                            <div class="progress-bar @priClass"
+                                 role="progressbar"
+                                 style="width:@Model.PriorityScore%"
+                                 aria-valuenow="@Model.PriorityScore"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                        <div class="text-end small text-muted mt-1">@Model.PriorityScore / 100</div>
+                        @if (Model.PriorityReasons.Any())
+                        {
+                            <ul class="list-unstyled mt-2 mb-0">
+                                @foreach (var r in Model.PriorityReasons)
+                                {
+                                    <li class="small text-muted">
+                                        <span class="me-1 text-@(priClass.Replace("bg-",""))">&#10003;</span>@r
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
 
                 </div>
             </div>
+
+            @if (User.IsInRole("Operator") || User.IsInRole("EmergencyAdmin") || User.IsInRole("SystemAdmin"))
+            {
+                @* Only show status update for non-terminal incidents *@
+                var isTerminal = Model.Status is "Closed" or "Rejected";
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <strong>Update Status</strong>
+                    </div>
+                    <div class="card-body">
+
+                        @if (isTerminal)
+                        {
+                            <div class="text-muted small">
+                                This incident is <strong>@Model.Status</strong> and cannot be updated further.
+                            </div>
+                        }
+                        else
+                        {
+                            <form asp-action="UpdateStatus"
+                                  asp-route-id="@Model.Id"
+                                  method="post">
+                                @Html.AntiForgeryToken()
+
+                                <div class="mb-3">
+                                    <label class="form-label" for="status">New Status</label>
+                                    <select class="form-select" id="status" name="status">
+                                        @foreach (var s in new[]
+                                        {
+                                            "Submitted", "UnderReview", "Assigned",
+                                            "InProgress", "Escalated", "Resolved",
+                                            "Closed", "Rejected"
+                                        })
+                                        {
+                                            if (s != Model.Status)
+                                            {
+                                                <option value="@s">@s</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label" for="remarks">Remarks</label>
+                                    <textarea class="form-control"
+                                              id="remarks"
+                                              name="remarks"
+                                              rows="2"
+                                              placeholder="Optional notes..."></textarea>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary w-100">
+                                    Update Status
+                                </button>
+
+                            </form>
+                        }
+
+                    </div>
+                </div>
+            }
 
             <div class="card shadow-sm">
                 <div class="card-body">
@@ -105,62 +276,109 @@
 
     </div>
 
-</div>
+    @* Duplicate / canonical / related notices — inside the container *@
 
-@if (Model.HasDuplicateCandidates)
-{
-    <div class="alert alert-warning d-flex justify-content-between align-items-center">
-        <div>
-            <strong>Possible duplicate incidents detected.</strong>
-            <div class="small">
-                Review the related reports before taking further action.
+    @if (Model.HasDuplicateCandidates)
+    {
+        <div class="alert alert-warning d-flex justify-content-between align-items-center mt-4">
+            <div>
+                <strong>Possible duplicate incidents detected.</strong>
+                <div class="small">
+                    Review the related reports before taking further action.
+                </div>
+            </div>
+
+            <a asp-action="Duplicates"
+               asp-route-id="@Model.Id"
+               class="btn btn-warning">
+                Review Duplicates
+            </a>
+        </div>
+    }
+
+    @if (Model.CanonicalIncidentId.HasValue)
+    {
+        <div class="alert alert-info mt-4">
+            This incident has been identified as a duplicate of
+            <a asp-action="Details"
+               asp-route-id="@Model.CanonicalIncidentId">
+                @Model.CanonicalIncidentNumber
+            </a>.
+        </div>
+    }
+
+    @if (Model.RelatedIncidents.Count > 0)
+    {
+        <div class="card mt-4">
+            <div class="card-header">
+                <strong>Related Incident Reports</strong>
+            </div>
+
+            <div class="list-group list-group-flush">
+                @foreach (var relatedIncident in Model.RelatedIncidents)
+                {
+                    <a class="list-group-item list-group-item-action"
+                       asp-action="Details"
+                       asp-route-id="@relatedIncident.Id">
+                        @relatedIncident.IncidentNumber
+                        <span class="text-muted">
+                            @relatedIncident.RelationType
+                        </span>
+                    </a>
+                }
             </div>
         </div>
+    }
 
-        <a asp-action="Duplicates"
-           asp-route-id="@Model.Id"
-           class="btn btn-warning">
-            Review Duplicates
-        </a>
-    </div>
-}
-
-@if (Model.CanonicalIncidentId.HasValue)
+    @if (User.IsInRole("Operator") || User.IsInRole("EmergencyAdmin") || User.IsInRole("SystemAdmin"))
 {
-    <div class="alert alert-info">
-        This incident has been identified as a duplicate of
-        <a asp-action="Details"
-           asp-route-id="@Model.CanonicalIncidentId">
-            @Model.CanonicalIncidentNumber
-        </a>.
-    </div>
-}
-
-@if (Model.RelatedIncidents.Count > 0)
-{
-    <div class="card mt-4">
-        <div class="card-header">
-            <strong>Related Incident Reports</strong>
+    @* Status History timeline *@
+    @if (Model.StatusHistory.Any())
+    {
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">
+                <strong>Status History</strong>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    @foreach (var entry in Model.StatusHistory)
+                    {
+                        var newStatusClass = entry.NewStatus switch
+                        {
+                            "Resolved" or "Closed"  => "bg-success",
+                            "Rejected"              => "bg-danger",
+                            "Escalated"             => "bg-warning text-dark",
+                            "InProgress"            => "bg-primary",
+                            "Assigned"              => "bg-primary",
+                            "UnderReview"           => "bg-info text-dark",
+                            _                       => "bg-secondary"
+                        };
+                        <li class="list-group-item d-flex justify-content-between align-items-start py-3">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge bg-light text-dark border">@entry.OldStatus</span>
+                                    <span class="text-muted small">&#8594;</span>
+                                    <span class="badge @newStatusClass">@entry.NewStatus</span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(entry.Remarks))
+                                {
+                                    <div class="small text-muted fst-italic">@entry.Remarks</div>
+                                }
+                            </div>
+                            <div class="text-muted small text-nowrap ms-3">
+                                @entry.ChangedAtUtc.ToString("dd MMM yyyy HH:mm")
+                                @if (!string.IsNullOrWhiteSpace(entry.ChangedByUserId))
+                                {
+                                    <div class="text-muted" style="font-size:0.75rem">by @entry.ChangedByUserId[..Math.Min(8, entry.ChangedByUserId.Length)]&hellip;</div>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </div>
         </div>
+    }
 
-        <div class="list-group list-group-flush">
-            @foreach (var relatedIncident in Model.RelatedIncidents)
-            {
-                <a class="list-group-item list-group-item-action"
-                   asp-action="Details"
-                   asp-route-id="@relatedIncident.Id">
-                    @relatedIncident.IncidentNumber
-                    <span class="text-muted">
-                        @relatedIncident.RelationType
-                    </span>
-                </a>
-            }
-        </div>
-    </div>
-}
-
-@if (User.IsInRole("Operator") || User.IsInRole("EmergencyAdmin") || User.IsInRole("SystemAdmin"))
-{
     <div class="card shadow-sm mt-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div>
@@ -362,83 +580,101 @@
         </div>
     </div>
 
-    <ejs-dialog id="evidenceDialog"
-                width="90%"
-                height="90%"
-                showCloseIcon="true"
-                visible="false"
-                isModal="true"
-                header="Incident Evidence">
-    </ejs-dialog>
-
-    <ejs-dialog id="frameDialog"
-                width="95%"
-                height="95%"
-                showCloseIcon="true"
-                visible="false"
-                isModal="true"
-                header="Frame Findings">
-    </ejs-dialog>
 }
 
+@* Syncfusion dialogs live outside the role-check so the JS initialiser
+   always finds and activates them during page load. *@
+<ejs-dialog id="evidenceDialog"
+            width="90%"
+            height="90%"
+            showCloseIcon="true"
+            visible="false"
+            isModal="true"
+            header="Incident Evidence">
+</ejs-dialog>
+
+<ejs-dialog id="frameDialog"
+            width="95%"
+            height="95%"
+            showCloseIcon="true"
+            visible="false"
+            isModal="true"
+            header="Frame Findings">
+</ejs-dialog>
+
+</div>@* end .container *@
+
 @section Scripts {
+    <script src="~/js/incident-details.js" asp-append-version="true"></script>
     <script>
-        function openEvidence(imageUrl) {
-            const dialog =
-                document.getElementById('evidenceDialog')
-                    .ej2_instances[0];
+        // Media upload via fetch so the page stays open after upload.
+        (function () {
+            var btn = document.getElementById('uploadBtn');
+            var fileInput = document.getElementById('evidenceFile');
+            var status = document.getElementById('uploadStatus');
 
-            dialog.content =
-                `<div class="h-100 d-flex align-items-center justify-content-center">
-                    <img src="${imageUrl}"
-                         alt="Emergency evidence"
-                         style="max-width:100%; max-height:100%; object-fit:contain;" />
-                 </div>`;
+            if (!btn) return;
 
-            dialog.show();
-        }
+            btn.addEventListener('click', async function () {
+                var file = fileInput && fileInput.files && fileInput.files[0];
+                if (!file) {
+                    status.textContent = 'Please select a file first.';
+                    status.className = 'mt-2 small text-danger';
+                    return;
+                }
 
-        function openFrameFindings(incidentId, mediaId, json) {
-            const frames = JSON.parse(json);
-            const dialog = document.getElementById('frameDialog').ej2_instances[0];
+                var isVideo = file.type.startsWith('video/');
+                var maxBytes = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+                if (file.size > maxBytes) {
+                    status.textContent = isVideo
+                        ? 'Video must be under 100 MB.'
+                        : 'Image must be under 10 MB.';
+                    status.className = 'mt-2 small text-danger';
+                    return;
+                }
 
-            const rows = frames.map(f => {
-                const mm = String(Math.floor(f.timestampSeconds / 60)).padStart(2, '0');
-                const ss = String(Math.floor(f.timestampSeconds % 60)).padStart(2, '0');
-                const hazards = (f.detectedHazards || []).length
-                    ? f.detectedHazards.map(h => `<span class="badge bg-danger me-1">${h}</span>`).join('')
-                    : '<span class="text-muted">None</span>';
+                btn.disabled = true;
+                status.textContent = 'Uploading\u2026';
+                status.className = 'mt-2 small text-muted';
 
-                // Frame image proxied through the Web MVC action so the bearer
-                // token is applied automatically by BearerTokenHandler.
-                const frameUrl =
-                    `/Incidents/Frame?incidentId=${incidentId}&mediaId=${mediaId}&frameNumber=${f.frameNumber}`;
+                var form = new FormData();
+                form.append('file', file);
 
-                return `<div class="border rounded p-3 mb-3">
-                    <div class="fw-bold mb-2">${mm}:${ss}</div>
-                    <div class="mb-2 text-center bg-dark rounded overflow-hidden" style="max-height:220px">
-                        <img src="${frameUrl}"
-                             alt="Frame at ${mm}:${ss}"
-                             class="img-fluid"
-                             style="max-height:220px;object-fit:contain;"
-                             onerror="this.closest('.mb-2').style.display='none'" />
-                    </div>
-                    <p class="mb-1 small">${f.sceneDescription || ''}</p>
-                    <div class="mb-1"><span class="small text-muted">Hazards: </span>${hazards}</div>
-                    <div class="row g-1 small mt-1">
-                        <div class="col-6">Flooding: ${f.floodingVisible ? 'Yes' : 'No'}</div>
-                        <div class="col-6">Road blocked: ${f.roadAppearsBlocked ? 'Yes' : 'No'}</div>
-                        <div class="col-6">Fire: ${f.fireVisible ? 'Yes' : 'No'}</div>
-                        <div class="col-6">Smoke: ${f.smokeVisible ? 'Yes' : 'No'}</div>
-                        <div class="col-6">Immediate danger: ${f.immediateDangerVisible ? 'Yes' : 'No'}</div>
-                        <div class="col-6">People trapped: ${f.peopleAppearTrapped ? 'Yes' : 'No'}</div>
-                    </div>
-                    <div class="small text-muted mt-1">Confidence: ${(f.confidence * 100).toFixed(0)}%</div>
-                </div>`;
-            }).join('');
+                var incidentId = '@Model.Id';
+                var endpoint = isVideo
+                    ? '/api/incidents/' + incidentId + '/media/video'
+                    : '/api/incidents/' + incidentId + '/media';
 
-            dialog.content = `<div style="overflow-y:auto;max-height:80vh;padding:1rem">${rows}</div>`;
-            dialog.show();
-        }
+                var apiBase = (document.querySelector('script[data-api-base]') || {}).dataset
+                    ? document.querySelector('script[data-api-base]').dataset.apiBase
+                    : '';
+
+                var token = (document.querySelector('meta[name="signalr-token"]') || {}).content || '';
+
+                try {
+                    var resp = await fetch(apiBase + endpoint, {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + token },
+                        body: form
+                    });
+
+                    if (resp.ok) {
+                        status.textContent = 'Upload successful \u2014 AI analysis queued.';
+                        status.className = 'mt-2 small text-success';
+                        fileInput.value = '';
+                        setTimeout(function () { location.reload(); }, 2000);
+                    } else {
+                        var msg = await resp.text().catch(function () { return resp.statusText; });
+                        status.textContent = 'Upload failed: ' + msg;
+                        status.className = 'mt-2 small text-danger';
+                        btn.disabled = false;
+                    }
+                } catch (err) {
+                    status.textContent = 'Upload error: ' + err.message;
+                    status.className = 'mt-2 small text-danger';
+                    btn.disabled = false;
+                }
+            });
+        }());
     </script>
 }

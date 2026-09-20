@@ -1,4 +1,4 @@
-﻿using EmergencyResponse.Application.DTOs.Incidents;
+using EmergencyResponse.Application.DTOs.Incidents;
 using EmergencyResponse.Web.Models.Incidents;
 using EmergencyResponse.Web.Services;
 
@@ -43,6 +43,26 @@ public class IncidentsController : Controller
                 incidentTypeId,
                 status,
                 severity,
+                cancellationToken: cancellationToken);
+
+        return View(result);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> MyReports(
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var result =
+            await _incidentApiClient.GetPagedAsync(
+                page,
+                pageSize,
+                search: null,
+                incidentTypeId: null,
+                status: null,
+                severity: null,
+                myReportsOnly: true,
                 cancellationToken);
 
         return View(result);
@@ -220,14 +240,21 @@ public class IncidentsController : Controller
         ApplicationReviewDuplicateIncidentRequest request,
         CancellationToken cancellationToken)
     {
-        await _incidentApiClient.ReviewDuplicateAsync(
-            incidentId,
-            matchId,
-            request,
-            cancellationToken);
+        try
+        {
+            await _incidentApiClient.ReviewDuplicateAsync(
+                incidentId,
+                matchId,
+                request,
+                cancellationToken);
 
-        TempData["SuccessMessage"] =
-            "Duplicate review decision saved.";
+            TempData["SuccessMessage"] =
+                "Duplicate review decision saved.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
 
         return RedirectToAction(
             nameof(Details),
@@ -327,6 +354,9 @@ public class IncidentsController : Controller
                 id,
                 cancellationToken);
 
+        // Pass the source incident ID so the view can build correct review links.
+        ViewBag.SourceIncidentId = id;
+
         return View(candidates);
     }
 
@@ -355,5 +385,36 @@ public class IncidentsController : Controller
         }
 
         return File(result.Stream, result.ContentType);
+    }
+
+    [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateStatus(
+        Guid id,
+        string status,
+        string? remarks,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _incidentApiClient.UpdateStatusAsync(
+                id,
+                new UpdateIncidentStatusRequest
+                {
+                    Status = status,
+                    Remarks = remarks
+                },
+                cancellationToken);
+
+            TempData["SuccessMessage"] =
+                $"Incident status updated to {status}.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
     }
 }

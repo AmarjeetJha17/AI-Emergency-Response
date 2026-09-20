@@ -9,7 +9,7 @@ public sealed class IncidentNumberGenerator
         CancellationToken cancellationToken = default)
     {
         var number =
-            $"INC-{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+            $"INC-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Random.Shared.Next(0, 0xFFFFFF):X6}";
 
         return Task.FromResult(number);
     }

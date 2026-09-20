@@ -1,4 +1,4 @@
-﻿using EmergencyResponse.Application.AI.DTOs;
+using EmergencyResponse.Application.AI.DTOs;
 using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.DTOs.Incidents;
 
@@ -36,6 +36,7 @@ public interface IIncidentApiClient
         Guid? incidentTypeId = null,
         string? status = null,
         string? severity = null,
+        bool myReportsOnly = false,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<IncidentMediaResponse>> GetMediaAsync(
@@ -62,5 +63,10 @@ public interface IIncidentApiClient
         Guid incidentId,
         Guid mediaId,
         int frameNumber,
+        CancellationToken cancellationToken = default);
+
+    Task<IncidentResponse?> UpdateStatusAsync(
+        Guid id,
+        UpdateIncidentStatusRequest request,
         CancellationToken cancellationToken = default);
 }

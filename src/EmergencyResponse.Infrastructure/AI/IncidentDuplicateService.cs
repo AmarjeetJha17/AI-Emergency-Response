@@ -74,8 +74,8 @@ public sealed class IncidentDuplicateService
                         Distance =
                             EF.Functions.VectorDistance<float>(
                                 "cosine",
-                                source.Embedding.Value,
-                                x.Embedding.Value)
+                                source.Embedding!.Value,
+                                x.Embedding!.Value)
                     })
                 .OrderBy(x => x.Distance)
                 .Take(maxCandidates)

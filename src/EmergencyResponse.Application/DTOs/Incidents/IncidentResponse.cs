@@ -1,4 +1,4 @@
-﻿using EmergencyResponse.Domain.Enums;
+using EmergencyResponse.Domain.Enums;
 
 namespace EmergencyResponse.Application.DTOs.Incidents;
 
@@ -29,7 +29,15 @@ public sealed record IncidentResponse
 
     public string Severity { get; init; } = null!;
 
+    public int SeverityScore { get; init; }
+
+    public IReadOnlyList<string> SeverityReasons { get; init; } = [];
+
     public string Priority { get; init; } = null!;
+
+    public int PriorityScore { get; init; }
+
+    public IReadOnlyList<string> PriorityReasons { get; init; } = [];
 
     public decimal Latitude { get; init; }
 
@@ -38,6 +46,10 @@ public sealed record IncidentResponse
     public string? Address { get; init; }
 
     public string? City { get; init; }
+
+    public string? District { get; init; }
+
+    public string? State { get; init; }
 
     public int? PeopleAffected { get; init; }
 
@@ -48,4 +60,6 @@ public sealed record IncidentResponse
     public DateTime ReportedAtUtc { get; init; }
 
     public IReadOnlyList<IncidentMediaResponse> VisualEvidence { get; init; } = [];
+
+    public IReadOnlyList<IncidentStatusHistoryResponse> StatusHistory { get; init; } = [];
 }

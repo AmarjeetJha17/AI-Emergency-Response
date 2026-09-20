@@ -808,6 +808,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<string>("FindingsJson")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("FrameStorageKeysJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("FrameTimestampsJson")
                         .HasColumnType("nvarchar(max)");
 

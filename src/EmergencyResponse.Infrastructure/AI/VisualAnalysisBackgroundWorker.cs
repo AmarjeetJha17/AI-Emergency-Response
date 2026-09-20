@@ -1,6 +1,7 @@
 using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.Events;
 using EmergencyResponse.Application.Interfaces;
+using EmergencyResponse.Application.Realtime;
 using EmergencyResponse.Domain.Enums;
 using EmergencyResponse.Infrastructure.Persistence;
 
@@ -90,6 +91,15 @@ public sealed class VisualAnalysisBackgroundWorker : BackgroundService
                     },
                     stoppingToken);
 
+                await notificationService.NotifyDashboardUpdatedAsync(
+                    new DashboardUpdatedEvent
+                    {
+                        Reason = DashboardUpdateReasons.VisualAnalysisCompleted,
+                        IncidentId = media.IncidentId,
+                        UpdatedAtUtc = DateTime.UtcNow
+                    },
+                    stoppingToken);
+
                 _logger.LogInformation(
                     "Visual analysis completed for media {MediaId}. Status={Status}.",
                     job.IncidentMediaId,
@@ -108,6 +118,51 @@ public sealed class VisualAnalysisBackgroundWorker : BackgroundService
                         job.IncidentMediaId,
                         ex.Message,
                         stoppingToken);
+
+                    try
+                    {
+                        using var failureScope = _scopeFactory.CreateScope();
+                        var db = failureScope.ServiceProvider
+                            .GetRequiredService<ApplicationDbContext>();
+
+                        var incidentId = await db.IncidentMedia
+                            .Where(x => x.Id == job.IncidentMediaId)
+                            .Select(x => x.IncidentId)
+                            .FirstOrDefaultAsync(stoppingToken);
+
+                        if (incidentId != Guid.Empty)
+                        {
+                            var notificationService = failureScope.ServiceProvider
+                                .GetRequiredService<IIncidentNotificationService>();
+
+                            await notificationService.NotifyIncidentUpdatedAsync(
+                                new IncidentUpdatedEvent
+                                {
+                                    IncidentId = incidentId,
+                                    IncidentMediaId = job.IncidentMediaId,
+                                    VisualAnalysisAvailable = true,
+                                    VisualAnalysisStatus = VisualAnalysisStatus.Failed,
+                                    UpdateType = "VISUAL_ANALYSIS_FAILED"
+                                },
+                                stoppingToken);
+
+                            await notificationService.NotifyDashboardUpdatedAsync(
+                                new DashboardUpdatedEvent
+                                {
+                                    Reason = DashboardUpdateReasons.VisualAnalysisCompleted,
+                                    IncidentId = incidentId,
+                                    UpdatedAtUtc = DateTime.UtcNow
+                                },
+                                stoppingToken);
+                        }
+                    }
+                    catch (Exception notifEx)
+                    {
+                        _logger.LogWarning(
+                            notifEx,
+                            "Failed to publish failure notification for media {MediaId}.",
+                            job.IncidentMediaId);
+                    }
                 }
             }
         }
@@ -130,8 +185,7 @@ public sealed class VisualAnalysisBackgroundWorker : BackgroundService
 
             var existing = await db.VisualAnalyses
                 .FirstOrDefaultAsync(
-                    x => x.IncidentMediaId == incidentMediaId &&
-                         x.Status == VisualAnalysisStatus.Processing,
+                    x => x.IncidentMediaId == incidentMediaId,
                     cancellationToken);
 
             if (existing is not null)
@@ -141,6 +195,32 @@ public sealed class VisualAnalysisBackgroundWorker : BackgroundService
                     reason.Length <= 2000 ? reason : reason[..2000];
 
                 await db.SaveChangesAsync(cancellationToken);
+            }
+            else
+            {
+                var media = await db.IncidentMedia
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(
+                        x => x.Id == incidentMediaId,
+                        cancellationToken);
+
+                if (media is not null)
+                {
+                    db.VisualAnalyses.Add(new Domain.Entities.VisualAnalysis
+                    {
+                        Id = Guid.NewGuid(),
+                        IncidentMediaId = media.Id,
+                        IncidentId = media.IncidentId,
+                        ModelName = "gpt-5-mini",
+                        ModelVersion = "gpt-5-mini",
+                        PromptVersion = Application.AI.Common.AIPromptVersions.VisualEvidenceAnalysis,
+                        Status = VisualAnalysisStatus.Failed,
+                        FailureReason = reason.Length <= 2000 ? reason : reason[..2000],
+                        CreatedAtUtc = DateTime.UtcNow
+                    });
+
+                    await db.SaveChangesAsync(cancellationToken);
+                }
             }
         }
         catch (Exception ex)

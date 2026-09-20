@@ -1,5 +1,176 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+@model EmergencyResponse.Application.DTOs.Common.PagedResult<EmergencyResponse.Application.DTOs.Incidents.IncidentListItem>
+
 @{
+    ViewData["Title"] = "My Reports";
 }
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>My Reports</h2>
+            <p class="text-muted mb-0">Emergency incidents you have submitted.</p>
+        </div>
+
+        <a asp-action="Create" class="btn btn-danger">
+            Report Emergency
+        </a>
+    </div>
+
+    @if (!Model.Items.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-body text-center py-5">
+                <div class="fs-1 mb-3">&#128680;</div>
+                <h5>No reports yet</h5>
+                <p class="text-muted">
+                    You have not submitted any emergency reports.
+                </p>
+                <a asp-action="Create" class="btn btn-danger mt-2">
+                    Report an Emergency
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>Incident</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Severity</th>
+                            <th>Priority</th>
+                            <th>Reported</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">@item.IncidentNumber</div>
+                                    <div class="text-truncate" style="max-width:220px">@item.Title</div>
+                                    <small class="text-muted">@item.City</small>
+                                </td>
+
+                                <td>
+                                    <span class="text-muted small">@item.IncidentType</span>
+                                </td>
+
+                                <td>
+                                    @{
+                                        var statusClass = item.Status switch
+                                        {
+                                            "Submitted"   => "bg-secondary",
+                                            "UnderReview" => "bg-info text-dark",
+                                            "Assigned"    => "bg-primary",
+                                            "InProgress"  => "bg-primary",
+                                            "Escalated"   => "bg-warning text-dark",
+                                            "Resolved"    => "bg-success",
+                                            "Closed"      => "bg-success",
+                                            "Rejected"    => "bg-danger",
+                                            _             => "bg-secondary"
+                                        };
+                                    }
+                                    <span class="badge @statusClass">@item.Status</span>
+                                </td>
+
+                                <td>
+                                    @{
+                                        var severityClass = item.Severity switch
+                                        {
+                                            "Critical" => "bg-danger",
+                                            "High"     => "bg-warning text-dark",
+                                            "Moderate" => "bg-info text-dark",
+                                            _          => "bg-secondary"
+                                        };
+                                    }
+                                    <span class="badge @severityClass">@item.Severity</span>
+                                </td>
+
+                                <td>
+                                    @{
+                                        var priorityClass = item.Priority switch
+                                        {
+                                            "Critical" => "bg-danger",
+                                            "High"     => "bg-warning text-dark",
+                                            "Normal"   => "bg-info text-dark",
+                                            _          => "bg-secondary"
+                                        };
+                                    }
+                                    <span class="badge @priorityClass">@item.Priority</span>
+                                </td>
+
+                                <td class="text-muted small text-nowrap">
+                                    @{
+                                        var age = DateTime.UtcNow - item.ReportedAtUtc;
+                                        var ageText = age.TotalMinutes < 60
+                                            ? $"{(int)age.TotalMinutes}m ago"
+                                            : age.TotalHours < 24
+                                                ? $"{(int)age.TotalHours}h ago"
+                                                : $"{(int)age.TotalDays}d ago";
+                                    }
+                                    @ageText
+                                </td>
+
+                                <td>
+                                    <a asp-action="Details"
+                                       asp-route-id="@item.Id"
+                                       class="btn btn-sm btn-outline-primary">
+                                        View
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+
+                </table>
+            </div>
+        </div>
+
+        @* Pagination *@
+        @if (Model.TotalPages > 1)
+        {
+            <nav class="mt-3" aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+
+                    <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                        <a class="page-link"
+                           asp-action="MyReports"
+                           asp-route-page="@(Model.Page - 1)">
+                            &laquo; Previous
+                        </a>
+                    </li>
+
+                    @for (var p = 1; p <= Model.TotalPages; p++)
+                    {
+                        <li class="page-item @(p == Model.Page ? "active" : "")">
+                            <a class="page-link"
+                               asp-action="MyReports"
+                               asp-route-page="@p">
+                                @p
+                            </a>
+                        </li>
+                    }
+
+                    <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link"
+                           asp-action="MyReports"
+                           asp-route-page="@(Model.Page + 1)">
+                            Next &raquo;
+                        </a>
+                    </li>
+
+                </ul>
+            </nav>
+        }
+    }
+
+</div>

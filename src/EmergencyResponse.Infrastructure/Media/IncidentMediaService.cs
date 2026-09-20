@@ -111,6 +111,12 @@ public sealed class IncidentMediaService : IIncidentMediaService
             StorageKey = storageKey,
             ContentType = contentType,
             SizeBytes = length,
+            // FileSizeBytes / FileName / StoragePath are legacy columns that remain
+            // NOT NULL in the current schema. Populate them from the new values so
+            // the INSERT does not violate the NOT NULL constraints.
+            FileSizeBytes = length,
+            FileName = storageKey,
+            StoragePath = storageKey,
             ContentHash = hash,
             AIAnalysisRequested = true,
             MediaType = mediaType

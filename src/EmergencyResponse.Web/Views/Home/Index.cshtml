@@ -1,8 +1,145 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+@* Hero *@
+<div class="bg-danger text-white py-5 mb-5"
+     style="margin-left: calc(-50vw + 50%); margin-right: calc(-50vw + 50%); padding-left: 2rem; padding-right: 2rem;">
+    <div class="container text-center py-3">
+        <div class="fs-1 mb-3">&#128680;</div>
+        <h1 class="display-5 fw-bold mb-3">AI Emergency Response Platform</h1>
+        <p class="lead mb-4 opacity-75">
+            Report emergencies instantly. AI-powered triage routes every incident
+            to the right responders within seconds.
+        </p>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <a asp-controller="Incidents" asp-action="Create"
+               class="btn btn-light btn-lg fw-semibold me-2">
+                Report Emergency
+            </a>
+            <a asp-controller="Incidents" asp-action="Index"
+               class="btn btn-outline-light btn-lg">
+                View Incidents
+            </a>
+        }
+        else
+        {
+            <a asp-controller="Account" asp-action="Register"
+               class="btn btn-light btn-lg fw-semibold me-2">
+                Get Started
+            </a>
+            <a asp-controller="Account" asp-action="Login"
+               class="btn btn-outline-light btn-lg">
+                Sign In
+            </a>
+        }
+    </div>
+</div>
+
+@* Feature cards *@
+<div class="container">
+    <div class="row g-4 mb-5">
+
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="fs-2 mb-3">&#129302;</div>
+                    <h5 class="fw-semibold">AI-Powered Triage</h5>
+                    <p class="text-muted mb-0">
+                        Every incident is automatically analysed for severity and
+                        priority by Azure AI. Critical cases surface instantly —
+                        no manual sorting required.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="fs-2 mb-3">&#128247;</div>
+                    <h5 class="fw-semibold">Visual Evidence Analysis</h5>
+                    <p class="text-muted mb-0">
+                        Upload images or videos at the scene. The vision AI
+                        detects fire, flooding, structural damage, trapped people,
+                        and more — even across video frames.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="fs-2 mb-3">&#128202;</div>
+                    <h5 class="fw-semibold">Duplicate Detection</h5>
+                    <p class="text-muted mb-0">
+                        Semantic embeddings and geographic scoring automatically
+                        identify duplicate reports, keeping the incident queue
+                        clean and operators focused.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="fs-2 mb-3">&#9889;</div>
+                    <h5 class="fw-semibold">Real-Time Updates</h5>
+                    <p class="text-muted mb-0">
+                        SignalR pushes live status changes to every connected
+                        operator the moment AI analysis completes or a review
+                        decision is recorded.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="fs-2 mb-3">&#128113;</div>
+                    <h5 class="fw-semibold">Human Review Gates</h5>
+                    <p class="text-muted mb-0">
+                        High-stakes AI results — critical incidents, low
+                        confidence, trapped people — are automatically flagged
+                        for operator verification before action.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="fs-2 mb-3">&#127758;</div>
+                    <h5 class="fw-semibold">10 Incident Categories</h5>
+                    <p class="text-muted mb-0">
+                        Flood, fire, road accident, landslide, earthquake,
+                        cyclone, building collapse, medical emergency,
+                        chemical leak, and more.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    @* CTA *@
+    @if (User.Identity?.IsAuthenticated != true)
+    {
+        <div class="text-center py-4 mb-5">
+            <h4 class="mb-3">Ready to report an emergency?</h4>
+            <a asp-controller="Account" asp-action="Register"
+               class="btn btn-danger btn-lg me-2">
+                Create Account
+            </a>
+            <a asp-controller="Account" asp-action="Login"
+               class="btn btn-outline-secondary btn-lg">
+                Sign In
+            </a>
+        </div>
+    }
 </div>

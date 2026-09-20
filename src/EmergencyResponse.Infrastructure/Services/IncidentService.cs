@@ -119,16 +119,33 @@ public sealed class IncidentService : IIncidentService
             Status = incident.Status.ToString(),
             DuplicateDetectionStatus = incident.DuplicateDetectionStatus,
             HasDuplicateCandidates = false,
-            Severity = incident.Severity.ToString(),
-            Priority = incident.Priority.ToString(),
+            Severity      = incident.Severity.ToString(),
+            SeverityScore = incident.SeverityScore,
+            SeverityReasons = Array.Empty<string>(),
+            Priority      = incident.Priority.ToString(),
+            PriorityScore = incident.PriorityScore,
+            PriorityReasons = Array.Empty<string>(),
             Latitude = request.Latitude,
             Longitude = request.Longitude,
             Address = request.Address,
             City = request.City,
-            PeopleAffected = incident.PeopleAffected,
+            District = request.District,
+            State = request.State,
+            PeopleAffected   = incident.PeopleAffected,
             VehiclesAffected = incident.VehiclesAffected,
-            Casualties = incident.Casualties,
-            ReportedAtUtc = incident.ReportedAtUtc
+            Casualties       = incident.Casualties,
+            ReportedAtUtc    = incident.ReportedAtUtc,
+            StatusHistory = incident.StatusHistory
+                .OrderBy(h => h.ChangedAtUtc)
+                .Select(h => new IncidentStatusHistoryResponse
+                {
+                    OldStatus       = h.OldStatus.ToString(),
+                    NewStatus       = h.NewStatus.ToString(),
+                    ChangedByUserId = h.ChangedByUserId,
+                    Remarks         = h.Remarks,
+                    ChangedAtUtc    = h.ChangedAtUtc
+                })
+                .ToList()
         };
     }
 
@@ -142,6 +159,7 @@ public sealed class IncidentService : IIncidentService
                 .Include(x => x.IncidentType)
                 .Include(x => x.Locations)
                 .Include(x => x.CanonicalIncident)
+                .Include(x => x.StatusHistory)
                 .FirstOrDefaultAsync(
                     x => x.Id == id,
                     cancellationToken);
@@ -270,6 +288,31 @@ public sealed class IncidentService : IIncidentService
             };
         }).ToList();
 
+        // Deserialise AI-assigned reason lists (stored as JSON arrays).
+        var severityReasons =
+            string.IsNullOrWhiteSpace(incident.SeverityReasonsJson)
+                ? (IReadOnlyList<string>)Array.Empty<string>()
+                : (IReadOnlyList<string>)(JsonSerializer.Deserialize<List<string>>(incident.SeverityReasonsJson)
+                  ?? new List<string>());
+
+        var priorityReasons =
+            string.IsNullOrWhiteSpace(incident.PriorityReasonsJson)
+                ? (IReadOnlyList<string>)Array.Empty<string>()
+                : (IReadOnlyList<string>)(JsonSerializer.Deserialize<List<string>>(incident.PriorityReasonsJson)
+                  ?? new List<string>());
+
+        var statusHistory = incident.StatusHistory
+            .OrderBy(h => h.ChangedAtUtc)
+            .Select(h => new IncidentStatusHistoryResponse
+            {
+                OldStatus    = h.OldStatus.ToString(),
+                NewStatus    = h.NewStatus.ToString(),
+                ChangedByUserId = h.ChangedByUserId,
+                Remarks      = h.Remarks,
+                ChangedAtUtc = h.ChangedAtUtc
+            })
+            .ToList();
+
         return new IncidentResponse
         {
             Id = incident.Id,
@@ -285,22 +328,95 @@ public sealed class IncidentService : IIncidentService
             CanonicalIncidentId = incident.CanonicalIncidentId,
             CanonicalIncidentNumber = incident.CanonicalIncident?.IncidentNumber,
             RelatedIncidents = relatedIncidents,
-            Severity = incident.Severity.ToString(),
-            Priority = incident.Priority.ToString(),
+
+            Severity      = incident.Severity.ToString(),
+            SeverityScore = incident.SeverityScore,
+            SeverityReasons = severityReasons,
+
+            Priority      = incident.Priority.ToString(),
+            PriorityScore = incident.PriorityScore,
+            PriorityReasons = priorityReasons,
 
             Latitude = location?.Latitude ?? 0,
             Longitude = location?.Longitude ?? 0,
 
             Address = location?.Address,
-            City = location?.City,
+            City    = location?.City,
+            District = location?.District,
+            State    = location?.State,
 
-            PeopleAffected = incident.PeopleAffected,
+            PeopleAffected   = incident.PeopleAffected,
             VehiclesAffected = incident.VehiclesAffected,
-            Casualties = incident.Casualties,
+            Casualties       = incident.Casualties,
 
-            ReportedAtUtc = incident.ReportedAtUtc,
-            VisualEvidence = visualEvidence
+            ReportedAtUtc  = incident.ReportedAtUtc,
+            VisualEvidence = visualEvidence,
+            StatusHistory  = statusHistory
         };
+    }
+
+    public async Task<IncidentResponse?> UpdateStatusAsync(
+        Guid id,
+        UpdateIncidentStatusRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Enum.TryParse<IncidentStatus>(
+                request.Status,
+                ignoreCase: true,
+                out var newStatus))
+        {
+            throw new InvalidOperationException(
+                $"'{request.Status}' is not a valid incident status.");
+        }
+
+        // Load without the Embedding column — it is a SQL Server native
+        // vector type that does not round-trip cleanly through EF change
+        // tracking and causes DbUpdateConcurrencyException on UPDATE.
+        var incident = await _dbContext.Incidents
+            .Include(x => x.IncidentType)
+            .Include(x => x.Locations)
+            .FirstOrDefaultAsync(
+                x => x.Id == id,
+                cancellationToken);
+
+        if (incident is null)
+        {
+            return null;
+        }
+
+        var oldStatus = incident.Status;
+
+        if (oldStatus == newStatus)
+        {
+            throw new InvalidOperationException(
+                $"Incident is already in '{newStatus}' status.");
+        }
+
+        // Terminal statuses cannot be changed further.
+        if (oldStatus is IncidentStatus.Closed or IncidentStatus.Rejected)
+        {
+            throw new InvalidOperationException(
+                $"Cannot transition a '{oldStatus}' incident.");
+        }
+
+        incident.Status = newStatus;
+
+        var historyEntry = new IncidentStatusHistory
+        {
+            Id = Guid.NewGuid(),
+            IncidentId = id,
+            OldStatus = oldStatus,
+            NewStatus = newStatus,
+            ChangedByUserId = _currentUserService.UserId,
+            ChangedAtUtc = DateTime.UtcNow,
+            Remarks = request.Remarks?.Trim()
+        };
+
+        _dbContext.IncidentStatusHistory.Add(historyEntry);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return await GetByIdAsync(id, cancellationToken);
     }
 
     public Task<PagedResult<IncidentListItem>> GetPagedAsync(
