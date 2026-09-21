@@ -134,4 +134,89 @@ public sealed class MapControllerIntegrationTests : IClassFixture<ApiWebApplicat
         Assert.False(firstElement.TryGetProperty("reporterPhone", out _));
         Assert.False(firstElement.TryGetProperty("rawOutputJson", out _));
     }
+
+    [Fact]
+    public async Task GetIncidentTypes_AsAdmin_ReturnsOkWithList()
+    {
+        var adminToken = await LoginAdminAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        var response = await _client.GetAsync("/api/map/incident-types");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var types = await response.Content.ReadFromJsonAsync<List<string>>(JsonOptions);
+        Assert.NotNull(types);
+        Assert.NotEmpty(types);
+    }
+
+    [Fact]
+    public async Task GetDepartments_AsAdmin_ReturnsOkWithList()
+    {
+        var adminToken = await LoginAdminAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        var response = await _client.GetAsync("/api/map/departments");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var depts = await response.Content.ReadFromJsonAsync<List<string>>(JsonOptions);
+        Assert.NotNull(depts);
+        Assert.NotEmpty(depts);
+    }
+
+    [Fact]
+    public async Task GetIncidentTypes_AsCitizen_ReturnsForbidden()
+    {
+        var citizenToken = await RegisterAndLoginCitizenAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", citizenToken);
+
+        var response = await _client.GetAsync("/api/map/incident-types");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetResources_AsAdmin_ReturnsOkWithList()
+    {
+        var adminToken = await LoginAdminAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        var response = await _client.GetAsync("/api/map/resources");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var resources = await response.Content.ReadFromJsonAsync<List<MapResource>>(JsonOptions);
+        Assert.NotNull(resources);
+    }
+
+    [Fact]
+    public async Task GetResources_AsCitizen_ReturnsForbidden()
+    {
+        var citizenToken = await RegisterAndLoginCitizenAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", citizenToken);
+
+        var response = await _client.GetAsync("/api/map/resources");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetOperationalZones_AsAdmin_ReturnsOkWithList()
+    {
+        var adminToken = await LoginAdminAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        var response = await _client.GetAsync("/api/map/zones");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var zones = await response.Content.ReadFromJsonAsync<List<MapOperationalZone>>(JsonOptions);
+        Assert.NotNull(zones);
+    }
+
+    [Fact]
+    public async Task GetOperationalZones_AsCitizen_ReturnsForbidden()
+    {
+        var citizenToken = await RegisterAndLoginCitizenAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", citizenToken);
+
+        var response = await _client.GetAsync("/api/map/zones");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
 }
+

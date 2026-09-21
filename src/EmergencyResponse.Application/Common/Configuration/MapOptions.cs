@@ -13,4 +13,17 @@ public sealed class MapOptions
     public double DefaultLongitude { get; set; } = 78.9629;
 
     public int DefaultZoom { get; set; } = 5;
+
+    public MapOperationalRadiiOptions OperationalRadii { get; set; } = new();
+}
+
+public sealed class MapOperationalRadiiOptions
+{
+    public double CriticalMeters { get; set; } = 1000;
+
+    public double HighMeters { get; set; } = 500;
+
+    public double ModerateMeters { get; set; } = 250;
+
+    public double LowMeters { get; set; } = 0;
 }

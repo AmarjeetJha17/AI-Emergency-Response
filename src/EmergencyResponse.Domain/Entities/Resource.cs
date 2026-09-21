@@ -21,6 +21,10 @@ public class Resource : BaseEntity
 
     public decimal? Longitude { get; set; }
 
+    public DateTime? LocationUpdatedAtUtc { get; set; }
+
+    public bool ShowOnOperationalMap { get; set; } = true;
+
     public int? Capacity { get; set; }
 
     public ICollection<ResourceAssignment> Assignments { get; set; }

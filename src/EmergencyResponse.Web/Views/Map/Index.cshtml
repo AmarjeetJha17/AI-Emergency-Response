@@ -6,10 +6,11 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/lib/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="~/lib/leaflet.markercluster/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="~/css/emergency-map.css" asp-append-version="true" />
 }
 
-<div class="container-fluid py-3">
+<div class="container-fluid py-3" id="emergencyMapPage" data-selected-incident-id="@Model.SelectedIncidentId">
     <!-- Header -->
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
         <div>
@@ -19,7 +20,7 @@
                     <span class="live-indicator-dot"></span> Live
                 </span>
             </div>
-            <div class="text-muted small">Real-time situational awareness and spatial tracking of active incidents</div>
+            <div class="text-muted small">Real-time situational awareness, spatial tracking, and resource deployment</div>
         </div>
         <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
             <span id="mapLastUpdated" class="text-muted small me-2"></span>
@@ -36,11 +37,147 @@
         </div>
     </div>
 
+    <!-- Map Filters Card -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+            <div>
+                <span class="fw-semibold text-dark"><i class="bi bi-funnel me-1"></i>Map Filters & Layers</span>
+                <span class="small text-muted ms-2 d-none d-md-inline">Filter active incidents and toggle operational layers.</span>
+            </div>
+            <span id="activeMapFilterSummary" class="small text-muted">Showing all active incidents.</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label fw-semibold small mb-1" for="mapSeverityFilter">Severity</label>
+                    <select id="mapSeverityFilter" class="form-select form-select-sm">
+                        <option value="">All severities</option>
+                        <option value="Critical">Critical</option>
+                        <option value="High">High</option>
+                        <option value="Moderate">Moderate</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label fw-semibold small mb-1" for="mapPriorityFilter">Priority</label>
+                    <select id="mapPriorityFilter" class="form-select form-select-sm">
+                        <option value="">All priorities</option>
+                        <option value="P1">Critical (P1)</option>
+                        <option value="P2">High (P2)</option>
+                        <option value="P3">Normal / Medium (P3)</option>
+                        <option value="P4">Low (P4)</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label fw-semibold small mb-1" for="mapStatusFilter">Status</label>
+                    <select id="mapStatusFilter" class="form-select form-select-sm">
+                        <option value="">All statuses</option>
+                        @foreach (var status in Enum.GetValues<EmergencyResponse.Domain.Enums.IncidentStatus>().Where(s => s != EmergencyResponse.Domain.Enums.IncidentStatus.Closed))
+                        {
+                            <option value="@status">@status</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label fw-semibold small mb-1" for="mapIncidentTypeFilter">Incident Type</label>
+                    <select id="mapIncidentTypeFilter" class="form-select form-select-sm">
+                        <option value="">All incident types</option>
+                        @foreach (var type in Model.IncidentTypes)
+                        {
+                            <option value="@type">@type</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-1">
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label fw-semibold small mb-1" for="mapDepartmentFilter">Department</label>
+                    <select id="mapDepartmentFilter" class="form-select form-select-sm">
+                        <option value="">All departments</option>
+                        @foreach (var department in Model.Departments)
+                        {
+                            <option value="@department">@department</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label fw-semibold small mb-1">AI Review</label>
+                    <div class="form-check mt-1">
+                        <input id="mapAIReviewFilter" class="form-check-input" type="checkbox">
+                        <label class="form-check-label small" for="mapAIReviewFilter">
+                            AI review required
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label fw-semibold small mb-1">Duplicate Review</label>
+                    <div class="form-check mt-1">
+                        <input id="mapDuplicateFilter" class="form-check-input" type="checkbox">
+                        <label class="form-check-label small" for="mapDuplicateFilter">
+                            Duplicate review required
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label fw-semibold small mb-1">Visual Review</label>
+                    <div class="form-check mt-1">
+                        <input id="mapVisualFilter" class="form-check-input" type="checkbox">
+                        <label class="form-check-label small" for="mapVisualFilter">
+                            Visual review required
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-1 pt-2 border-top">
+                <div class="col-md-6 col-lg-4">
+                    <div class="form-check">
+                        <input id="mapResourcesToggle" class="form-check-input" type="checkbox" checked>
+                        <label class="form-check-label small fw-semibold" for="mapResourcesToggle">
+                            Show operational resources
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="form-check">
+                        <input id="mapZonesToggle" class="form-check-input" type="checkbox" checked>
+                        <label class="form-check-label small fw-semibold" for="mapZonesToggle">
+                            Show operational alert radii
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top">
+                <button id="applyMapFilters" type="button" class="btn btn-primary btn-sm">
+                    Apply Filters
+                </button>
+                <button id="clearMapFilters" type="button" class="btn btn-outline-secondary btn-sm">
+                    Clear Filters
+                </button>
+                <button id="fitFilteredIncidents" type="button" class="btn btn-outline-primary btn-sm">
+                    Fit to Results
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Stats Bar -->
     <div class="map-stats-bar">
         <div class="map-stat-badge">
-            <span>Total Active:</span>
-            <span id="statTotal" class="badge bg-primary">0</span>
+            <span>Filtered Incidents:</span>
+            <span id="mapIncidentCount" class="badge bg-primary">0 / 0 incidents</span>
+        </div>
+        <div class="map-stat-badge">
+            <span>Resources:</span>
+            <span id="statResources" class="badge bg-dark">@Model.Resources.Count</span>
         </div>
         <div class="map-stat-badge">
             <span class="map-legend-dot dot-critical"></span>
@@ -68,12 +205,37 @@
     <div class="emergency-map-container">
         <div id="emergencyMap"></div>
     </div>
+
+    <!-- Incident Details Drawer (Offcanvas) -->
+    <div class="offcanvas offcanvas-end shadow"
+         tabindex="-1"
+         id="incidentDetailsDrawer"
+         aria-labelledby="incidentDetailsDrawerLabel">
+        <div class="offcanvas-header border-bottom bg-light py-3">
+            <h5 class="offcanvas-title fw-bold" id="incidentDetailsDrawerLabel">
+                Incident Details
+            </h5>
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="offcanvas"
+                    aria-label="Close">
+            </button>
+        </div>
+        <div class="offcanvas-body" id="incidentDetailsContent">
+            <div class="text-muted text-center py-5">
+                Select an incident pin to view details.
+            </div>
+        </div>
+    </div>
 </div>
 
 <script type="application/json" id="emergencyMapConfig">
 @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new
 {
     initialIncidents = Model.Incidents,
+    initialResources = Model.Resources,
+    initialOperationalZones = Model.OperationalZones,
+    selectedIncidentId = Model.SelectedIncidentId,
     tileUrl = Model.TileUrl,
     attribution = Model.Attribution,
     defaultLatitude = Model.DefaultLatitude,
@@ -87,5 +249,6 @@
 
 @section Scripts {
     <script src="~/lib/leaflet/dist/leaflet.js"></script>
+    <script src="~/lib/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
     <script src="~/js/emergency-map.js" asp-append-version="true"></script>
 }

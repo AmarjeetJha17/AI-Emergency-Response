@@ -22,6 +22,15 @@
         "dist/images/layers.png",
         "dist/images/layers-2x.png"
       ]
+    },
+    {
+      "library": "leaflet.markercluster@1.5.3",
+      "destination": "wwwroot/lib/leaflet.markercluster",
+      "files": [
+        "dist/leaflet.markercluster.js",
+        "dist/MarkerCluster.css",
+        "dist/MarkerCluster.Default.css"
+      ]
     }
   ]
 }

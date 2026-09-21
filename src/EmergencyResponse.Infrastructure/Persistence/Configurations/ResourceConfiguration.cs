@@ -30,9 +30,20 @@ public class ResourceConfiguration
         builder.Property(x => x.Longitude)
             .HasPrecision(9, 6);
 
+        builder.Property(x => x.LocationUpdatedAtUtc);
+
+        builder.Property(x => x.ShowOnOperationalMap)
+            .IsRequired();
+
         builder.HasIndex(x => x.Status);
 
         builder.HasIndex(x => x.Type);
+
+        builder.HasIndex(x => new
+        {
+            x.Latitude,
+            x.Longitude
+        });
 
         builder.HasOne(x => x.Department)
             .WithMany(x => x.Resources)

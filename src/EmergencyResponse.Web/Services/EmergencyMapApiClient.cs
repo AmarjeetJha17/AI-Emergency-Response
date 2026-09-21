@@ -37,4 +37,84 @@ public sealed class EmergencyMapApiClient : IEmergencyMapApiClient
                 cancellationToken)
             ?? [];
     }
+
+    public async Task<IReadOnlyList<string>> GetIncidentTypesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            "api/map/incident-types",
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<IReadOnlyList<string>>(
+                cancellationToken)
+            ?? [];
+    }
+
+    public async Task<IReadOnlyList<string>> GetDepartmentsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            "api/map/departments",
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<IReadOnlyList<string>>(
+                cancellationToken)
+            ?? [];
+    }
+
+    public async Task<IReadOnlyList<MapResource>> GetResourcesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            "api/map/resources",
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<IReadOnlyList<MapResource>>(
+                cancellationToken)
+            ?? [];
+    }
+
+    public async Task<IReadOnlyList<MapOperationalZone>> GetOperationalZonesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            "api/map/zones",
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<IReadOnlyList<MapOperationalZone>>(
+                cancellationToken)
+            ?? [];
+    }
 }

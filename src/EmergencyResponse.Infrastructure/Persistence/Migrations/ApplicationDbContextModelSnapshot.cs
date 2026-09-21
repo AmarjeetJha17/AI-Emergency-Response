@@ -484,7 +484,8 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("ContentHash")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ContentType")
                         .IsRequired()
@@ -519,7 +520,8 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("StorageKey")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<string>("StoragePath")
                         .IsRequired()
@@ -717,6 +719,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .HasPrecision(9, 6)
                         .HasColumnType("decimal(9,6)");
 
+                    b.Property<DateTime?>("LocationUpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<decimal?>("Longitude")
                         .HasPrecision(9, 6)
                         .HasColumnType("decimal(9,6)");
@@ -725,6 +730,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
+
+                    b.Property<bool>("ShowOnOperationalMap")
+                        .HasColumnType("bit");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -742,6 +750,8 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status");
 
                     b.HasIndex("Type");
+
+                    b.HasIndex("Latitude", "Longitude");
 
                     b.ToTable("Resources", (string)null);
                 });

@@ -15,4 +15,6 @@ public sealed class DashboardViewModel
     public IReadOnlyList<DashboardIncidentGridItem> GridItems { get; init; } = [];
 
     public IReadOnlyList<DashboardReviewPoint> ReviewQueue { get; init; } = [];
+
+    public Guid? SelectedIncidentId { get; init; }
 }

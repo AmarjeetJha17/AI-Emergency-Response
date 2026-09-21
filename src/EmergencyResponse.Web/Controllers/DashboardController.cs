@@ -19,6 +19,7 @@ public sealed class DashboardController : Controller
 
     [HttpGet]
     public async Task<IActionResult> Index(
+        [FromQuery] Guid? incidentId,
         CancellationToken cancellationToken)
     {
         var summary = await _dashboardApiClient.GetSummaryAsync(
@@ -83,7 +84,8 @@ public sealed class DashboardController : Controller
             SeverityDistribution = severity,
             IncidentTrend        = trend,
             GridItems            = gridItems,
-            ReviewQueue          = reviewQueue
+            ReviewQueue          = reviewQueue,
+            SelectedIncidentId   = incidentId
         });
     }
 

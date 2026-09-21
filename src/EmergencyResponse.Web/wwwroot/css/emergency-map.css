@@ -234,3 +234,116 @@
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.4; transform: scale(0.85); }
 }
+
+/* Marker Clustering */
+.emergency-cluster {
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.30);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+    font-size: 0.88rem;
+    transition: transform 0.15s ease-in-out;
+    cursor: pointer;
+}
+
+.emergency-cluster:hover {
+    transform: scale(1.08);
+}
+
+.emergency-cluster-small {
+    width: 38px;
+    height: 38px;
+    background: #0d6efd;
+}
+
+.emergency-cluster-medium {
+    width: 46px;
+    height: 46px;
+    background: #fd7e14;
+}
+
+.emergency-cluster-large {
+    width: 56px;
+    height: 56px;
+    background: #dc3545;
+}
+
+/* Marker Review Alert Ring */
+.emergency-marker-alert .marker-pin {
+    box-shadow:
+        0 0 0 4px rgba(255, 193, 7, 0.5),
+        0 2px 8px rgba(0, 0, 0, 0.45);
+    animation: alertGlowAnimation 2s infinite ease-in-out;
+}
+
+@keyframes alertGlowAnimation {
+    0%, 100% {
+        box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.5), 0 2px 8px rgba(0, 0, 0, 0.45);
+    }
+    50% {
+        box-shadow: 0 0 0 7px rgba(255, 193, 7, 0.8), 0 2px 10px rgba(255, 193, 7, 0.6);
+    }
+}
+
+/* Resource Markers & Legend */
+.resource-marker {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 2px solid white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    background: #212529;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    transition: transform 0.15s ease-in-out;
+}
+
+.resource-marker:hover {
+    transform: scale(1.15);
+}
+
+.resource-popup {
+    min-width: 200px;
+    padding: 4px;
+    font-size: 0.85rem;
+}
+
+.resource-marker-mini {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: #212529;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.zone-marker-mini {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #dc3545;
+    background: rgba(220, 53, 69, 0.2);
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+/* Incident Details Offcanvas Drawer */
+#incidentDetailsDrawer {
+    width: 420px;
+    max-width: 90vw;
+}
+
+#incidentDetailsDrawer .offcanvas-body {
+    font-size: 0.9rem;
+}
+
