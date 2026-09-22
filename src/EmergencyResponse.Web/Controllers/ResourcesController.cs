@@ -1,0 +1,209 @@
+using EmergencyResponse.Application.Resources;
+using EmergencyResponse.Domain.Enums;
+using EmergencyResponse.Web.Models.Resources;
+using EmergencyResponse.Web.Services;
+
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace EmergencyResponse.Web.Controllers;
+
+[Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
+public sealed class ResourcesController : Controller
+{
+    private readonly IResourceApiClient _resourceApiClient;
+    private readonly ILogger<ResourcesController> _logger;
+
+    public ResourcesController(
+        IResourceApiClient resourceApiClient,
+        ILogger<ResourcesController> logger)
+    {
+        _resourceApiClient = resourceApiClient;
+        _logger = logger;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    {
+        var summaryTask = _resourceApiClient.GetSummaryAsync(cancellationToken);
+        var resourcesTask = _resourceApiClient.GetCommandCenterAsync(cancellationToken);
+
+        await Task.WhenAll(summaryTask, resourcesTask);
+
+        var viewModel = new ResourceCommandCenterViewModel
+        {
+            Summary = await summaryTask,
+            Resources = await resourcesTask
+        };
+
+        return View(viewModel);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Snapshot(CancellationToken cancellationToken)
+    {
+        var summaryTask = _resourceApiClient.GetSummaryAsync(cancellationToken);
+        var resourcesTask = _resourceApiClient.GetCommandCenterAsync(cancellationToken);
+
+        await Task.WhenAll(summaryTask, resourcesTask);
+
+        return Json(new
+        {
+            summary = await summaryTask,
+            resources = await resourcesTask,
+            updatedAtUtc = DateTime.UtcNow
+        });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> AssignableIncidents(
+        [FromQuery] Guid? resourceId,
+        CancellationToken cancellationToken)
+    {
+        var incidents = await _resourceApiClient.GetAssignableIncidentsAsync(resourceId, cancellationToken);
+        return Json(incidents);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Assign(
+        [FromBody] AssignResourceViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model == null || model.ResourceId == Guid.Empty || model.IncidentId == Guid.Empty)
+        {
+            return BadRequest(new { success = false, message = "Resource ID and Incident ID are required." });
+        }
+
+        try
+        {
+            var result = await _resourceApiClient.AssignAsync(
+                model.ResourceId,
+                new AssignResourceRequest
+                {
+                    IncidentId = model.IncidentId,
+                    Notes = model.Notes
+                },
+                cancellationToken);
+
+            return Json(new { success = true, result });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Resource assignment failed for resource {ResourceId}", model.ResourceId);
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during resource assignment.");
+            return StatusCode(500, new { success = false, message = "An error occurred while assigning the resource." });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangeStatus(
+        [FromBody] ChangeStatusViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model == null || model.ResourceId == Guid.Empty)
+        {
+            return BadRequest(new { success = false, message = "Resource ID is required." });
+        }
+
+        try
+        {
+            var result = await _resourceApiClient.ChangeStatusAsync(
+                model.ResourceId,
+                new ChangeResourceStatusRequest
+                {
+                    Status = model.Status,
+                    IncidentId = model.IncidentId,
+                    Reason = model.Reason
+                },
+                cancellationToken);
+
+            return Json(new { success = true, result });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Resource status change failed for resource {ResourceId}", model.ResourceId);
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during resource status transition.");
+            return StatusCode(500, new { success = false, message = "An error occurred while changing resource status." });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Release(
+        [FromBody] ReleaseResourceViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model == null || model.ResourceId == Guid.Empty)
+        {
+            return BadRequest(new { success = false, message = "Resource ID is required." });
+        }
+
+        try
+        {
+            await _resourceApiClient.ReleaseAsync(
+                model.ResourceId,
+                new ReleaseResourceRequest
+                {
+                    Notes = model.Notes
+                },
+                cancellationToken);
+
+            return Json(new { success = true });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Resource release failed for resource {ResourceId}", model.ResourceId);
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during resource release.");
+            return StatusCode(500, new { success = false, message = "An error occurred while releasing the resource." });
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Details(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var resource = await _resourceApiClient.GetByIdAsync(id, cancellationToken);
+        if (resource == null)
+        {
+            return NotFound();
+        }
+
+        return View(resource);
+    }
+}
+
+public sealed class AssignResourceViewModel
+{
+    public Guid ResourceId { get; set; }
+    public Guid IncidentId { get; set; }
+    public string? Notes { get; set; }
+}
+
+public sealed class ChangeStatusViewModel
+{
+    public Guid ResourceId { get; set; }
+    public ResourceStatus Status { get; set; }
+    public Guid? IncidentId { get; set; }
+    public string? Reason { get; set; }
+}
+
+public sealed class ReleaseResourceViewModel
+{
+    public Guid ResourceId { get; set; }
+    public string? Notes { get; set; }
+}

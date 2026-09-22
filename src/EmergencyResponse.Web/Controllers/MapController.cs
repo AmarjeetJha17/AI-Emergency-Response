@@ -29,6 +29,7 @@ public sealed class MapController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(
         [FromQuery] Guid? incidentId,
+        [FromQuery] Guid? resourceId,
         CancellationToken cancellationToken)
     {
         var incidentsTask = _mapApiClient.GetIncidentsAsync(cancellationToken);
@@ -47,6 +48,7 @@ public sealed class MapController : Controller
             IncidentTypes = await typesTask,
             Departments = await deptsTask,
             SelectedIncidentId = incidentId,
+            SelectedResourceId = resourceId,
             TileUrl = _mapOptions.TileUrl,
             Attribution = _mapOptions.Attribution,
             DefaultLatitude = _mapOptions.DefaultLatitude,

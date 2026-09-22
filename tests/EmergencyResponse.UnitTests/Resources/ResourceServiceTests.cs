@@ -338,6 +338,141 @@ public sealed class ResourceServiceTests : IAsyncDisposable
             () => _service.ReleaseAsync(resource.Id, "Premature release"));
     }
 
+    [Fact]
+    public async Task GetCommandCenterAsync_ReturnsMappedItemsWithActiveIncidents()
+    {
+        var dept = await CreateDepartmentAsync("Medical", "MED");
+        var incident = await CreateIncidentAsync(dept.Id, "Cardiac Arrest");
+        var resource = await CreateResourceAsync(dept.Id, ResourceStatus.Assigned, ResourceType.Ambulance, "Medic-1");
+
+        var assignment = new ResourceAssignment
+        {
+            Id = Guid.NewGuid(),
+            ResourceId = resource.Id,
+            IncidentId = incident.Id,
+            AssignedAtUtc = DateTime.UtcNow.AddMinutes(-10),
+            IsActive = true,
+            Status = ResourceAssignmentStatus.Active,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        _context.ResourceAssignments.Add(assignment);
+        await _context.SaveChangesAsync();
+
+        var items = await _service.GetCommandCenterAsync();
+
+        Assert.NotEmpty(items);
+        var item = items.Single(x => x.Id == resource.Id);
+        Assert.Equal("Medic-1", item.Name);
+        Assert.Equal(ResourceType.Ambulance, item.ResourceType);
+        Assert.Equal(ResourceStatus.Assigned, item.Status);
+        Assert.Equal(dept.Name, item.DepartmentName);
+        Assert.Equal(incident.Id, item.ActiveIncidentId);
+        Assert.Equal(incident.IncidentNumber, item.ActiveIncidentNumber);
+        Assert.Equal(incident.Title, item.ActiveIncidentTitle);
+        Assert.NotNull(item.AssignedAtUtc);
+    }
+
+    [Fact]
+    public async Task GetSummaryAsync_ReturnsAccurateStatusCounts()
+    {
+        var dept = await CreateDepartmentAsync("Police", "POL");
+        await CreateResourceAsync(dept.Id, ResourceStatus.Available, ResourceType.PoliceVehicle, "Car-1");
+        await CreateResourceAsync(dept.Id, ResourceStatus.Assigned, ResourceType.PoliceVehicle, "Car-2");
+        await CreateResourceAsync(dept.Id, ResourceStatus.EnRoute, ResourceType.PoliceVehicle, "Car-3");
+        await CreateResourceAsync(dept.Id, ResourceStatus.OnScene, ResourceType.PoliceVehicle, "Car-4");
+
+        var summary = await _service.GetSummaryAsync();
+
+        Assert.Equal(1, summary.Available);
+        Assert.Equal(1, summary.Assigned);
+        Assert.Equal(1, summary.EnRoute);
+        Assert.Equal(1, summary.OnScene);
+        Assert.Equal(0, summary.Returning);
+        Assert.Equal(0, summary.Maintenance);
+    }
+
+    [Fact]
+    public async Task GetAssignableIncidentsAsync_ExcludesClosedIncidents()
+    {
+        var dept = await CreateDepartmentAsync("Fire Dept", "FIRE");
+        var openInc = await CreateIncidentAsync(dept.Id, "Structure Fire");
+        var closedInc = await CreateIncidentAsync(dept.Id, "Contained Bonfire");
+        closedInc.Status = IncidentStatus.Closed;
+        await _context.SaveChangesAsync();
+
+        var results = await _service.GetAssignableIncidentsAsync(null);
+
+        Assert.Contains(results, x => x.Id == openInc.Id);
+        Assert.DoesNotContain(results, x => x.Id == closedInc.Id);
+    }
+
+    [Fact]
+    public async Task GetAssignableIncidentsAsync_FiltersByDepartmentForOperator()
+    {
+        var deptFire = await CreateDepartmentAsync("Fire", "FIR");
+        var deptMed = await CreateDepartmentAsync("Medical", "MED2");
+
+        var fireInc = await CreateIncidentAsync(deptFire.Id, "Gas Leak");
+        var medInc = await CreateIncidentAsync(deptMed.Id, "Flu Outbreak");
+
+        var fireEngine = await CreateResourceAsync(deptFire.Id, ResourceStatus.Available, ResourceType.FireTruck, "Engine-7");
+
+        _currentUserService.Roles = new List<string> { "Operator" };
+
+        var results = await _service.GetAssignableIncidentsAsync(fireEngine.Id);
+
+        Assert.Contains(results, x => x.Id == fireInc.Id);
+        Assert.DoesNotContain(results, x => x.Id == medInc.Id);
+    }
+
+    [Fact]
+    public async Task GetAssignableIncidentsAsync_AllowsCrossDepartmentForAdmin()
+    {
+        var deptFire = await CreateDepartmentAsync("Fire Dept 2", "FD2");
+        var deptPolice = await CreateDepartmentAsync("Police Dept 2", "PD2");
+
+        var fireInc = await CreateIncidentAsync(deptFire.Id, "Fire Alarm");
+        var policeInc = await CreateIncidentAsync(deptPolice.Id, "Traffic Collision");
+
+        var fireEngine = await CreateResourceAsync(deptFire.Id, ResourceStatus.Available, ResourceType.FireTruck, "Engine-9");
+
+        _currentUserService.Roles = new List<string> { "EmergencyAdmin" };
+
+        var results = await _service.GetAssignableIncidentsAsync(fireEngine.Id);
+
+        Assert.Contains(results, x => x.Id == fireInc.Id);
+        Assert.Contains(results, x => x.Id == policeInc.Id);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_PopulatesStatusHistory()
+    {
+        var dept = await CreateDepartmentAsync("Search & Rescue", "SAR");
+        var resource = await CreateResourceAsync(dept.Id, ResourceStatus.Available, ResourceType.RescueTeam, "K9-Unit-1");
+
+        _context.ResourceStatusHistories.Add(new ResourceStatusHistory
+        {
+            Id = Guid.NewGuid(),
+            ResourceId = resource.Id,
+            PreviousStatus = ResourceStatus.Assigned,
+            NewStatus = ResourceStatus.Available,
+            Reason = "Operation concluded successfully",
+            ChangedByUserId = "test-operator",
+            ChangedAtUtc = DateTime.UtcNow.AddMinutes(-5),
+            CreatedAtUtc = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+
+        var details = await _service.GetByIdAsync(resource.Id);
+
+        Assert.NotNull(details);
+        Assert.Single(details.StatusHistory);
+        var hist = details.StatusHistory[0];
+        Assert.Equal(ResourceStatus.Assigned, hist.PreviousStatus);
+        Assert.Equal(ResourceStatus.Available, hist.NewStatus);
+        Assert.Equal("Operation concluded successfully", hist.Reason);
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _context.DisposeAsync();

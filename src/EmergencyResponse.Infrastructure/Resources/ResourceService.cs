@@ -42,7 +42,7 @@ public sealed class ResourceService : IResourceService
             .OrderBy(r => r.Name)
             .ToListAsync(cancellationToken);
 
-        return resources.Select(MapToDetailsResponse).ToList();
+        return resources.Select(r => MapToDetailsResponse(r)).ToList();
     }
 
     public async Task<ResourceDetailsResponse?> GetByIdAsync(
@@ -56,7 +56,126 @@ public sealed class ResourceService : IResourceService
                 .ThenInclude(a => a.Incident)
             .SingleOrDefaultAsync(r => r.Id == resourceId, cancellationToken);
 
-        return resource is null ? null : MapToDetailsResponse(resource);
+        if (resource is null)
+        {
+            return null;
+        }
+
+        var history = await _db.ResourceStatusHistories
+            .AsNoTracking()
+            .Include(h => h.Incident)
+            .Where(h => h.ResourceId == resourceId)
+            .OrderByDescending(h => h.ChangedAtUtc)
+            .Select(h => new ResourceStatusHistoryItem
+            {
+                PreviousStatus = h.PreviousStatus,
+                NewStatus = h.NewStatus,
+                Reason = h.Reason,
+                ChangedByUserId = h.ChangedByUserId,
+                ChangedAtUtc = h.ChangedAtUtc,
+                IncidentNumber = h.Incident != null ? h.Incident.IncidentNumber : null
+            })
+            .ToListAsync(cancellationToken);
+
+        return MapToDetailsResponse(resource, history);
+    }
+
+    public async Task<IReadOnlyList<ResourceCommandCenterItem>> GetCommandCenterAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var resources = await _db.Resources
+            .AsNoTracking()
+            .Include(r => r.Department)
+            .Include(r => r.Assignments.Where(a => a.IsActive))
+                .ThenInclude(a => a.Incident)
+            .OrderBy(r => r.Name)
+            .ToListAsync(cancellationToken);
+
+        return resources.Select(r =>
+        {
+            var active = r.Assignments.FirstOrDefault(a => a.IsActive);
+            return new ResourceCommandCenterItem
+            {
+                Id = r.Id,
+                Name = r.Name,
+                ResourceType = r.Type,
+                Status = r.Status,
+                DepartmentName = r.Department?.Name,
+                ActiveIncidentId = active?.IncidentId,
+                ActiveIncidentNumber = active?.Incident?.IncidentNumber,
+                ActiveIncidentTitle = active?.Incident?.Title,
+                Latitude = r.Latitude != null ? (double?)r.Latitude.Value : null,
+                Longitude = r.Longitude != null ? (double?)r.Longitude.Value : null,
+                LocationUpdatedAtUtc = r.LocationUpdatedAtUtc,
+                AssignedAtUtc = active?.AssignedAtUtc,
+                EnRouteAtUtc = active?.EnRouteAtUtc,
+                OnSceneAtUtc = active?.OnSceneAtUtc
+            };
+        }).ToList();
+    }
+
+    public async Task<ResourceSummary> GetSummaryAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var statusCounts = await _db.Resources
+            .AsNoTracking()
+            .GroupBy(r => r.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var dict = statusCounts.ToDictionary(x => x.Status, x => x.Count);
+
+        return new ResourceSummary
+        {
+            Available = dict.GetValueOrDefault(ResourceStatus.Available, 0),
+            Assigned = dict.GetValueOrDefault(ResourceStatus.Assigned, 0),
+            Dispatched = dict.GetValueOrDefault(ResourceStatus.Dispatched, 0),
+            EnRoute = dict.GetValueOrDefault(ResourceStatus.EnRoute, 0),
+            OnScene = dict.GetValueOrDefault(ResourceStatus.OnScene, 0),
+            Returning = dict.GetValueOrDefault(ResourceStatus.Returning, 0),
+            Unavailable = dict.GetValueOrDefault(ResourceStatus.Unavailable, 0),
+            Maintenance = dict.GetValueOrDefault(ResourceStatus.Maintenance, 0)
+        };
+    }
+
+    public async Task<IReadOnlyList<AssignableIncidentItem>> GetAssignableIncidentsAsync(
+        Guid? resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _db.Incidents
+            .AsNoTracking()
+            .Include(i => i.Department)
+            .Where(i => i.Status != IncidentStatus.Closed);
+
+        if (resourceId.HasValue)
+        {
+            var resource = await _db.Resources
+                .AsNoTracking()
+                .SingleOrDefaultAsync(r => r.Id == resourceId.Value, cancellationToken);
+
+            if (resource is not null &&
+                !_currentUserService.IsInRole("EmergencyAdmin") &&
+                !_currentUserService.IsInRole("SystemAdmin"))
+            {
+                query = query.Where(i => !i.DepartmentId.HasValue || i.DepartmentId == resource.DepartmentId);
+            }
+        }
+
+        var incidents = await query
+            .OrderByDescending(i => i.Priority)
+            .ThenByDescending(i => i.CreatedAtUtc)
+            .Select(i => new AssignableIncidentItem
+            {
+                Id = i.Id,
+                IncidentNumber = i.IncidentNumber,
+                Title = i.Title,
+                Severity = i.Severity,
+                Priority = i.Priority,
+                DepartmentName = i.Department != null ? i.Department.Name : null
+            })
+            .ToListAsync(cancellationToken);
+
+        return incidents;
     }
 
     public async Task<ResourceAssignmentResult> AssignAsync(
@@ -384,7 +503,9 @@ public sealed class ResourceService : IResourceService
             cancellationToken);
     }
 
-    private static ResourceDetailsResponse MapToDetailsResponse(Resource r)
+    private static ResourceDetailsResponse MapToDetailsResponse(
+        Resource r,
+        IReadOnlyList<ResourceStatusHistoryItem>? history = null)
     {
         var active = r.Assignments.FirstOrDefault(a => a.IsActive);
 
@@ -395,11 +516,22 @@ public sealed class ResourceService : IResourceService
             ResourceType = r.Type,
             Status = r.Status,
             DepartmentName = r.Department?.Name,
+            Capacity = r.Capacity,
+            ShowOnOperationalMap = r.ShowOnOperationalMap,
             Latitude = r.Latitude != null ? (double?)r.Latitude.Value : null,
             Longitude = r.Longitude != null ? (double?)r.Longitude.Value : null,
             LocationUpdatedAtUtc = r.LocationUpdatedAtUtc,
             ActiveIncidentId = active?.IncidentId,
-            ActiveIncidentNumber = active?.Incident?.IncidentNumber
+            ActiveIncidentNumber = active?.Incident?.IncidentNumber,
+            ActiveIncidentTitle = active?.Incident?.Title,
+            AssignedAtUtc = active?.AssignedAtUtc,
+            DispatchedAtUtc = active?.DispatchedAtUtc,
+            EnRouteAtUtc = active?.EnRouteAtUtc,
+            OnSceneAtUtc = active?.OnSceneAtUtc,
+            ReturningAtUtc = active?.ReturningAtUtc,
+            AssignedByUserId = active?.AssignedByUserId,
+            AssignmentRemarks = active?.Remarks,
+            StatusHistory = history ?? []
         };
     }
 }

@@ -208,4 +208,44 @@ public sealed class ResourcesEndpointTests : IClassFixture<ApiWebApplicationFact
         Assert.Equal(ResourceStatus.Available, finalResource!.Status);
         Assert.Null(finalResource.ActiveIncidentId);
     }
+
+    [Fact]
+    public async Task GetCommandCenter_AsAdmin_ReturnsOkWithList()
+    {
+        var adminToken = await LoginAdminAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        var response = await _client.GetAsync("/api/resources/command-center");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var items = await response.Content.ReadFromJsonAsync<List<ResourceCommandCenterItem>>(JsonOptions);
+        Assert.NotNull(items);
+    }
+
+    [Fact]
+    public async Task GetSummary_AsAdmin_ReturnsOkWithCounts()
+    {
+        var adminToken = await LoginAdminAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        var response = await _client.GetAsync("/api/resources/summary");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var summary = await response.Content.ReadFromJsonAsync<ResourceSummary>(JsonOptions);
+        Assert.NotNull(summary);
+        Assert.True(summary.Available >= 0);
+    }
+
+    [Fact]
+    public async Task GetAssignableIncidents_AsAdmin_ReturnsOkWithList()
+    {
+        var adminToken = await LoginAdminAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        var response = await _client.GetAsync("/api/resources/assignable-incidents");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var items = await response.Content.ReadFromJsonAsync<List<AssignableIncidentItem>>(JsonOptions);
+        Assert.NotNull(items);
+    }
 }

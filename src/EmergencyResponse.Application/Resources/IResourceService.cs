@@ -11,6 +11,16 @@ public interface IResourceService
         Guid resourceId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ResourceCommandCenterItem>> GetCommandCenterAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceSummary> GetSummaryAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AssignableIncidentItem>> GetAssignableIncidentsAsync(
+        Guid? resourceId,
+        CancellationToken cancellationToken = default);
+
     Task<ResourceAssignmentResult> AssignAsync(
         Guid resourceId,
         Guid incidentId,

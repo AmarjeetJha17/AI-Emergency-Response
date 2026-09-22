@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="~/css/emergency-map.css" asp-append-version="true" />
 }
 
-<div class="container-fluid py-3" id="emergencyMapPage" data-selected-incident-id="@Model.SelectedIncidentId">
+<div class="container-fluid py-3" id="emergencyMapPage" data-selected-incident-id="@Model.SelectedIncidentId" data-selected-resource-id="@Model.SelectedResourceId">
     <!-- Header -->
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
         <div>
@@ -236,6 +236,7 @@
     initialResources = Model.Resources,
     initialOperationalZones = Model.OperationalZones,
     selectedIncidentId = Model.SelectedIncidentId,
+    selectedResourceId = Model.SelectedResourceId,
     tileUrl = Model.TileUrl,
     attribution = Model.Attribution,
     defaultLatitude = Model.DefaultLatitude,

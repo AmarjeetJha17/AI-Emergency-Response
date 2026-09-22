@@ -10,6 +10,7 @@ public sealed class EmergencyMapViewModel
     public IReadOnlyList<string> IncidentTypes { get; init; } = [];
     public IReadOnlyList<string> Departments { get; init; } = [];
     public Guid? SelectedIncidentId { get; init; }
+    public Guid? SelectedResourceId { get; init; }
     public string TileUrl { get; set; } = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
     public string Attribution { get; set; } = "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors";
     public double DefaultLatitude { get; set; } = 20.5937;

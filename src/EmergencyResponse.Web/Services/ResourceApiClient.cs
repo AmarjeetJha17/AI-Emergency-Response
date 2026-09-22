@@ -57,6 +57,62 @@ public sealed class ResourceApiClient : IResourceApiClient
             .ReadFromJsonAsync<ResourceDetailsResponse>(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ResourceCommandCenterItem>> GetCommandCenterAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync("api/resources/command-center", cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<IReadOnlyList<ResourceCommandCenterItem>>(cancellationToken)
+            ?? [];
+    }
+
+    public async Task<ResourceSummary> GetSummaryAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync("api/resources/summary", cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<ResourceSummary>(cancellationToken)
+            ?? new ResourceSummary();
+    }
+
+    public async Task<IReadOnlyList<AssignableIncidentItem>> GetAssignableIncidentsAsync(
+        Guid? resourceId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var url = resourceId.HasValue
+            ? $"api/resources/assignable-incidents?resourceId={resourceId.Value}"
+            : "api/resources/assignable-incidents";
+
+        var response = await _httpClient.GetAsync(url, cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<IReadOnlyList<AssignableIncidentItem>>(cancellationToken)
+            ?? [];
+    }
+
     public async Task<ResourceAssignmentResult> AssignAsync(
         Guid resourceId,
         AssignResourceRequest request,

@@ -1,0 +1,714 @@
+@model EmergencyResponse.Web.Models.Resources.ResourceCommandCenterViewModel
+
+@{
+    ViewData["Title"] = "Resource Command Center";
+}
+
+<div class="container-fluid py-3" id="resourceCommandCenterPage">
+    @Html.AntiForgeryToken()
+
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="h4 mb-0 fw-bold">Resource Command Center</h2>
+                <span id="resourceConnectionStatus" class="badge bg-secondary d-inline-flex align-items-center gap-1 px-2 py-1">
+                    <span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true" style="width: 0.5rem; height: 0.5rem;"></span> Connecting...
+                </span>
+            </div>
+            <div class="text-muted small">Real-time emergency fleet dispatch, operational lifecycle, and unit readiness</div>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+            <span id="resourceLastUpdated" class="text-muted small me-2"></span>
+            <button id="btnRefreshResources" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" title="Refresh Resources">
+                <span id="resourceRefreshSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                <span>↻ Refresh</span>
+            </button>
+            <a asp-controller="Map" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-geo-alt me-1"></i>Live Map
+            </a>
+            <a asp-controller="Dashboard" asp-action="Index" class="btn btn-primary btn-sm">
+                Incident Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Operational KPI Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 border-start border-4 border-success h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-uppercase small text-muted fw-semibold">Available</div>
+                            <div class="fs-2 fw-bold text-success" id="kpiAvailable">@Model.Summary.Available</div>
+                            <div class="small text-muted">Ready for dispatch</div>
+                        </div>
+                        <div class="rounded-circle p-3 bg-success-subtle text-success">
+                            <i class="bi bi-check-circle fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 border-start border-4 border-primary h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-uppercase small text-muted fw-semibold">Assigned / Dispatched</div>
+                            <div class="fs-2 fw-bold text-primary" id="kpiAssigned">@(Model.Summary.Assigned + Model.Summary.Dispatched)</div>
+                            <div class="small text-muted">Assigned: @Model.Summary.Assigned | Dispatched: @Model.Summary.Dispatched</div>
+                        </div>
+                        <div class="rounded-circle p-3 bg-primary-subtle text-primary">
+                            <i class="bi bi-person-badge fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 border-start border-4 border-warning h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-uppercase small text-muted fw-semibold">En Route</div>
+                            <div class="fs-2 fw-bold text-warning-emphasis" id="kpiEnRoute">@Model.Summary.EnRoute</div>
+                            <div class="small text-muted">Mobilized to incident</div>
+                        </div>
+                        <div class="rounded-circle p-3 bg-warning-subtle text-warning-emphasis">
+                            <i class="bi bi-truck fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 border-start border-4 border-danger h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-uppercase small text-muted fw-semibold">On Scene</div>
+                            <div class="fs-2 fw-bold text-danger" id="kpiOnScene">@Model.Summary.OnScene</div>
+                            <div class="small text-muted">Actively mitigating</div>
+                        </div>
+                        <div class="rounded-circle p-3 bg-danger-subtle text-danger">
+                            <i class="bi bi-shield-shaded fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secondary Status Pills -->
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-3 px-1 small text-muted">
+        <span class="fw-semibold">Fleet State:</span>
+        <span class="badge bg-light text-dark border">
+            Returning: <strong id="kpiReturning" class="ms-1">@Model.Summary.Returning</strong>
+        </span>
+        <span class="badge bg-light text-dark border">
+            Maintenance: <strong id="kpiMaintenance" class="ms-1">@Model.Summary.Maintenance</strong>
+        </span>
+        <span class="badge bg-light text-dark border">
+            Unavailable: <strong id="kpiUnavailable" class="ms-1">@Model.Summary.Unavailable</strong>
+        </span>
+        <span class="ms-auto small text-muted" id="fleetTotalUnits">
+            Total Tracked Units: @Model.Resources.Count
+        </span>
+    </div>
+
+    <!-- Resource Fleet Grid -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <div>
+                <span class="fw-bold text-dark fs-6"><i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>Operational Fleet Roster</span>
+                <span class="text-muted small ms-2 d-none d-md-inline">Dispatch controls and operational state monitor</span>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <ejs-grid id="resourceGrid"
+                      dataSource="@Model.Resources"
+                      toolbar="@(new List<string>() { "Search", "ColumnChooser" })"
+                      allowPaging="true"
+                      allowSorting="true"
+                      allowFiltering="true"
+                      allowResizing="true"
+                      allowReordering="true"
+                      showColumnChooser="true"
+                      height="520">
+
+                <e-grid-pageSettings pageSize="15" pageSizes="true">
+                </e-grid-pageSettings>
+
+                <e-grid-filterSettings type="Menu">
+                </e-grid-filterSettings>
+
+                <e-grid-columns>
+                    <e-grid-column field="Name"
+                                   headerText="Unit Name"
+                                   width="160"
+                                   freeze="Left">
+                    </e-grid-column>
+
+                    <e-grid-column field="ResourceType"
+                                   headerText="Type"
+                                   width="130"
+                                   filter="@(new { type = "CheckBox" })">
+                    </e-grid-column>
+
+                    <e-grid-column field="DepartmentName"
+                                   headerText="Department"
+                                   width="160">
+                    </e-grid-column>
+
+                    <e-grid-column field="Status"
+                                   headerText="Status"
+                                   width="140"
+                                   template="#resourceStatusTemplate"
+                                   filter="@(new { type = "CheckBox" })">
+                    </e-grid-column>
+
+                    <e-grid-column field="ActiveIncidentNumber"
+                                   headerText="Active Incident"
+                                   width="180"
+                                   template="#resourceIncidentTemplate">
+                    </e-grid-column>
+
+                    <e-grid-column field="AssignedAtUtc"
+                                   headerText="Assigned At"
+                                   type="dateTime"
+                                   format="dd-MMM HH:mm"
+                                   width="140">
+                    </e-grid-column>
+
+                    <e-grid-column headerText="Actions"
+                                   width="230"
+                                   template="#resourceActionsTemplate"
+                                   allowSorting="false"
+                                   allowFiltering="false">
+                    </e-grid-column>
+                </e-grid-columns>
+            </ejs-grid>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Resource Modal Dialog -->
+<ejs-dialog id="assignResourceDialog"
+            width="500px"
+            showCloseIcon="true"
+            visible="false"
+            isModal="true"
+            header="Assign Resource to Incident">
+    <e-content-template>
+        <div id="assignDialogBody" class="p-2">
+            <div id="assignAlertContainer"></div>
+
+            <div class="mb-3">
+                <label class="form-label text-muted small mb-1">Resource Unit</label>
+                <div class="fw-bold fs-6" id="assignTargetName">-</div>
+                <div class="small text-muted" id="assignTargetDepartment">-</div>
+            </div>
+
+            <input type="hidden" id="assignResourceId" value="" />
+
+            <div class="mb-3">
+                <label for="assignIncidentSelect" class="form-label fw-semibold small">
+                    Target Incident <span class="text-danger">*</span>
+                </label>
+                <select id="assignIncidentSelect" class="form-select form-select-sm" required>
+                    <option value="">Loading eligible incidents...</option>
+                </select>
+                <div class="form-text small">Showing active incidents matching the resource department.</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="assignNotes" class="form-label fw-semibold small">Operational Notes / Dispatch Orders</label>
+                <textarea id="assignNotes" class="form-control form-control-sm" rows="3" placeholder="Optional dispatch instructions..."></textarea>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-2 border-top">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="closeAssignDialog()">Cancel</button>
+                <button type="button" id="btnSubmitAssign" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" onclick="submitAssignment()">
+                    <span id="assignSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                    <span>Confirm Assignment</span>
+                </button>
+            </div>
+        </div>
+    </e-content-template>
+</ejs-dialog>
+
+<!-- Update Status Modal Dialog -->
+<ejs-dialog id="resourceStatusDialog"
+            width="500px"
+            showCloseIcon="true"
+            visible="false"
+            isModal="true"
+            header="Update Resource Operational Status">
+    <e-content-template>
+        <div id="statusDialogBody" class="p-2">
+            <div id="statusAlertContainer"></div>
+
+            <div class="mb-3">
+                <label class="form-label text-muted small mb-1">Resource Unit</label>
+                <div class="fw-bold fs-6" id="statusTargetName">-</div>
+                <div class="small">
+                    Current Status: <span class="badge bg-secondary" id="statusCurrentBadge">-</span>
+                </div>
+            </div>
+
+            <input type="hidden" id="statusResourceId" value="" />
+            <input type="hidden" id="statusIncidentId" value="" />
+
+            <div class="mb-3">
+                <label for="nextStatusSelect" class="form-label fw-semibold small">
+                    Next Operational Status <span class="text-danger">*</span>
+                </label>
+                <select id="nextStatusSelect" class="form-select form-select-sm" required>
+                    <option value="">Select status transition...</option>
+                </select>
+                <div class="form-text small" id="nextStatusHelpText">Controlled operational progression.</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="statusReason" class="form-label fw-semibold small">Reason / Remarks</label>
+                <textarea id="statusReason" class="form-control form-control-sm" rows="3" placeholder="Operational rationale or situational remarks..."></textarea>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-2 border-top">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="closeStatusDialog()">Cancel</button>
+                <button type="button" id="btnSubmitStatus" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" onclick="submitStatusChange()">
+                    <span id="statusSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                    <span>Update Status</span>
+                </button>
+            </div>
+        </div>
+    </e-content-template>
+</ejs-dialog>
+
+<!-- Grid Column Templates -->
+<script id="resourceStatusTemplate" type="text/x-template">
+    ${if(Status == "Available" || Status == 0)}
+        <span class="badge bg-success">Available</span>
+    ${else if(Status == "Assigned" || Status == 1)}
+        <span class="badge bg-primary">Assigned</span>
+    ${else if(Status == "Dispatched" || Status == 2)}
+        <span class="badge bg-info text-dark">Dispatched</span>
+    ${else if(Status == "EnRoute" || Status == 3)}
+        <span class="badge bg-warning text-dark">En Route</span>
+    ${else if(Status == "OnScene" || Status == 4)}
+        <span class="badge bg-danger">On Scene</span>
+    ${else if(Status == "Returning" || Status == 5)}
+        <span class="badge bg-secondary">Returning</span>
+    ${else if(Status == "Unavailable" || Status == 6)}
+        <span class="badge bg-dark">Unavailable</span>
+    ${else if(Status == "Maintenance" || Status == 7)}
+        <span class="badge bg-secondary text-light">Maintenance</span>
+    ${else}
+        <span class="badge bg-light text-dark border">${Status}</span>
+    ${/if}
+</script>
+
+<script id="resourceIncidentTemplate" type="text/x-template">
+    ${if(ActiveIncidentNumber)}
+        <div>
+            <a href="/Dashboard?incidentId=${ActiveIncidentId}" class="badge bg-primary-subtle text-primary border border-primary text-decoration-none" title="${ActiveIncidentTitle}">
+                ${ActiveIncidentNumber}
+            </a>
+            ${if(ActiveIncidentTitle)}
+                <div class="small text-muted text-truncate" style="max-width: 170px;" title="${ActiveIncidentTitle}">
+                    ${ActiveIncidentTitle}
+                </div>
+            ${/if}
+        </div>
+    ${else}
+        <span class="text-muted small">None</span>
+    ${/if}
+</script>
+
+<script id="resourceActionsTemplate" type="text/x-template">
+    <div class="btn-group btn-group-sm">
+        <a href="/Resources/Details/${Id}" class="btn btn-outline-secondary py-0 px-2" title="View Full Details">View</a>
+        
+        ${if(Latitude && Longitude)}
+            <a href="/Map?resourceId=${Id}" class="btn btn-outline-secondary py-0 px-2" title="Locate on Map">Map</a>
+        ${/if}
+
+        ${if(Status == "Available" || Status == 0)}
+            <button type="button" class="btn btn-outline-success py-0 px-2" onclick="openAssignModal('${Id}', '${Name}', '${DepartmentName}')">
+                Assign
+            </button>
+        ${else}
+            <button type="button" class="btn btn-outline-primary py-0 px-2" onclick="openStatusModal('${Id}', '${Name}', '${Status}', '${ActiveIncidentId}')">
+                Update
+            </button>
+        ${/if}
+    </div>
+</script>
+
+@section Scripts {
+    <script>
+        (function () {
+            'use strict';
+
+            var isRefreshing = false;
+
+            function getCsrfToken() {
+                var tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+                return tokenInput ? tokenInput.value : '';
+            }
+
+            function setConnectionStatus(text, badgeClass) {
+                var el = document.getElementById('resourceConnectionStatus');
+                if (el) {
+                    el.className = 'badge d-inline-flex align-items-center gap-1 px-2 py-1 ' + badgeClass;
+                    el.textContent = text;
+                }
+            }
+
+            function updateKPIs(summary) {
+                if (!summary) return;
+                var elAvail = document.getElementById('kpiAvailable');
+                if (elAvail) elAvail.textContent = summary.available;
+
+                var elAssigned = document.getElementById('kpiAssigned');
+                if (elAssigned) elAssigned.textContent = (summary.assigned || 0) + (summary.dispatched || 0);
+
+                var elEnRoute = document.getElementById('kpiEnRoute');
+                if (elEnRoute) elEnRoute.textContent = summary.enRoute;
+
+                var elOnScene = document.getElementById('kpiOnScene');
+                if (elOnScene) elOnScene.textContent = summary.onScene;
+
+                var elRet = document.getElementById('kpiReturning');
+                if (elRet) elRet.textContent = summary.returning;
+
+                var elMaint = document.getElementById('kpiMaintenance');
+                if (elMaint) elMaint.textContent = summary.maintenance;
+
+                var elUnavail = document.getElementById('kpiUnavailable');
+                if (elUnavail) elUnavail.textContent = summary.unavailable;
+            }
+
+            async function refreshCommandCenter() {
+                if (isRefreshing) return;
+                isRefreshing = true;
+
+                var spinner = document.getElementById('resourceRefreshSpinner');
+                if (spinner) spinner.classList.remove('d-none');
+
+                try {
+                    var response = await fetch('/Resources/Snapshot', {
+                        headers: { 'Accept': 'application/json' }
+                    });
+
+                    if (response.ok) {
+                        var data = await response.json();
+                        updateKPIs(data.summary);
+
+                        var gridEl = document.getElementById('resourceGrid');
+                        var grid = gridEl?.ej2_instances?.[0];
+                        if (grid) {
+                            grid.dataSource = data.resources || [];
+                            grid.refresh();
+                        }
+
+                        var totalEl = document.getElementById('fleetTotalUnits');
+                        if (totalEl && data.resources) {
+                            totalEl.textContent = 'Total Tracked Units: ' + data.resources.length;
+                        }
+
+                        var lastUpdatedEl = document.getElementById('resourceLastUpdated');
+                        if (lastUpdatedEl) {
+                            lastUpdatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
+                        }
+                    }
+                } catch (e) {
+                    console.error('[ResourceCommandCenter] Refresh failed:', e);
+                } finally {
+                    isRefreshing = false;
+                    if (spinner) spinner.classList.add('d-none');
+                }
+            }
+
+            // Expose for SignalR real-time client
+            window.resourceCommandCenter = {
+                refresh: refreshCommandCenter,
+                setConnectionStatus: setConnectionStatus
+            };
+
+            // Hook up manual refresh button
+            document.addEventListener('DOMContentLoaded', function () {
+                var btn = document.getElementById('btnRefreshResources');
+                if (btn) {
+                    btn.addEventListener('click', refreshCommandCenter);
+                }
+
+                var lastUpdatedEl = document.getElementById('resourceLastUpdated');
+                if (lastUpdatedEl) {
+                    lastUpdatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
+                }
+            });
+
+            // ── Assign Modal Logic ──────────────────────────────────────────────
+            window.openAssignModal = async function (resourceId, resourceName, departmentName) {
+                var alertContainer = document.getElementById('assignAlertContainer');
+                if (alertContainer) alertContainer.innerHTML = '';
+
+                document.getElementById('assignResourceId').value = resourceId;
+                document.getElementById('assignTargetName').textContent = resourceName;
+                document.getElementById('assignTargetDepartment').textContent = departmentName || 'General Fleet';
+                document.getElementById('assignNotes').value = '';
+
+                var select = document.getElementById('assignIncidentSelect');
+                select.innerHTML = '<option value="">Loading eligible incidents...</option>';
+
+                var dialogEl = document.getElementById('assignResourceDialog');
+                var dialog = dialogEl?.ej2_instances?.[0];
+                if (dialog) dialog.show();
+
+                try {
+                    var response = await fetch('/Resources/AssignableIncidents?resourceId=' + encodeURIComponent(resourceId), {
+                        headers: { 'Accept': 'application/json' }
+                    });
+
+                    if (response.ok) {
+                        var incidents = await response.json();
+                        select.innerHTML = '';
+                        if (!incidents || incidents.length === 0) {
+                            select.innerHTML = '<option value="">No eligible open incidents available</option>';
+                        } else {
+                            select.innerHTML = '<option value="">-- Select Target Incident --</option>';
+                            incidents.forEach(function (inc) {
+                                var opt = document.createElement('option');
+                                opt.value = inc.id;
+                                opt.textContent = inc.incidentNumber + ' — ' + inc.title + ' (' + inc.priority + ')';
+                                select.appendChild(opt);
+                            });
+                        }
+                    } else {
+                        select.innerHTML = '<option value="">Failed to load incidents</option>';
+                    }
+                } catch (err) {
+                    select.innerHTML = '<option value="">Error loading incidents</option>';
+                }
+            };
+
+            window.closeAssignDialog = function () {
+                var dialogEl = document.getElementById('assignResourceDialog');
+                var dialog = dialogEl?.ej2_instances?.[0];
+                if (dialog) dialog.hide();
+            };
+
+            window.submitAssignment = async function () {
+                var resourceId = document.getElementById('assignResourceId').value;
+                var incidentId = document.getElementById('assignIncidentSelect').value;
+                var notes = document.getElementById('assignNotes').value;
+                var alertContainer = document.getElementById('assignAlertContainer');
+
+                if (!incidentId) {
+                    alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">Please select an incident to assign.</div>';
+                    return;
+                }
+
+                var spinner = document.getElementById('assignSpinner');
+                var btn = document.getElementById('btnSubmitAssign');
+                spinner.classList.remove('d-none');
+                btn.disabled = true;
+
+                try {
+                    var response = await fetch('/Resources/Assign', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            resourceId: resourceId,
+                            incidentId: incidentId,
+                            notes: notes
+                        })
+                    });
+
+                    var result = await response.json();
+                    if (response.ok && result.success) {
+                        closeAssignDialog();
+                        await refreshCommandCenter();
+                    } else {
+                        alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">' + (result.message || 'Assignment failed.') + '</div>';
+                    }
+                } catch (err) {
+                    alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">Network or server error during assignment.</div>';
+                } finally {
+                    spinner.classList.add('d-none');
+                    btn.disabled = false;
+                }
+            };
+
+            // ── Status Modal Logic ──────────────────────────────────────────────
+            var VALID_STATUS_MAP = {
+                'Available': [
+                    { value: 'Maintenance', text: 'Place in Maintenance' },
+                    { value: 'Unavailable', text: 'Mark Unavailable' }
+                ],
+                '0': [
+                    { value: 'Maintenance', text: 'Place in Maintenance' },
+                    { value: 'Unavailable', text: 'Mark Unavailable' }
+                ],
+                'Assigned': [
+                    { value: 'Dispatched', text: 'Dispatch Unit' },
+                    { value: 'EnRoute', text: 'Mark En Route' },
+                    { value: 'Available', text: 'Release / Stand Down to Available' }
+                ],
+                '1': [
+                    { value: 'Dispatched', text: 'Dispatch Unit' },
+                    { value: 'EnRoute', text: 'Mark En Route' },
+                    { value: 'Available', text: 'Release / Stand Down to Available' }
+                ],
+                'Dispatched': [
+                    { value: 'EnRoute', text: 'Mark En Route' },
+                    { value: 'OnScene', text: 'Mark On Scene' },
+                    { value: 'Available', text: 'Abort Dispatch / Return to Available' }
+                ],
+                '2': [
+                    { value: 'EnRoute', text: 'Mark En Route' },
+                    { value: 'OnScene', text: 'Mark On Scene' },
+                    { value: 'Available', text: 'Abort Dispatch / Return to Available' }
+                ],
+                'EnRoute': [
+                    { value: 'OnScene', text: 'Arrived On Scene' },
+                    { value: 'Returning', text: 'Reroute / Return to Base' },
+                    { value: 'Available', text: 'Abort / Return to Available' }
+                ],
+                '3': [
+                    { value: 'OnScene', text: 'Arrived On Scene' },
+                    { value: 'Returning', text: 'Reroute / Return to Base' },
+                    { value: 'Available', text: 'Abort / Return to Available' }
+                ],
+                'OnScene': [
+                    { value: 'Returning', text: 'Operations Completed / Returning' },
+                    { value: 'Available', text: 'Immediate Release to Available' }
+                ],
+                '4': [
+                    { value: 'Returning', text: 'Operations Completed / Returning' },
+                    { value: 'Available', text: 'Immediate Release to Available' }
+                ],
+                'Returning': [
+                    { value: 'Available', text: 'Back in Quarters / Available' },
+                    { value: 'Maintenance', text: 'Refuel / Maintenance' }
+                ],
+                '5': [
+                    { value: 'Available', text: 'Back in Quarters / Available' },
+                    { value: 'Maintenance', text: 'Refuel / Maintenance' }
+                ],
+                'Unavailable': [
+                    { value: 'Available', text: 'Restore to Available' },
+                    { value: 'Maintenance', text: 'Move to Maintenance' }
+                ],
+                '6': [
+                    { value: 'Available', text: 'Restore to Available' },
+                    { value: 'Maintenance', text: 'Move to Maintenance' }
+                ],
+                'Maintenance': [
+                    { value: 'Available', text: 'Maintenance Complete / Available' },
+                    { value: 'Unavailable', text: 'Mark Unavailable' }
+                ],
+                '7': [
+                    { value: 'Available', text: 'Maintenance Complete / Available' },
+                    { value: 'Unavailable', text: 'Mark Unavailable' }
+                ]
+            };
+
+            window.openStatusModal = function (resourceId, resourceName, currentStatus, incidentId) {
+                var alertContainer = document.getElementById('statusAlertContainer');
+                if (alertContainer) alertContainer.innerHTML = '';
+
+                document.getElementById('statusResourceId').value = resourceId;
+                document.getElementById('statusIncidentId').value = incidentId && incidentId !== 'null' ? incidentId : '';
+                document.getElementById('statusTargetName').textContent = resourceName;
+                document.getElementById('statusCurrentBadge').textContent = currentStatus;
+                document.getElementById('statusReason').value = '';
+
+                var select = document.getElementById('nextStatusSelect');
+                select.innerHTML = '';
+
+                var options = VALID_STATUS_MAP[currentStatus] || [
+                    { value: 'Available', text: 'Available' },
+                    { value: 'Returning', text: 'Returning' },
+                    { value: 'Maintenance', text: 'Maintenance' },
+                    { value: 'Unavailable', text: 'Unavailable' }
+                ];
+
+                select.innerHTML = '<option value="">-- Select Next Status --</option>';
+                options.forEach(function (opt) {
+                    var optionEl = document.createElement('option');
+                    optionEl.value = opt.value;
+                    optionEl.textContent = opt.text;
+                    select.appendChild(optionEl);
+                });
+
+                var dialogEl = document.getElementById('resourceStatusDialog');
+                var dialog = dialogEl?.ej2_instances?.[0];
+                if (dialog) dialog.show();
+            };
+
+            window.closeStatusDialog = function () {
+                var dialogEl = document.getElementById('resourceStatusDialog');
+                var dialog = dialogEl?.ej2_instances?.[0];
+                if (dialog) dialog.hide();
+            };
+
+            window.submitStatusChange = async function () {
+                var resourceId = document.getElementById('statusResourceId').value;
+                var nextStatus = document.getElementById('nextStatusSelect').value;
+                var incidentIdVal = document.getElementById('statusIncidentId').value;
+                var reason = document.getElementById('statusReason').value;
+                var alertContainer = document.getElementById('statusAlertContainer');
+
+                if (!nextStatus) {
+                    alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">Please select a status transition.</div>';
+                    return;
+                }
+
+                var spinner = document.getElementById('statusSpinner');
+                var btn = document.getElementById('btnSubmitStatus');
+                spinner.classList.remove('d-none');
+                btn.disabled = true;
+
+                try {
+                    var response = await fetch('/Resources/ChangeStatus', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            resourceId: resourceId,
+                            status: nextStatus,
+                            incidentId: incidentIdVal ? incidentIdVal : null,
+                            reason: reason
+                        })
+                    });
+
+                    var result = await response.json();
+                    if (response.ok && result.success) {
+                        closeStatusDialog();
+                        await refreshCommandCenter();
+                    } else {
+                        alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">' + (result.message || 'Status transition failed.') + '</div>';
+                    }
+                } catch (err) {
+                    alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">Network or server error during status transition.</div>';
+                } finally {
+                    spinner.classList.add('d-none');
+                    btn.disabled = false;
+                }
+            };
+        })();
+    </script>
+}

@@ -480,9 +480,11 @@
                     incidentHtml +
                     deptHtml +
                     updatedHtml +
+                    '<div class="mt-2 pt-1 border-top"><a href="/Resources/Details/' + encodeURIComponent(res.id) + '" class="btn btn-sm btn-outline-primary w-100 py-0" style="font-size: 0.75rem;">View Command Details</a></div>' +
                 '</div>'
             );
 
+            marker._resourceId = res.id;
             resourceLayer.addLayer(marker);
             count++;
         });
@@ -664,6 +666,28 @@
         emergencyMap.setView([inc.latitude, inc.longitude], 15);
     }
 
+    function focusSelectedMapResource(resourceId) {
+        if (!emergencyMap || !resourceId) return;
+
+        var res = mapState.resources.find(function (x) {
+            return String(x.id).toLowerCase() === String(resourceId).toLowerCase();
+        });
+
+        if (!res || !isValidCoordinate(res.latitude, res.longitude)) {
+            return;
+        }
+
+        emergencyMap.setView([res.latitude, res.longitude], 16);
+
+        if (resourceLayer) {
+            resourceLayer.eachLayer(function (layer) {
+                if (layer._resourceId && String(layer._resourceId).toLowerCase() === String(resourceId).toLowerCase()) {
+                    layer.openPopup();
+                }
+            });
+        }
+    }
+
     function updateBadge(id, count) {
         var el = document.getElementById(id);
         if (el) {
@@ -748,12 +772,19 @@
         updateIncidentCount(mapState.filteredIncidents.length);
         updateFilterSummary();
 
-        // Focus selected incident if requested via query parameter
+        // Focus selected incident or resource if requested via query parameter
         var pageElement = document.getElementById('emergencyMapPage');
         var selectedId = config.selectedIncidentId || pageElement?.dataset?.selectedIncidentId;
         if (selectedId) {
             setTimeout(function () {
                 focusSelectedMapIncident(selectedId);
+            }, 300);
+        }
+
+        var selectedResId = config.selectedResourceId || pageElement?.dataset?.selectedResourceId;
+        if (selectedResId) {
+            setTimeout(function () {
+                focusSelectedMapResource(selectedResId);
             }, 300);
         }
 
@@ -772,7 +803,8 @@
             clearMapFilters: clearMapFilters,
             fitFilteredIncidents: fitFilteredIncidents,
             openIncidentDrawer: openIncidentDrawer,
-            focusSelectedMapIncident: focusSelectedMapIncident
+            focusSelectedMapIncident: focusSelectedMapIncident,
+            focusSelectedMapResource: focusSelectedMapResource
         };
     }
 

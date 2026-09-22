@@ -1,0 +1,279 @@
+@model EmergencyResponse.Application.Resources.ResourceDetailsResponse
+
+@{
+    ViewData["Title"] = $"Resource Details - {Model.Name}";
+}
+
+<div class="container-fluid py-3">
+    @Html.AntiForgeryToken()
+
+    <!-- Top Navigation / Breadcrumb -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <div class="d-flex align-items-center gap-2">
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1">
+                <i class="bi bi-arrow-left"></i> Command Center
+            </a>
+            <h2 class="h4 mb-0 fw-bold">@Model.Name</h2>
+            @switch (Model.Status)
+            {
+                case EmergencyResponse.Domain.Enums.ResourceStatus.Available:
+                    <span class="badge bg-success fs-6">Available</span>
+                    break;
+                case EmergencyResponse.Domain.Enums.ResourceStatus.Assigned:
+                    <span class="badge bg-primary fs-6">Assigned</span>
+                    break;
+                case EmergencyResponse.Domain.Enums.ResourceStatus.Dispatched:
+                    <span class="badge bg-info text-dark fs-6">Dispatched</span>
+                    break;
+                case EmergencyResponse.Domain.Enums.ResourceStatus.EnRoute:
+                    <span class="badge bg-warning text-dark fs-6">En Route</span>
+                    break;
+                case EmergencyResponse.Domain.Enums.ResourceStatus.OnScene:
+                    <span class="badge bg-danger fs-6">On Scene</span>
+                    break;
+                case EmergencyResponse.Domain.Enums.ResourceStatus.Returning:
+                    <span class="badge bg-secondary fs-6">Returning</span>
+                    break;
+                case EmergencyResponse.Domain.Enums.ResourceStatus.Unavailable:
+                    <span class="badge bg-dark fs-6">Unavailable</span>
+                    break;
+                case EmergencyResponse.Domain.Enums.ResourceStatus.Maintenance:
+                    <span class="badge bg-secondary text-light fs-6">Maintenance</span>
+                    break;
+                default:
+                    <span class="badge bg-light text-dark border fs-6">@Model.Status</span>
+                    break;
+            }
+        </div>
+
+        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+            @if (Model.Latitude.HasValue && Model.Longitude.HasValue)
+            {
+                <a href="/Map?resourceId=@Model.Id" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-geo-alt"></i> View on Live Map
+                </a>
+            }
+            @if (Model.ActiveIncidentId.HasValue)
+            {
+                <a href="/Dashboard?incidentId=@Model.ActiveIncidentId.Value" class="btn btn-outline-secondary btn-sm">
+                    View Assigned Incident
+                </a>
+            }
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left: Unit Profile & Telemetry -->
+        <div class="col-lg-5">
+            <!-- Unit Specs -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0 fw-bold fs-6">
+                        <i class="bi bi-info-circle text-primary me-2"></i>Resource Specification
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-5 text-muted">Resource Name</dt>
+                        <dd class="col-sm-7 fw-semibold">@Model.Name</dd>
+
+                        <dt class="col-sm-5 text-muted">Resource Type</dt>
+                        <dd class="col-sm-7">@Model.ResourceType</dd>
+
+                        <dt class="col-sm-5 text-muted">Department</dt>
+                        <dd class="col-sm-7">@(Model.DepartmentName ?? "General Dispatch")</dd>
+
+                        <dt class="col-sm-5 text-muted">Crew Capacity</dt>
+                        <dd class="col-sm-7">@(Model.Capacity.HasValue ? $"{Model.Capacity.Value} personnel" : "Not specified")</dd>
+
+                        <dt class="col-sm-5 text-muted">Operational Map</dt>
+                        <dd class="col-sm-7">
+                            @if (Model.ShowOnOperationalMap)
+                            {
+                                <span class="badge bg-success-subtle text-success border border-success">Visible on Map</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-light text-muted border">Hidden</span>
+                            }
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Spatial Telemetry -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0 fw-bold fs-6">
+                        <i class="bi bi-geo text-danger me-2"></i>Location Telemetry
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.Latitude.HasValue && Model.Longitude.HasValue)
+                    {
+                        <dl class="row mb-0 small">
+                            <dt class="col-sm-5 text-muted">Latitude</dt>
+                            <dd class="col-sm-7 font-monospace">@Model.Latitude.Value.ToString("F6")</dd>
+
+                            <dt class="col-sm-5 text-muted">Longitude</dt>
+                            <dd class="col-sm-7 font-monospace">@Model.Longitude.Value.ToString("F6")</dd>
+
+                            <dt class="col-sm-5 text-muted">Telemetry Updated</dt>
+                            <dd class="col-sm-7">
+                                @(Model.LocationUpdatedAtUtc.HasValue ? Model.LocationUpdatedAtUtc.Value.ToString("dd-MMM-yyyy HH:mm:ss") + " UTC" : "Unknown")
+                            </dd>
+                        </dl>
+                        <div class="mt-3 pt-2 border-top">
+                            <a href="/Map?resourceId=@Model.Id" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="bi bi-compass me-1"></i>Track Coordinates on Live Map
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-muted text-center py-3 small">
+                            <i class="bi bi-geo-alt-fill text-secondary fs-3 d-block mb-2"></i>
+                            No spatial coordinates logged for this resource.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Current Assignment & Progression -->
+        <div class="col-lg-7">
+            <!-- Active Assignment Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0 fw-bold fs-6">
+                        <i class="bi bi-clipboard-pulse text-warning-emphasis me-2"></i>Current Operational Assignment
+                    </h5>
+                    @if (Model.ActiveIncidentId.HasValue)
+                    {
+                        <span class="badge bg-primary">Active Mission</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">Unassigned</span>
+                    }
+                </div>
+                <div class="card-body">
+                    @if (Model.ActiveIncidentId.HasValue)
+                    {
+                        <div class="mb-3">
+                            <div class="small text-muted">Assigned Incident</div>
+                            <div class="fs-5 fw-bold">
+                                <a href="/Dashboard?incidentId=@Model.ActiveIncidentId.Value" class="text-decoration-none">
+                                    @Model.ActiveIncidentNumber
+                                </a>
+                            </div>
+                            @if (!string.IsNullOrEmpty(Model.ActiveIncidentTitle))
+                            {
+                                <div class="text-secondary small">@Model.ActiveIncidentTitle</div>
+                            }
+                        </div>
+
+                        <!-- Assignment Timeline Milestones -->
+                        <div class="mb-3">
+                            <label class="small text-muted fw-semibold mb-2">Deployment Milestone Progression</label>
+                            <div class="list-group list-group-flush small">
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span><i class="bi bi-clock me-2 text-primary"></i>Assigned</span>
+                                    <span class="fw-semibold">@(Model.AssignedAtUtc.HasValue ? Model.AssignedAtUtc.Value.ToString("dd-MMM HH:mm:ss") + " UTC" : "—")</span>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span><i class="bi bi-send me-2 text-info"></i>Dispatched</span>
+                                    <span class="fw-semibold">@(Model.DispatchedAtUtc.HasValue ? Model.DispatchedAtUtc.Value.ToString("dd-MMM HH:mm:ss") + " UTC" : "—")</span>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span><i class="bi bi-truck me-2 text-warning"></i>En Route</span>
+                                    <span class="fw-semibold">@(Model.EnRouteAtUtc.HasValue ? Model.EnRouteAtUtc.Value.ToString("dd-MMM HH:mm:ss") + " UTC" : "—")</span>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span><i class="bi bi-check2-circle me-2 text-danger"></i>On Scene</span>
+                                    <span class="fw-semibold">@(Model.OnSceneAtUtc.HasValue ? Model.OnSceneAtUtc.Value.ToString("dd-MMM HH:mm:ss") + " UTC" : "—")</span>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span><i class="bi bi-arrow-return-left me-2 text-secondary"></i>Returning</span>
+                                    <span class="fw-semibold">@(Model.ReturningAtUtc.HasValue ? Model.ReturningAtUtc.Value.ToString("dd-MMM HH:mm:ss") + " UTC" : "—")</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(Model.AssignmentRemarks))
+                        {
+                            <div class="p-2 bg-light rounded small mb-3">
+                                <strong>Remarks:</strong> @Model.AssignmentRemarks
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted small">
+                            <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-2"></i>
+                            Unit is unassigned and available for emergency dispatch.
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Historical Status Audit Log -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0 fw-bold fs-6">
+                        <i class="bi bi-clock-history text-secondary me-2"></i>Status History Timeline
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.StatusHistory != null && Model.StatusHistory.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0 align-middle small">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Transition</th>
+                                        <th>Reason / Remarks</th>
+                                        <th>Incident</th>
+                                        <th>Operator</th>
+                                        <th>Timestamp (UTC)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var h in Model.StatusHistory)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-light text-dark border">@h.PreviousStatus</span>
+                                                <i class="bi bi-arrow-right mx-1 text-muted"></i>
+                                                <span class="badge bg-secondary">@h.NewStatus</span>
+                                            </td>
+                                            <td>@(string.IsNullOrEmpty(h.Reason) ? "—" : h.Reason)</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(h.IncidentNumber))
+                                                {
+                                                    <span class="badge bg-light text-primary border">@h.IncidentNumber</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">—</span>
+                                                }
+                                            </td>
+                                            <td class="text-muted">@(h.ChangedByUserId ?? "System")</td>
+                                            <td class="text-muted">@h.ChangedAtUtc.ToString("dd-MMM-yyyy HH:mm")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted small">
+                            No recorded state transitions yet.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

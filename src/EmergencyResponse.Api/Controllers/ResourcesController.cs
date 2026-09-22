@@ -25,6 +25,31 @@ public sealed class ResourcesController : ControllerBase
         return Ok(resources);
     }
 
+    [HttpGet("command-center")]
+    public async Task<ActionResult<IReadOnlyList<ResourceCommandCenterItem>>> GetCommandCenter(
+        CancellationToken cancellationToken)
+    {
+        var items = await _resourceService.GetCommandCenterAsync(cancellationToken);
+        return Ok(items);
+    }
+
+    [HttpGet("summary")]
+    public async Task<ActionResult<ResourceSummary>> GetSummary(
+        CancellationToken cancellationToken)
+    {
+        var summary = await _resourceService.GetSummaryAsync(cancellationToken);
+        return Ok(summary);
+    }
+
+    [HttpGet("assignable-incidents")]
+    public async Task<ActionResult<IReadOnlyList<AssignableIncidentItem>>> GetAssignableIncidents(
+        [FromQuery] Guid? resourceId,
+        CancellationToken cancellationToken)
+    {
+        var incidents = await _resourceService.GetAssignableIncidentsAsync(resourceId, cancellationToken);
+        return Ok(incidents);
+    }
+
     [HttpGet("{resourceId:guid}")]
     public async Task<ActionResult<ResourceDetailsResponse>> GetById(
         Guid resourceId,

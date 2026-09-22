@@ -25,6 +25,9 @@
         if (isDashboard) {
             setConnectionStatus('Reconnecting...', 'bg-warning text-dark');
         }
+        if (window.resourceCommandCenter && typeof window.resourceCommandCenter.setConnectionStatus === 'function') {
+            window.resourceCommandCenter.setConnectionStatus('Reconnecting...', 'bg-warning text-dark');
+        }
     });
 
     connection.onreconnected(function () {
@@ -35,11 +38,20 @@
         if (window.emergencyMapState && typeof window.emergencyMapState.refreshMap === 'function') {
             window.emergencyMapState.refreshMap();
         }
+        if (window.resourceCommandCenter && typeof window.resourceCommandCenter.setConnectionStatus === 'function') {
+            window.resourceCommandCenter.setConnectionStatus('Live', 'bg-success');
+        }
+        if (window.resourceCommandCenter && typeof window.resourceCommandCenter.refresh === 'function') {
+            window.resourceCommandCenter.refresh();
+        }
     });
 
     connection.onclose(function () {
         if (isDashboard) {
             setConnectionStatus('Disconnected', 'bg-danger');
+        }
+        if (window.resourceCommandCenter && typeof window.resourceCommandCenter.setConnectionStatus === 'function') {
+            window.resourceCommandCenter.setConnectionStatus('Disconnected', 'bg-danger');
         }
     });
 
@@ -62,6 +74,9 @@
         }
         if (isDashboard) {
             await refreshDashboard();
+        }
+        if (window.resourceCommandCenter && typeof window.resourceCommandCenter.refresh === 'function') {
+            await window.resourceCommandCenter.refresh();
         }
     });
 
@@ -275,11 +290,18 @@
             } else {
                 console.log('[SignalR] Incident realtime connected.');
             }
+
+            if (window.resourceCommandCenter && typeof window.resourceCommandCenter.setConnectionStatus === 'function') {
+                window.resourceCommandCenter.setConnectionStatus('Live', 'bg-success');
+            }
         }
         catch (error) {
             console.error('[SignalR] Connection failed:', error);
             if (isDashboard) {
                 setConnectionStatus('Connection failed', 'bg-danger');
+            }
+            if (window.resourceCommandCenter && typeof window.resourceCommandCenter.setConnectionStatus === 'function') {
+                window.resourceCommandCenter.setConnectionStatus('Connection failed', 'bg-danger');
             }
         }
     }
