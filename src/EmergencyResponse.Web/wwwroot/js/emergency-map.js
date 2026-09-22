@@ -151,6 +151,37 @@
         });
     }
 
+    function getResourceStatusBadgeClass(status) {
+        var s = String(status || '').toLowerCase();
+        if (s === 'available' || s === '1') return 'bg-success';
+        if (s === 'assigned' || s === '2') return 'bg-warning text-dark';
+        if (s === 'dispatched' || s === '3') return 'bg-warning text-dark';
+        if (s === 'enroute' || s === '4') return 'bg-info text-dark';
+        if (s === 'onscene' || s === '5') return 'bg-primary';
+        if (s === 'returning' || s === '6') return 'bg-info text-dark';
+        if (s === 'unavailable' || s === '7') return 'bg-danger';
+        if (s === 'maintenance' || s === '8') return 'bg-secondary';
+        return 'bg-secondary';
+    }
+
+    function formatResourceStatus(status) {
+        var s = String(status || '');
+        var map = {
+            '1': 'Available',
+            '2': 'Assigned',
+            '3': 'Dispatched',
+            '4': 'En Route',
+            '5': 'On Scene',
+            '6': 'Returning',
+            '7': 'Unavailable',
+            '8': 'Maintenance'
+        };
+        if (map[s]) return map[s];
+        if (s.toLowerCase() === 'enroute') return 'En Route';
+        if (s.toLowerCase() === 'onscene') return 'On Scene';
+        return s;
+    }
+
     function createPopupContent(incident) {
         var title = escapeHtml(incident.title || 'Emergency Incident');
         var incNumber = escapeHtml(incident.incidentNumber || ('INC-' + incident.id));
@@ -434,11 +465,19 @@
                 ? '<div class="text-muted small mt-1">Updated: ' + new Date(res.locationUpdatedAtUtc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</div>'
                 : '';
 
+            var statusClass = getResourceStatusBadgeClass(res.status);
+            var statusText = formatResourceStatus(res.status);
+
+            var incidentHtml = res.activeIncidentNumber
+                ? '<div class="mb-1"><strong>Incident:</strong> <a href="/Dashboard?incidentId=' + encodeURIComponent(res.activeIncidentId || '') + '" class="badge bg-primary text-decoration-none" title="View incident in dashboard">' + escapeHtml(res.activeIncidentNumber) + '</a></div>'
+                : '';
+
             marker.bindPopup(
                 '<div class="resource-popup">' +
                     '<div class="fw-bold fs-6">' + escapeHtml(res.name) + '</div>' +
                     '<div class="small text-muted mb-1">' + escapeHtml(res.resourceType) + '</div>' +
-                    '<div class="mb-1"><strong>Status:</strong> <span class="badge bg-secondary">' + escapeHtml(res.status) + '</span></div>' +
+                    '<div class="mb-1"><strong>Status:</strong> <span class="badge ' + statusClass + '">' + escapeHtml(statusText) + '</span></div>' +
+                    incidentHtml +
                     deptHtml +
                     updatedHtml +
                 '</div>'

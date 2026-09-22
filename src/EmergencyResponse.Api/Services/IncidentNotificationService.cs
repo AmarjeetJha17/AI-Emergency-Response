@@ -42,4 +42,16 @@ public sealed class IncidentNotificationService
                 eventData,
                 cancellationToken);
     }
-}
+
+    public async Task NotifyResourceUpdatedAsync(
+        ResourceUpdatedEvent eventData,
+        CancellationToken cancellationToken = default)
+    {
+        await _hubContext.Clients
+            .Group(SignalRGroups.DashboardOperators)
+            .SendAsync(
+                "ResourceUpdated",
+                eventData,
+                cancellationToken);
+    }
+}

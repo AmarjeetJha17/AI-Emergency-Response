@@ -12,4 +12,8 @@ public interface IIncidentNotificationService
     Task NotifyDashboardUpdatedAsync(
         DashboardUpdatedEvent eventData,
         CancellationToken cancellationToken = default);
-}
+
+    Task NotifyResourceUpdatedAsync(
+        ResourceUpdatedEvent eventData,
+        CancellationToken cancellationToken = default);
+}

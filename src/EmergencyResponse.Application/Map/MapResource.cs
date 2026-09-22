@@ -20,4 +20,9 @@ public sealed record MapResource
     public string? DepartmentName { get; init; }
 
     public DateTime? LocationUpdatedAtUtc { get; init; }
+
+    public Guid? ActiveIncidentId { get; init; }
+
+    public string? ActiveIncidentNumber { get; init; }
 }
+

@@ -765,11 +765,31 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("AssignedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("AssignedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DispatchedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EnRouteAtUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<Guid>("IncidentId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("OnSceneAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReleaseNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<DateTime?>("ReleasedAtUtc")
                         .HasColumnType("datetime2");
@@ -781,6 +801,12 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ResourceId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("ReturningAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -788,9 +814,55 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IncidentId");
 
-                    b.HasIndex("ResourceId");
+                    b.HasIndex("ResourceId")
+                        .IsUnique()
+                        .HasFilter("IsActive = 1");
 
                     b.ToTable("ResourceAssignments", (string)null);
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.ResourceStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("IncidentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("NewStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PreviousStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IncidentId");
+
+                    b.HasIndex("ResourceId", "ChangedAtUtc");
+
+                    b.ToTable("ResourceStatusHistories", (string)null);
                 });
 
             modelBuilder.Entity("EmergencyResponse.Domain.Entities.VisualAnalysis", b =>
@@ -1246,6 +1318,24 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .WithMany("Assignments")
                         .HasForeignKey("ResourceId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Incident");
+
+                    b.Navigation("Resource");
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.ResourceStatusHistory", b =>
+                {
+                    b.HasOne("EmergencyResponse.Domain.Entities.Incident", "Incident")
+                        .WithMany()
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("EmergencyResponse.Domain.Entities.Resource", "Resource")
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Incident");

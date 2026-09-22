@@ -100,7 +100,9 @@ public sealed class EmergencyMapService : IEmergencyMapService
                 Latitude = (double)x.Latitude!.Value,
                 Longitude = (double)x.Longitude!.Value,
                 DepartmentName = x.Department != null ? x.Department.Name : null,
-                LocationUpdatedAtUtc = x.LocationUpdatedAtUtc
+                LocationUpdatedAtUtc = x.LocationUpdatedAtUtc,
+                ActiveIncidentId = x.Assignments.Where(a => a.IsActive).Select(a => (Guid?)a.IncidentId).FirstOrDefault(),
+                ActiveIncidentNumber = x.Assignments.Where(a => a.IsActive).Select(a => a.Incident.IncidentNumber).FirstOrDefault()
             })
             .ToListAsync(cancellationToken);
     }

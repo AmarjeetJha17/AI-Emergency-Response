@@ -17,7 +17,25 @@ public class ResourceAssignmentConfiguration
         builder.Property(x => x.Remarks)
             .HasMaxLength(1000);
 
-        builder.HasIndex(x => x.ResourceId);
+        builder.Property(x => x.ReleaseNotes)
+            .HasMaxLength(2000);
+
+        builder.Property(x => x.AssignedByUserId)
+            .HasMaxLength(450);
+
+        builder.Property(x => x.Status)
+            .IsRequired();
+
+        builder.Property(x => x.IsActive)
+            .IsRequired();
+
+        builder.Property(x => x.AssignedAtUtc)
+            .IsRequired();
+
+        // Concurrency protection: guarantees at most one active assignment per resource
+        builder.HasIndex(x => x.ResourceId)
+            .HasFilter("IsActive = 1")
+            .IsUnique();
 
         builder.HasIndex(x => x.IncidentId);
 

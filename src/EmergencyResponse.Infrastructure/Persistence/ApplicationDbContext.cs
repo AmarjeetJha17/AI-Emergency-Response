@@ -33,6 +33,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<ResourceAssignment> ResourceAssignments => Set<ResourceAssignment>();
 
+    public DbSet<ResourceStatusHistory> ResourceStatusHistories => Set<ResourceStatusHistory>();
+
     public DbSet<AIAnalysis> AIAnalyses => Set<AIAnalysis>();
 
     public DbSet<Notification> Notifications => Set<Notification>();

@@ -74,6 +74,15 @@ builder.Services
         })
     .AddHttpMessageHandler<BearerTokenHandler>();
 
+builder.Services
+    .AddHttpClient<IResourceApiClient, ResourceApiClient>(
+        client =>
+        {
+            client.BaseAddress = new Uri(
+                builder.Configuration["ApiSettings:BaseUrl"]!);
+        })
+    .AddHttpMessageHandler<BearerTokenHandler>();
+
 builder.Services.Configure<MapOptions>(
     builder.Configuration.GetSection(
         MapOptions.SectionName));

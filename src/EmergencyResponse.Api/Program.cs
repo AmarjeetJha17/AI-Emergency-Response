@@ -1,7 +1,9 @@
 using EmergencyResponse.Application.Dashboard;
 using EmergencyResponse.Application.Map;
+using EmergencyResponse.Application.Resources;
 using EmergencyResponse.Infrastructure.Dashboard;
 using EmergencyResponse.Infrastructure.Map;
+using EmergencyResponse.Infrastructure.Resources;
 
 using System.Text;
 
@@ -156,6 +158,10 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IEmergencyMapService,
     EmergencyMapService>();
+
+builder.Services.AddScoped<
+    IResourceService,
+    ResourceService>();
 
 builder.Services.AddHttpContextAccessor();
 

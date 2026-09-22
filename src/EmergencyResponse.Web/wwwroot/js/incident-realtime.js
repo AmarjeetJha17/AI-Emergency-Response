@@ -54,6 +54,17 @@
         }
     });
 
+    // ── Resource Live Update Listener ───────────────────────────────────────
+    connection.on('ResourceUpdated', async function (event) {
+        console.log('[SignalR] Resource update received:', event);
+        if (window.emergencyMapState && typeof window.emergencyMapState.refreshMap === 'function') {
+            await window.emergencyMapState.refreshMap();
+        }
+        if (isDashboard) {
+            await refreshDashboard();
+        }
+    });
+
     // ── Incident Details & Map Page Listener ─────────────────────────────────
     connection.on('IncidentUpdated', function (event) {
         console.debug('[SignalR] IncidentUpdated', event);
