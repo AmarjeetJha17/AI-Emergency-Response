@@ -1,4 +1,5 @@
 using EmergencyResponse.Domain.Entities;
+using EmergencyResponse.Domain.Enums;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +13,9 @@ public static class DatabaseSeeder
     {
         await SeedIncidentTypesAsync(context, cancellationToken);
         await SeedDepartmentsAsync(context, cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
 
+        await SeedIncidentTypeResourceRequirementsAsync(context, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
     }
 
@@ -178,5 +181,85 @@ public static class DatabaseSeeder
         await context.Departments.AddRangeAsync(
             departments,
             cancellationToken);
+    }
+
+    private static async Task SeedIncidentTypeResourceRequirementsAsync(
+        ApplicationDbContext context,
+        CancellationToken cancellationToken)
+    {
+        if (await context.IncidentTypeResourceRequirements.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        var types = await context.IncidentTypes.ToDictionaryAsync(t => t.Code, cancellationToken);
+        var requirements = new List<IncidentTypeResourceRequirement>();
+
+        void AddReq(string typeCode, ResourceType resourceType, int min, int pref, bool isMandatory, int priority)
+        {
+            if (types.TryGetValue(typeCode, out var incidentType))
+            {
+                requirements.Add(new IncidentTypeResourceRequirement
+                {
+                    Id = Guid.NewGuid(),
+                    IncidentTypeId = incidentType.Id,
+                    ResourceType = resourceType,
+                    MinimumCount = min,
+                    PreferredCount = pref,
+                    IsMandatory = isMandatory,
+                    PriorityOrder = priority,
+                    CreatedAtUtc = DateTime.UtcNow
+                });
+            }
+        }
+
+        // Flood
+        AddReq("FLOOD", ResourceType.RescueTeam, 1, 2, true, 1);
+        AddReq("FLOOD", ResourceType.Boat, 1, 2, true, 2);
+        AddReq("FLOOD", ResourceType.Ambulance, 1, 1, false, 3);
+
+        // Fire
+        AddReq("FIRE", ResourceType.FireTruck, 1, 2, true, 1);
+        AddReq("FIRE", ResourceType.Ambulance, 1, 1, true, 2);
+        AddReq("FIRE", ResourceType.PoliceVehicle, 1, 1, false, 3);
+
+        // Building Collapse
+        AddReq("BUILDING_COLLAPSE", ResourceType.RescueTeam, 1, 2, true, 1);
+        AddReq("BUILDING_COLLAPSE", ResourceType.Ambulance, 1, 2, true, 2);
+        AddReq("BUILDING_COLLAPSE", ResourceType.Excavator, 1, 1, false, 3);
+
+        // Road Accident
+        AddReq("ROAD_ACCIDENT", ResourceType.PoliceVehicle, 1, 1, true, 1);
+        AddReq("ROAD_ACCIDENT", ResourceType.Ambulance, 1, 1, true, 2);
+        AddReq("ROAD_ACCIDENT", ResourceType.RescueVehicle, 1, 1, false, 3);
+
+        // Medical Emergency
+        AddReq("MEDICAL", ResourceType.Ambulance, 1, 2, true, 1);
+        AddReq("MEDICAL", ResourceType.MedicalTeam, 1, 1, false, 2);
+
+        // Chemical Leak
+        AddReq("CHEMICAL_LEAK", ResourceType.FireTruck, 1, 1, true, 1);
+        AddReq("CHEMICAL_LEAK", ResourceType.RescueTeam, 1, 1, true, 2);
+        AddReq("CHEMICAL_LEAK", ResourceType.Ambulance, 1, 1, false, 3);
+
+        // Landslide
+        AddReq("LANDSLIDE", ResourceType.RescueTeam, 1, 2, true, 1);
+        AddReq("LANDSLIDE", ResourceType.Excavator, 1, 1, true, 2);
+        AddReq("LANDSLIDE", ResourceType.Ambulance, 1, 1, false, 3);
+
+        // Earthquake
+        AddReq("EARTHQUAKE", ResourceType.RescueTeam, 2, 4, true, 1);
+        AddReq("EARTHQUAKE", ResourceType.MedicalTeam, 1, 2, true, 2);
+        AddReq("EARTHQUAKE", ResourceType.Ambulance, 2, 3, true, 3);
+
+        // Cyclone
+        AddReq("CYCLONE", ResourceType.RescueTeam, 1, 2, true, 1);
+        AddReq("CYCLONE", ResourceType.Boat, 1, 2, false, 2);
+        AddReq("CYCLONE", ResourceType.Ambulance, 1, 1, false, 3);
+
+        if (requirements.Count > 0)
+        {
+            await context.IncidentTypeResourceRequirements.AddRangeAsync(requirements, cancellationToken);
+        }
     }
 }

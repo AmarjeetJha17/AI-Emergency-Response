@@ -1,5 +1,6 @@
 using System.Text.Json;
 
+using EmergencyResponse.Application.Common.Geo;
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Application.Realtime;
 using EmergencyResponse.Application.Resources;
@@ -9,6 +10,7 @@ using EmergencyResponse.Infrastructure.Persistence;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace EmergencyResponse.Infrastructure.Resources;
 
@@ -18,17 +20,20 @@ public sealed class ResourceService : IResourceService
     private readonly ICurrentUserService _currentUserService;
     private readonly IIncidentNotificationService _notificationService;
     private readonly ILogger<ResourceService> _logger;
+    private readonly ResourceRecommendationOptions _options;
 
     public ResourceService(
         ApplicationDbContext db,
         ICurrentUserService currentUserService,
         IIncidentNotificationService notificationService,
-        ILogger<ResourceService> logger)
+        ILogger<ResourceService> logger,
+        IOptions<ResourceRecommendationOptions>? options = null)
     {
         _db = db;
         _currentUserService = currentUserService;
         _notificationService = notificationService;
         _logger = logger;
+        _options = options?.Value ?? new ResourceRecommendationOptions();
     }
 
     public async Task<IReadOnlyList<ResourceDetailsResponse>> GetResourcesAsync(
@@ -270,7 +275,20 @@ public sealed class ResourceService : IResourceService
             OccurredAtUtc = now
         });
 
-        await _db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Concurrency conflict detected while assigning resource {ResourceId}.", resourceId);
+            throw new InvalidOperationException("The resource was modified by another operator. Refresh the recommendations and try again.", ex);
+        }
+        catch (DbUpdateException ex) when (IsActiveAssignmentConflict(ex))
+        {
+            _logger.LogWarning(ex, "Active assignment conflict detected for resource {ResourceId}.", resourceId);
+            throw new InvalidOperationException("The resource already has an active assignment.", ex);
+        }
 
         _logger.LogInformation(
             "Resource {ResourceId} assigned to incident {IncidentId} by user {UserId}.",
@@ -533,5 +551,196 @@ public sealed class ResourceService : IResourceService
             AssignmentRemarks = active?.Remarks,
             StatusHistory = history ?? []
         };
+    }
+
+    public async Task<ResourceRecommendationResponse> GetRecommendationsAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken = default)
+    {
+        var incident = await _db.Incidents
+            .AsNoTracking()
+            .Include(i => i.IncidentType)
+            .Include(i => i.Department)
+            .Include(i => i.Locations)
+            .SingleOrDefaultAsync(i => i.Id == incidentId, cancellationToken);
+
+        if (incident is null)
+        {
+            throw new KeyNotFoundException($"Incident {incidentId} not found.");
+        }
+
+        var primaryLocation = incident.Locations
+            .OrderByDescending(l => l.IsPrimary)
+            .ThenBy(l => l.CreatedAtUtc)
+            .FirstOrDefault();
+
+        var requirements = await _db.IncidentTypeResourceRequirements
+            .AsNoTracking()
+            .Where(r => r.IncidentTypeId == incident.IncidentTypeId)
+            .OrderBy(r => r.PriorityOrder)
+            .ToListAsync(cancellationToken);
+
+        var requirementDtos = requirements.Select(r => new ResourceRequirementDto
+        {
+            ResourceType = r.ResourceType,
+            MinimumCount = r.MinimumCount,
+            PreferredCount = r.PreferredCount,
+            IsMandatory = r.IsMandatory,
+            PriorityOrder = r.PriorityOrder
+        }).ToList();
+
+        if (requirements.Count == 0)
+        {
+            return new ResourceRecommendationResponse
+            {
+                IncidentId = incident.Id,
+                IncidentNumber = incident.IncidentNumber,
+                IncidentTitle = incident.Title,
+                IncidentType = incident.IncidentType?.Name,
+                Severity = incident.Severity.ToString(),
+                Priority = incident.Priority.ToString(),
+                DepartmentName = incident.Department?.Name,
+                Requirements = [],
+                Recommendations = []
+            };
+        }
+
+        var requiredResourceTypes = requirements.Select(r => r.ResourceType).ToHashSet();
+        var maxDistanceKm = _options.MaximumDistanceKm > 0 ? _options.MaximumDistanceKm : 50.0;
+
+        var resources = await _db.Resources
+            .AsNoTracking()
+            .Include(r => r.Department)
+            .Include(r => r.Assignments.Where(a => a.IsActive))
+            .Where(r => requiredResourceTypes.Contains(r.Type) ||
+                        (incident.DepartmentId.HasValue && r.DepartmentId == incident.DepartmentId.Value))
+            .ToListAsync(cancellationToken);
+
+        var recommendations = new List<ResourceRecommendation>();
+
+        foreach (var resource in resources)
+        {
+            var hasActiveAssignment = resource.Assignments.Any(a => a.IsActive);
+
+            double? distanceKm = null;
+            if (primaryLocation is not null &&
+                resource.Latitude.HasValue &&
+                resource.Longitude.HasValue)
+            {
+                distanceKm = Math.Round(
+                    GeoDistance.CalculateKilometers(
+                        (double)primaryLocation.Latitude,
+                        (double)primaryLocation.Longitude,
+                        (double)resource.Latitude.Value,
+                        (double)resource.Longitude.Value),
+                    1);
+            }
+
+            var distanceScore = ResourceDistanceScorer.Calculate(distanceKm, maxDistanceKm);
+            var availabilityScore = (resource.Status == ResourceStatus.Available && !hasActiveAssignment) ? 1.0 : 0.0;
+            var departmentScore = (!incident.DepartmentId.HasValue || resource.DepartmentId == incident.DepartmentId.Value) ? 1.0 : 0.0;
+            var suitabilityScore = requiredResourceTypes.Contains(resource.Type) ? 1.0 : 0.0;
+
+            var compositeScore = ResourceRecommendationScorer.Calculate(
+                distanceScore,
+                availabilityScore,
+                departmentScore,
+                suitabilityScore);
+
+            var reasons = new List<string>();
+            if (availabilityScore > 0.0)
+            {
+                reasons.Add("Unit is Available with no active assignments (+20%)");
+            }
+            if (departmentScore > 0.0)
+            {
+                var deptName = incident.Department?.Name ?? resource.Department?.Name ?? "Incident Department";
+                reasons.Add($"Assigned to incident department '{deptName}' (+20%)");
+            }
+            if (suitabilityScore > 0.0)
+            {
+                var req = requirements.FirstOrDefault(r => r.ResourceType == resource.Type);
+                var priorityText = req?.IsMandatory == true ? "Mandatory" : "Preferred";
+                reasons.Add($"Matches required resource type '{resource.Type}' ({priorityText}, Priority {req?.PriorityOrder ?? 1}) (+10%)");
+            }
+            if (distanceKm.HasValue)
+            {
+                var distPts = Math.Round(distanceScore * 50.0, 1);
+                reasons.Add($"Located {distanceKm.Value:F1} km from incident scene (+{distPts}% distance score)");
+            }
+            else
+            {
+                reasons.Add("Location coordinates unavailable for precise distance scoring (0%)");
+            }
+
+            var exclusionReasons = new List<string>();
+            if (resource.Status != ResourceStatus.Available)
+            {
+                exclusionReasons.Add($"Current status is '{resource.Status}', not Available");
+            }
+            if (hasActiveAssignment)
+            {
+                exclusionReasons.Add("Resource currently has an active incident assignment");
+            }
+            if (incident.DepartmentId.HasValue && resource.DepartmentId != incident.DepartmentId.Value)
+            {
+                exclusionReasons.Add($"Belongs to '{resource.Department?.Name ?? "Department"}', not incident department '{incident.Department?.Name ?? "Incident Department"}'");
+            }
+            if (!requiredResourceTypes.Contains(resource.Type))
+            {
+                exclusionReasons.Add($"Resource type '{resource.Type}' is not among required types for this incident");
+            }
+            if (distanceKm.HasValue && distanceKm.Value > maxDistanceKm)
+            {
+                exclusionReasons.Add($"Distance ({distanceKm.Value:F1} km) exceeds maximum operational radius ({maxDistanceKm} km)");
+            }
+
+            var isEligible = exclusionReasons.Count == 0;
+
+            recommendations.Add(new ResourceRecommendation
+            {
+                ResourceId = resource.Id,
+                ResourceName = resource.Name,
+                ResourceType = resource.Type,
+                Status = resource.Status,
+                DepartmentName = resource.Department?.Name,
+                DistanceKm = distanceKm,
+                RecommendationScore = compositeScore,
+                Eligible = isEligible,
+                Reasons = reasons,
+                ExclusionReasons = exclusionReasons,
+                IncidentId = incident.Id,
+                IncidentNumber = incident.IncidentNumber
+            });
+        }
+
+        var ranked = recommendations
+            .OrderByDescending(r => r.Eligible)
+            .ThenByDescending(r => r.RecommendationScore)
+            .ThenBy(r => r.DistanceKm ?? double.MaxValue)
+            .ThenBy(r => r.ResourceName)
+            .Take(25)
+            .ToList();
+
+        return new ResourceRecommendationResponse
+        {
+            IncidentId = incident.Id,
+            IncidentNumber = incident.IncidentNumber,
+            IncidentTitle = incident.Title,
+            IncidentType = incident.IncidentType?.Name,
+            Severity = incident.Severity.ToString(),
+            Priority = incident.Priority.ToString(),
+            DepartmentName = incident.Department?.Name,
+            Requirements = requirementDtos,
+            Recommendations = ranked
+        };
+    }
+
+    private static bool IsActiveAssignmentConflict(DbUpdateException ex)
+    {
+        var message = ex.InnerException?.Message ?? ex.Message;
+        return message.Contains("IX_ResourceAssignments_ResourceId", StringComparison.OrdinalIgnoreCase) ||
+               message.Contains("ResourceAssignments.ResourceId", StringComparison.OrdinalIgnoreCase) ||
+               message.Contains("UNIQUE constraint failed: ResourceAssignments.ResourceId", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -35,4 +35,8 @@ public interface IResourceApiClient
         Guid resourceId,
         ReleaseResourceRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<ResourceRecommendationResponse> GetRecommendationsAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken = default);
 }

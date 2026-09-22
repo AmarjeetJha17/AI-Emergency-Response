@@ -1,0 +1,615 @@
+@model EmergencyResponse.Web.Models.Resources.ResourceRecommendationsViewModel
+
+@{
+    ViewData["Title"] = $"Intelligent Resource Recommendations — {Model.Incident.IncidentNumber}";
+}
+
+<div class="container-fluid py-3" id="recommendationsPage">
+    @Html.AntiForgeryToken()
+
+    <!-- Navigation / Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a asp-controller="Dashboard" asp-action="Index">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a asp-controller="Incidents" asp-action="Details" asp-route-id="@Model.Incident.Id">Incident @Model.Incident.IncidentNumber</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Resource Recommendations</li>
+                </ol>
+            </nav>
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="h4 mb-0 fw-bold">Intelligent Resource Recommendations</h2>
+                <span id="recommendationsConnectionStatus" class="badge bg-secondary d-inline-flex align-items-center gap-1 px-2 py-1">
+                    <span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true" style="width: 0.5rem; height: 0.5rem;"></span> Connecting...
+                </span>
+            </div>
+            <div class="text-muted small">
+                Deterministic proximity and compatibility ranking for operational dispatch decision-support
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+            <span id="recommendationsLastUpdated" class="text-muted small me-2"></span>
+            <button id="btnRefreshRecommendations" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" title="Refresh Recommendations" onclick="refreshRecommendations()">
+                <span id="recommendationsRefreshSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                <span>↻ Refresh</span>
+            </button>
+            <a asp-controller="Resources" asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-grid-3x3-gap me-1"></i>Command Center
+            </a>
+            <a asp-controller="Incidents" asp-action="Details" asp-route-id="@Model.Incident.Id" class="btn btn-primary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to Incident
+            </a>
+        </div>
+    </div>
+
+    <!-- Incident Context Summary Banner -->
+    <div class="card shadow-sm mb-4 border-0 border-top border-4 border-primary">
+        <div class="card-body py-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-12 col-md-5">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="fw-bold fs-5 text-primary">@Model.Incident.IncidentNumber</span>
+                        <span class="badge bg-primary">@Model.Incident.IncidentType</span>
+                        <span class="badge @(Model.Incident.Priority is "Critical" ? "bg-danger" : Model.Incident.Priority is "High" ? "bg-warning text-dark" : "bg-info text-dark")">
+                            @Model.Incident.Priority Priority
+                        </span>
+                        <span class="badge bg-dark">@Model.Incident.Severity Severity</span>
+                    </div>
+                    <div class="fw-semibold text-truncate fs-6" title="@Model.Incident.Title">@Model.Incident.Title</div>
+                    <div class="text-muted small">Department: <strong class="text-body">@(Model.Recommendation.DepartmentName ?? "Unassigned")</strong></div>
+                </div>
+
+                <div class="col-12 col-md-4 border-start-md">
+                    <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-geo-alt text-danger me-1"></i>Incident Scene Location</div>
+                    <div class="small fw-semibold text-truncate">
+                        @(string.IsNullOrWhiteSpace(Model.Incident.Address) ? "Address not specified" : Model.Incident.Address)
+                    </div>
+                    <div class="small text-muted">
+                        @Model.Incident.District@(string.IsNullOrWhiteSpace(Model.Incident.District) ? "" : ", ")@Model.Incident.State
+                        @if (Model.Incident.Latitude != 0 || Model.Incident.Longitude != 0)
+                        {
+                            <span class="badge bg-light text-dark border ms-1">
+                                @Model.Incident.Latitude.ToString("F4"), @Model.Incident.Longitude.ToString("F4")
+                            </span>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-3 text-md-end border-start-md">
+                    <div class="text-muted small fw-semibold text-uppercase mb-1">Dispatch Governance</div>
+                    <div class="small text-muted mb-2">
+                        Recommendations provide ranked candidates. Operational dispatch requires explicit operator confirmation.
+                    </div>
+                    <span class="badge bg-success-subtle text-success border border-success px-2 py-1">
+                        <i class="bi bi-shield-check me-1"></i>Operator Authority Required
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Requirements & Recommendations Section -->
+    <div class="row g-4 mb-4">
+        <!-- Resource Requirements Card -->
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="card-title fs-6 mb-0 fw-bold">
+                        <i class="bi bi-clipboard2-check text-primary me-2"></i>Resource Profile
+                    </h5>
+                    <span class="badge bg-primary-subtle text-primary">@Model.Recommendation.Requirements.Count Types</span>
+                </div>
+                <div class="card-body p-3">
+                    @if (Model.Recommendation.Requirements.Count == 0)
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-info-circle fs-3 d-block mb-2"></i>
+                            <div class="small">No preconfigured resource requirements for <strong>@Model.Incident.IncidentType</strong>.</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush" id="requirementsListContainer">
+                            @foreach (var req in Model.Recommendation.Requirements.OrderBy(r => r.PriorityOrder))
+                            {
+                                <div class="list-group-item px-0 py-2 border-bottom">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold small text-body">@req.ResourceType</span>
+                                        <span class="badge @(req.IsMandatory ? "bg-danger" : "bg-secondary")">
+                                            @(req.IsMandatory ? "Mandatory" : "Preferred")
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted small">
+                                        <span>Min: <strong>@req.MinimumCount</strong> | Target: <strong>@req.PreferredCount</strong></span>
+                                        <span>Priority <strong>#@req.PriorityOrder</strong></span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="card-footer bg-light py-2 small text-muted">
+                    <i class="bi bi-sliders me-1"></i>Requirements determine suitability weights and eligibility filters.
+                </div>
+            </div>
+        </div>
+
+        <!-- Candidate Recommendations Grid -->
+        <div class="col-12 col-lg-9">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <h5 class="card-title fs-6 mb-0 fw-bold">
+                            <i class="bi bi-speedometer2 text-success me-2"></i>Ranked Dispatch Candidates
+                        </h5>
+                        <div class="text-muted small">
+                            Weighted factors: Distance (50%), Availability (20%), Department (20%), Type Suitability (10%)
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-light text-dark border px-2 py-1 small">
+                            Total Candidates: <strong id="totalCandidatesCount">@Model.Recommendation.Recommendations.Count</strong>
+                        </span>
+                        <span class="badge bg-success-subtle text-success border border-success px-2 py-1 small">
+                            Eligible: <strong id="eligibleCandidatesCount">@Model.Recommendation.Recommendations.Count(r => r.Eligible)</strong>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card-body p-0">
+                    <ejs-grid id="recommendationGrid"
+                              dataSource="@Model.Recommendation.Recommendations"
+                              allowPaging="true"
+                              allowSorting="true"
+                              allowFiltering="false">
+                        <e-grid-pagesettings pageSize="12"></e-grid-pagesettings>
+                        <e-grid-columns>
+                            <e-grid-column field="ResourceName"
+                                           headerText="Unit Name"
+                                           width="160"
+                                           freeze="Left">
+                            </e-grid-column>
+
+                            <e-grid-column field="ResourceType"
+                                           headerText="Type"
+                                           width="130">
+                            </e-grid-column>
+
+                            <e-grid-column field="DepartmentName"
+                                           headerText="Department"
+                                           width="160">
+                            </e-grid-column>
+
+                            <e-grid-column field="DistanceKm"
+                                           headerText="Distance"
+                                           width="120"
+                                           template="#distanceTemplate">
+                            </e-grid-column>
+
+                            <e-grid-column field="RecommendationScore"
+                                           headerText="Recommendation Score"
+                                           width="170"
+                                           template="#scoreTemplate">
+                            </e-grid-column>
+
+                            <e-grid-column field="Status"
+                                           headerText="Status"
+                                           width="120"
+                                           template="#recommendationStatusTemplate">
+                            </e-grid-column>
+
+                            <e-grid-column field="Eligible"
+                                           headerText="Eligibility"
+                                           width="120"
+                                           template="#eligibilityTemplate">
+                            </e-grid-column>
+
+                            <e-grid-column headerText="Actions"
+                                           width="190"
+                                           template="#recommendationActionTemplate"
+                                           allowSorting="false"
+                                           allowFiltering="false">
+                            </e-grid-column>
+                        </e-grid-columns>
+                    </ejs-grid>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Why? / Explainability Modal Dialog -->
+<ejs-dialog id="recommendationReasonsDialog"
+            width="550px"
+            showCloseIcon="true"
+            visible="false"
+            isModal="true"
+            header="Resource Recommendation Analysis">
+    <e-content-template>
+        <div id="reasonsDialogBody" class="p-2">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                <div>
+                    <h5 class="fw-bold mb-0" id="reasonsTargetName">-</h5>
+                    <div class="small text-muted" id="reasonsTargetMeta">-</div>
+                </div>
+                <div class="text-end">
+                    <div class="small text-muted">Recommendation Score</div>
+                    <span class="fs-4 fw-bold" id="reasonsTargetScore">-</span>
+                </div>
+            </div>
+
+            <!-- Eligibility Banner -->
+            <div id="reasonsEligibilityBanner" class="alert py-2 mb-3"></div>
+
+            <!-- Positive Reasons -->
+            <div class="mb-3">
+                <div class="fw-semibold small text-success text-uppercase mb-2">
+                    <i class="bi bi-check-circle me-1"></i>Suitability & Match Factors
+                </div>
+                <ul class="list-group list-group-flush border rounded" id="reasonsPositiveList">
+                </ul>
+            </div>
+
+            <!-- Exclusion Factors -->
+            <div id="reasonsExclusionContainer" class="mb-3 d-none">
+                <div class="fw-semibold small text-danger text-uppercase mb-2">
+                    <i class="bi bi-exclamation-triangle me-1"></i>Exclusion Factors
+                </div>
+                <ul class="list-group list-group-flush border border-danger-subtle rounded" id="reasonsExclusionList">
+                </ul>
+            </div>
+
+            <div class="d-flex justify-content-end mt-4 pt-2 border-top">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="closeReasonsDialog()">Close</button>
+            </div>
+        </div>
+    </e-content-template>
+</ejs-dialog>
+
+<!-- Assign Resource Confirmation Modal Dialog -->
+<ejs-dialog id="assignResourceDialog"
+            width="500px"
+            showCloseIcon="true"
+            visible="false"
+            isModal="true"
+            header="Confirm Unit Dispatch Assignment">
+    <e-content-template>
+        <div id="assignDialogBody" class="p-2">
+            <div id="assignAlertContainer"></div>
+
+            <div class="mb-3">
+                <label class="form-label text-muted small mb-1">Target Unit</label>
+                <div class="fw-bold fs-6" id="assignTargetName">-</div>
+                <div class="small text-muted" id="assignTargetMeta">-</div>
+            </div>
+
+            <input type="hidden" id="assignResourceId" value="" />
+            <input type="hidden" id="assignIncidentId" value="@Model.Incident.Id" />
+
+            <div class="mb-3">
+                <label class="form-label text-muted small mb-1">Target Incident</label>
+                <div class="fw-bold fs-6 text-primary">@Model.Incident.IncidentNumber</div>
+                <div class="small text-muted">@Model.Incident.Title</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="assignNotes" class="form-label fw-semibold small">Operational Notes / Dispatch Orders</label>
+                <textarea id="assignNotes" class="form-control form-control-sm" rows="3" placeholder="Optional dispatch instructions or situational notes..."></textarea>
+            </div>
+
+            <div class="alert alert-info py-2 small mb-0">
+                <i class="bi bi-info-circle me-1"></i>Assigning this unit transitions its status to <strong>Assigned</strong> and updates dispatch boards in real-time.
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-2 border-top">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="closeAssignDialog()">Cancel</button>
+                <button type="button" id="btnSubmitAssign" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" onclick="submitAssignment()">
+                    <span id="assignSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                    <span>Confirm Dispatch</span>
+                </button>
+            </div>
+        </div>
+    </e-content-template>
+</ejs-dialog>
+
+<!-- Column Templates -->
+<script id="recommendationStatusTemplate" type="text/x-template">
+    ${if(Status == "Available" || Status == 0)}
+        <span class="badge bg-success">Available</span>
+    ${else if(Status == "Assigned" || Status == 1)}
+        <span class="badge bg-primary">Assigned</span>
+    ${else if(Status == "Dispatched" || Status == 2)}
+        <span class="badge bg-info text-dark">Dispatched</span>
+    ${else if(Status == "EnRoute" || Status == 3)}
+        <span class="badge bg-warning text-dark">En Route</span>
+    ${else if(Status == "OnScene" || Status == 4)}
+        <span class="badge bg-danger">On Scene</span>
+    ${else if(Status == "Returning" || Status == 5)}
+        <span class="badge bg-secondary">Returning</span>
+    ${else if(Status == "Unavailable" || Status == 6)}
+        <span class="badge bg-dark">Unavailable</span>
+    ${else if(Status == "Maintenance" || Status == 7)}
+        <span class="badge bg-secondary text-light">Maintenance</span>
+    ${else}
+        <span class="badge bg-light text-dark border">${Status}</span>
+    ${/if}
+</script>
+
+<script id="distanceTemplate" type="text/x-template">
+    ${if(DistanceKm !== null && DistanceKm !== undefined)}
+        <span class="badge bg-light text-dark border">
+            <i class="bi bi-geo-alt text-primary me-1"></i>${DistanceKm} km
+        </span>
+    ${else}
+        <span class="text-muted small">Unknown</span>
+    ${/if}
+</script>
+
+<script id="scoreTemplate" type="text/x-template">
+    <div class="d-flex align-items-center gap-2" style="min-width: 140px;">
+        <div class="progress flex-grow-1" style="height: 8px;">
+            <div class="progress-bar ${RecommendationScore >= 75 ? 'bg-success' : (RecommendationScore >= 40 ? 'bg-primary' : 'bg-warning')}"
+                 role="progressbar"
+                 style="width: ${RecommendationScore}%;"
+                 aria-valuenow="${RecommendationScore}"
+                 aria-valuemin="0"
+                 aria-valuemax="100">
+            </div>
+        </div>
+        <span class="fw-bold small ${RecommendationScore >= 75 ? 'text-success' : (RecommendationScore >= 40 ? 'text-primary' : 'text-muted')}">
+            ${RecommendationScore}
+        </span>
+    </div>
+</script>
+
+<script id="eligibilityTemplate" type="text/x-template">
+    ${if(Eligible)}
+        <span class="badge bg-success-subtle text-success border border-success">
+            <i class="bi bi-check-circle me-1"></i>Eligible
+        </span>
+    ${else}
+        <span class="badge bg-danger-subtle text-danger border border-danger">
+            <i class="bi bi-x-circle me-1"></i>Excluded
+        </span>
+    ${/if}
+</script>
+
+<script id="recommendationActionTemplate" type="text/x-template">
+    <div class="d-flex align-items-center gap-1">
+        ${if(Eligible)}
+            <button type="button" class="btn btn-sm btn-success py-1 px-2 d-inline-flex align-items-center gap-1"
+                    onclick="openAssignDialog('${ResourceId}', '${ResourceName}', '${ResourceType}', '${DepartmentName}')">
+                <i class="bi bi-send-check"></i> Assign
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 d-inline-flex align-items-center gap-1"
+                    onclick="openReasonsDialog('${ResourceId}')">
+                <i class="bi bi-info-circle"></i> Why?
+            </button>
+        ${else}
+            <span class="badge bg-secondary-subtle text-secondary border py-1 px-2">Not Eligible</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 d-inline-flex align-items-center gap-1"
+                    onclick="openReasonsDialog('${ResourceId}')">
+                <i class="bi bi-question-circle"></i> Details
+            </button>
+        ${/if}
+    </div>
+</script>
+
+@section Scripts {
+    <script>
+        (function () {
+            'use strict';
+
+            var currentRecommendations = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Recommendation.Recommendations));
+            var incidentId = '@Model.Incident.Id';
+
+            function getCsrfToken() {
+                var el = document.querySelector('input[name="__RequestVerificationToken"]');
+                return el ? el.value : '';
+            }
+
+            function updateTimestamp() {
+                var el = document.getElementById('recommendationsLastUpdated');
+                if (el) {
+                    el.textContent = 'Updated ' + new Date().toLocaleTimeString();
+                }
+            }
+            updateTimestamp();
+
+            // ── Refresh Recommendations ─────────────────────────────────────────
+            window.refreshRecommendations = async function () {
+                var spinner = document.getElementById('recommendationsRefreshSpinner');
+                if (spinner) spinner.classList.remove('d-none');
+
+                try {
+                    var response = await fetch('/Resources/RecommendationsData?incidentId=' + incidentId, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Recommendations fetch failed: ' + response.status);
+                    }
+
+                    var data = await response.json();
+                    if (data && data.recommendations) {
+                        currentRecommendations = data.recommendations;
+
+                        var gridEl = document.getElementById('recommendationGrid');
+                        var grid = gridEl?.ej2_instances?.[0];
+                        if (grid) {
+                            grid.dataSource = data.recommendations;
+                        }
+
+                        var totalCountEl = document.getElementById('totalCandidatesCount');
+                        if (totalCountEl) totalCountEl.textContent = data.recommendations.length;
+
+                        var eligibleCountEl = document.getElementById('eligibleCandidatesCount');
+                        if (eligibleCountEl) {
+                            var eligibleCount = data.recommendations.filter(function (r) { return r.eligible || r.Eligible; }).length;
+                            eligibleCountEl.textContent = eligibleCount;
+                        }
+
+                        updateTimestamp();
+                    }
+                } catch (err) {
+                    console.error('[Recommendations] Refresh failed:', err);
+                } finally {
+                    if (spinner) spinner.classList.add('d-none');
+                }
+            };
+
+            // ── Reasons Dialog ──────────────────────────────────────────────────
+            window.openReasonsDialog = function (resourceId) {
+                var target = currentRecommendations.find(function (r) {
+                    var id = r.resourceId || r.ResourceId;
+                    return id === resourceId;
+                });
+
+                if (!target) return;
+
+                document.getElementById('reasonsTargetName').textContent = target.resourceName || target.ResourceName || '-';
+                document.getElementById('reasonsTargetMeta').textContent =
+                    (target.resourceType || target.ResourceType) + ' • ' +
+                    (target.departmentName || target.DepartmentName || 'Department');
+
+                var score = target.recommendationScore ?? target.RecommendationScore ?? 0;
+                var scoreEl = document.getElementById('reasonsTargetScore');
+                scoreEl.textContent = score + ' / 100';
+                scoreEl.className = 'fs-4 fw-bold ' + (score >= 75 ? 'text-success' : score >= 40 ? 'text-primary' : 'text-muted');
+
+                var isEligible = target.eligible ?? target.Eligible ?? false;
+                var banner = document.getElementById('reasonsEligibilityBanner');
+                if (isEligible) {
+                    banner.className = 'alert alert-success py-2 mb-3';
+                    banner.innerHTML = '<i class="bi bi-check-circle me-1"></i><strong>Candidate is Eligible for Immediate Dispatch</strong>';
+                } else {
+                    banner.className = 'alert alert-warning py-2 mb-3';
+                    banner.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i><strong>Candidate is Excluded from Immediate Dispatch</strong>';
+                }
+
+                // Populate positive reasons
+                var reasons = target.reasons || target.Reasons || [];
+                var posList = document.getElementById('reasonsPositiveList');
+                posList.innerHTML = '';
+                if (reasons.length === 0) {
+                    posList.innerHTML = '<li class="list-group-item small text-muted">No specific match factors recorded.</li>';
+                } else {
+                    reasons.forEach(function (reason) {
+                        var li = document.createElement('li');
+                        li.className = 'list-group-item small py-2 d-flex align-items-center gap-2';
+                        li.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i><span>' + reason + '</span>';
+                        posList.appendChild(li);
+                    });
+                }
+
+                // Populate exclusion factors
+                var exclusions = target.exclusionReasons || target.ExclusionReasons || [];
+                var exclContainer = document.getElementById('reasonsExclusionContainer');
+                var exclList = document.getElementById('reasonsExclusionList');
+                exclList.innerHTML = '';
+
+                if (exclusions.length > 0) {
+                    exclContainer.classList.remove('d-none');
+                    exclusions.forEach(function (excl) {
+                        var li = document.createElement('li');
+                        li.className = 'list-group-item small py-2 d-flex align-items-center gap-2 bg-danger-subtle text-danger';
+                        li.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i><span>' + excl + '</span>';
+                        exclList.appendChild(li);
+                    });
+                } else {
+                    exclContainer.classList.add('d-none');
+                }
+
+                var dialogEl = document.getElementById('recommendationReasonsDialog');
+                var dialog = dialogEl?.ej2_instances?.[0];
+                if (dialog) dialog.show();
+            };
+
+            window.closeReasonsDialog = function () {
+                var dialogEl = document.getElementById('recommendationReasonsDialog');
+                var dialog = dialogEl?.ej2_instances?.[0];
+                if (dialog) dialog.hide();
+            };
+
+            // ── Assign Dialog ───────────────────────────────────────────────────
+            window.openAssignDialog = function (resourceId, resourceName, resourceType, departmentName) {
+                document.getElementById('assignResourceId').value = resourceId;
+                document.getElementById('assignTargetName').textContent = resourceName;
+                document.getElementById('assignTargetMeta').textContent = resourceType + ' • ' + (departmentName || 'Department');
+                document.getElementById('assignNotes').value = '';
+                document.getElementById('assignAlertContainer').innerHTML = '';
+
+                var dialogEl = document.getElementById('assignResourceDialog');
+                var dialog = dialogEl?.ej2_instances?.[0];
+                if (dialog) dialog.show();
+            };
+
+            window.closeAssignDialog = function () {
+                var dialogEl = document.getElementById('assignResourceDialog');
+                var dialog = dialogEl?.ej2_instances?.[0];
+                if (dialog) dialog.hide();
+            };
+
+            window.submitAssignment = async function () {
+                var resourceId = document.getElementById('assignResourceId').value;
+                var targetIncidentId = document.getElementById('assignIncidentId').value;
+                var notes = document.getElementById('assignNotes').value;
+                var alertContainer = document.getElementById('assignAlertContainer');
+
+                var spinner = document.getElementById('assignSpinner');
+                var btn = document.getElementById('btnSubmitAssign');
+                spinner.classList.remove('d-none');
+                btn.disabled = true;
+
+                try {
+                    var response = await fetch('/Resources/Assign', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            resourceId: resourceId,
+                            incidentId: targetIncidentId,
+                            notes: notes
+                        })
+                    });
+
+                    var result = await response.json();
+                    if (response.ok && result.success) {
+                        closeAssignDialog();
+                        await window.refreshRecommendations();
+                    } else {
+                        // Display error message (e.g. 409 conflict or invalid operation)
+                        var msg = result.message || 'Dispatch assignment failed.';
+                        alertContainer.innerHTML = '<div class="alert alert-danger py-2 small mb-3">' + msg + '</div>';
+                        // Auto-refresh recommendations in background to reflect current state
+                        await window.refreshRecommendations();
+                    }
+                } catch (err) {
+                    alertContainer.innerHTML = '<div class="alert alert-danger py-2 small mb-3">Network or server error during dispatch assignment.</div>';
+                    await window.refreshRecommendations();
+                } finally {
+                    spinner.classList.add('d-none');
+                    btn.disabled = false;
+                }
+            };
+
+            // ── Realtime SignalR Bridge ─────────────────────────────────────────
+            window.resourceRecommendations = {
+                refresh: window.refreshRecommendations,
+                setConnectionStatus: function (text, cssClass) {
+                    var el = document.getElementById('recommendationsConnectionStatus');
+                    if (el) {
+                        el.textContent = text;
+                        el.className = 'badge ' + cssClass + ' d-inline-flex align-items-center gap-1 px-2 py-1';
+                    }
+                }
+            };
+
+        }());
+    </script>
+}

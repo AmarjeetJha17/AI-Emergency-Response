@@ -84,6 +84,10 @@ builder.Services.Configure<JwtOptions>(
     builder.Configuration.GetSection(
         JwtOptions.SectionName));
 
+builder.Services.Configure<ResourceRecommendationOptions>(
+    builder.Configuration.GetSection(
+        ResourceRecommendationOptions.SectionName));
+
 builder.Services.AddScoped<
     IJwtTokenService,
     JwtTokenService>();

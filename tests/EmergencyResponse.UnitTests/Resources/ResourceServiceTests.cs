@@ -473,6 +473,124 @@ public sealed class ResourceServiceTests : IAsyncDisposable
         Assert.Equal("Operation concluded successfully", hist.Reason);
     }
 
+    [Fact]
+    public async Task GetRecommendationsAsync_ReturnsEligibleAndExcludedRankedCandidates()
+    {
+        var dept = await CreateDepartmentAsync("Fire Dept", "FIRE_REC");
+        var type = await EnsureIncidentTypeAsync();
+
+        var requirement = new IncidentTypeResourceRequirement
+        {
+            Id = Guid.NewGuid(),
+            IncidentTypeId = type.Id,
+            ResourceType = ResourceType.FireTruck,
+            MinimumCount = 1,
+            PreferredCount = 2,
+            IsMandatory = true,
+            PriorityOrder = 1,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        _context.IncidentTypeResourceRequirements.Add(requirement);
+
+        var incident = await CreateIncidentAsync(dept.Id, "Major Structure Fire");
+        var location = new IncidentLocation
+        {
+            Id = Guid.NewGuid(),
+            IncidentId = incident.Id,
+            Latitude = 20.0000m,
+            Longitude = 78.0000m,
+            IsPrimary = true,
+            Address = "Central Fire Scene",
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        _context.IncidentLocations.Add(location);
+
+        // Resource 1: Nearby available FireTruck (Eligible)
+        var nearbyTruck = await CreateResourceAsync(dept.Id, ResourceStatus.Available, ResourceType.FireTruck, "Fire Engine 1");
+        nearbyTruck.Latitude = 20.0100m;
+        nearbyTruck.Longitude = 78.0100m;
+
+        // Resource 2: Distant available FireTruck (Eligible, but lower distance score)
+        var distantTruck = await CreateResourceAsync(dept.Id, ResourceStatus.Available, ResourceType.FireTruck, "Fire Engine 2");
+        distantTruck.Latitude = 20.2500m;
+        distantTruck.Longitude = 78.2500m;
+
+        // Resource 3: Nearby OnScene FireTruck (Ineligible due to status)
+        var busyTruck = await CreateResourceAsync(dept.Id, ResourceStatus.OnScene, ResourceType.FireTruck, "Fire Engine 3");
+        busyTruck.Latitude = 20.0100m;
+        busyTruck.Longitude = 78.0100m;
+
+        // Resource 4: Nearby available Ambulance (Ineligible due to type not in requirements)
+        var nearbyAmbulance = await CreateResourceAsync(dept.Id, ResourceStatus.Available, ResourceType.Ambulance, "Ambulance 1");
+        nearbyAmbulance.Latitude = 20.0100m;
+        nearbyAmbulance.Longitude = 78.0100m;
+
+        await _context.SaveChangesAsync();
+
+        var result = await _service.GetRecommendationsAsync(incident.Id);
+
+        Assert.NotNull(result);
+        Assert.Equal(incident.Id, result.IncidentId);
+        Assert.Single(result.Requirements);
+        Assert.Equal(ResourceType.FireTruck, result.Requirements[0].ResourceType);
+
+        Assert.NotEmpty(result.Recommendations);
+        var eligible = result.Recommendations.Where(r => r.Eligible).ToList();
+        var excluded = result.Recommendations.Where(r => !r.Eligible).ToList();
+
+        Assert.Equal(2, eligible.Count);
+        Assert.Equal("Fire Engine 1", eligible[0].ResourceName);
+        Assert.True(eligible[0].RecommendationScore > eligible[1].RecommendationScore);
+        Assert.NotEmpty(eligible[0].Reasons);
+
+        Assert.Contains(excluded, r => r.ResourceName == "Fire Engine 3");
+        var busyCandidate = excluded.First(r => r.ResourceName == "Fire Engine 3");
+        Assert.Contains(busyCandidate.ExclusionReasons, r => r.Contains("OnScene"));
+
+        Assert.Contains(excluded, r => r.ResourceName == "Ambulance 1");
+        var ambulanceCandidate = excluded.First(r => r.ResourceName == "Ambulance 1");
+        Assert.Contains(ambulanceCandidate.ExclusionReasons, r => r.Contains("not among required types"));
+    }
+
+    [Fact]
+    public async Task GetRecommendationsAsync_WhenNoRequirementsConfigured_ReturnsEmptyList()
+    {
+        var dept = await CreateDepartmentAsync("Disaster Dept", "DISASTER_REC");
+        var incident = await CreateIncidentAsync(dept.Id, "Unconfigured Incident Type Event");
+
+        var result = await _service.GetRecommendationsAsync(incident.Id);
+
+        Assert.NotNull(result);
+        Assert.Empty(result.Requirements);
+        Assert.Empty(result.Recommendations);
+    }
+
+    [Fact]
+    public async Task GetRecommendationsAsync_NonExistentIncident_ThrowsKeyNotFoundException()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _service.GetRecommendationsAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task AssignAsync_WhenActiveAssignmentConflictOccurs_ThrowsInvalidOperationException()
+    {
+        var dept = await CreateDepartmentAsync("Safety Dept", "SAFE_REC");
+        var resource = await CreateResourceAsync(dept.Id, ResourceStatus.Available, ResourceType.RescueVehicle, "Hazmat Unit 1");
+        var incident = await CreateIncidentAsync(dept.Id, "Chemical Spill Alpha");
+
+        var result = await _service.AssignAsync(resource.Id, incident.Id, "Initial dispatch");
+        Assert.NotNull(result);
+
+        // Reset resource status back to Available to simulate an operator who loaded the unit as Available while another operator assigned it
+        resource.Status = ResourceStatus.Available;
+        await _context.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.AssignAsync(resource.Id, incident.Id, "Duplicate racing dispatch attempt"));
+
+        Assert.Contains("active assignment", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _context.DisposeAsync();

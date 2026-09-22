@@ -35,6 +35,10 @@ public class ResourceConfiguration
         builder.Property(x => x.ShowOnOperationalMap)
             .IsRequired();
 
+        builder.Property(x => x.RowVersion)
+            .IsRowVersion()
+            .IsConcurrencyToken();
+
         builder.HasIndex(x => x.Status);
 
         builder.HasIndex(x => x.Type);

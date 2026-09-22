@@ -655,6 +655,44 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.ToTable("IncidentTypes", (string)null);
                 });
 
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.IncidentTypeResourceRequirement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("IncidentTypeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsMandatory")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MinimumCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PreferredCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PriorityOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IncidentTypeId", "ResourceType")
+                        .IsUnique();
+
+                    b.ToTable("IncidentTypeResourceRequirements", (string)null);
+                });
+
             modelBuilder.Entity("EmergencyResponse.Domain.Entities.Notification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -730,6 +768,12 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<bool>("ShowOnOperationalMap")
                         .HasColumnType("bit");
@@ -1295,6 +1339,17 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Navigation("Incident");
                 });
 
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.IncidentTypeResourceRequirement", b =>
+                {
+                    b.HasOne("EmergencyResponse.Domain.Entities.IncidentType", "IncidentType")
+                        .WithMany("ResourceRequirements")
+                        .HasForeignKey("IncidentTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("IncidentType");
+                });
+
             modelBuilder.Entity("EmergencyResponse.Domain.Entities.Resource", b =>
                 {
                     b.HasOne("EmergencyResponse.Domain.Entities.Department", "Department")
@@ -1444,6 +1499,8 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("EmergencyResponse.Domain.Entities.IncidentType", b =>
                 {
                     b.Navigation("Incidents");
+
+                    b.Navigation("ResourceRequirements");
                 });
 
             modelBuilder.Entity("EmergencyResponse.Domain.Entities.Resource", b =>

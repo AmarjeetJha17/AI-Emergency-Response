@@ -141,4 +141,20 @@ public sealed class ResourcesController : ControllerBase
             return BadRequest(ex.Message);
         }
     }
+
+    [HttpGet("recommendations/{incidentId:guid}")]
+    public async Task<ActionResult<ResourceRecommendationResponse>> GetRecommendations(
+        Guid incidentId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var recommendations = await _resourceService.GetRecommendationsAsync(incidentId, cancellationToken);
+            return Ok(recommendations);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
 }

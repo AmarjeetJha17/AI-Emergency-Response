@@ -248,4 +248,48 @@ public sealed class ResourcesEndpointTests : IClassFixture<ApiWebApplicationFact
         var items = await response.Content.ReadFromJsonAsync<List<AssignableIncidentItem>>(JsonOptions);
         Assert.NotNull(items);
     }
+
+    [Fact]
+    public async Task GetRecommendations_Unauthenticated_ReturnsUnauthorized()
+    {
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var response = await _client.GetAsync($"/api/resources/recommendations/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetRecommendations_AsCitizen_ReturnsForbidden()
+    {
+        var token = await RegisterAndLoginCitizenAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _client.GetAsync($"/api/resources/recommendations/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetRecommendations_AsAdmin_ReturnsOkWithResponse()
+    {
+        var adminToken = await LoginAdminAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        var incidentsResp = await _client.GetAsync("/api/resources/assignable-incidents");
+        incidentsResp.EnsureSuccessStatusCode();
+        var incidents = await incidentsResp.Content.ReadFromJsonAsync<List<AssignableIncidentItem>>(JsonOptions);
+
+        if (incidents != null && incidents.Count > 0)
+        {
+            var incidentId = incidents[0].Id;
+            var response = await _client.GetAsync($"/api/resources/recommendations/{incidentId}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var recs = await response.Content.ReadFromJsonAsync<ResourceRecommendationResponse>(JsonOptions);
+            Assert.NotNull(recs);
+            Assert.Equal(incidentId, recs!.IncidentId);
+            Assert.NotNull(recs.Recommendations);
+        }
+    }
 }

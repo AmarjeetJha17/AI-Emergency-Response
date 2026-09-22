@@ -12,13 +12,16 @@ namespace EmergencyResponse.Web.Controllers;
 public sealed class ResourcesController : Controller
 {
     private readonly IResourceApiClient _resourceApiClient;
+    private readonly IIncidentApiClient _incidentApiClient;
     private readonly ILogger<ResourcesController> _logger;
 
     public ResourcesController(
         IResourceApiClient resourceApiClient,
+        IIncidentApiClient incidentApiClient,
         ILogger<ResourcesController> logger)
     {
         _resourceApiClient = resourceApiClient;
+        _incidentApiClient = incidentApiClient;
         _logger = logger;
     }
 
@@ -184,6 +187,44 @@ public sealed class ResourcesController : Controller
         }
 
         return View(resource);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Recommendations(
+        Guid incidentId,
+        CancellationToken cancellationToken)
+    {
+        var incident = await _incidentApiClient.GetByIdAsync(incidentId, cancellationToken);
+        if (incident is null)
+        {
+            return NotFound($"Incident {incidentId} not found.");
+        }
+
+        var recommendations = await _resourceApiClient.GetRecommendationsAsync(incidentId, cancellationToken);
+
+        var viewModel = new ResourceRecommendationsViewModel
+        {
+            Incident = incident,
+            Recommendation = recommendations
+        };
+
+        return View(viewModel);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> RecommendationsData(
+        Guid incidentId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var recommendations = await _resourceApiClient.GetRecommendationsAsync(incidentId, cancellationToken);
+            return Json(recommendations);
+        }
+        catch (HttpRequestException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
     }
 }
 

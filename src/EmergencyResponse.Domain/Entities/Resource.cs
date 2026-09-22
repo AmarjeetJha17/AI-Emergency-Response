@@ -25,6 +25,8 @@ public class Resource : BaseEntity
 
     public int? Capacity { get; set; }
 
+    public byte[] RowVersion { get; set; } = Guid.NewGuid().ToByteArray();
+
     public ICollection<ResourceAssignment> Assignments { get; set; }
         = new List<ResourceAssignment>();
 }

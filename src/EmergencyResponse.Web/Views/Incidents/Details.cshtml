@@ -1,4 +1,4 @@
-﻿@model EmergencyResponse.Application.DTOs.Incidents.IncidentResponse
+@model EmergencyResponse.Application.DTOs.Incidents.IncidentResponse
 @using EmergencyResponse.Domain.Enums
 @using EmergencyResponse.Web.Models.Incidents
 
@@ -247,6 +247,28 @@
                             </form>
                         }
 
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4 border-start border-4 border-info">
+                    <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                        <strong class="d-flex align-items-center gap-2">
+                            <i class="bi bi-truck text-info"></i>
+                            <span>Unit Dispatch & Recommendations</span>
+                        </strong>
+                        <span class="badge bg-info-subtle text-info fw-semibold">Phase 11</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted mb-3">
+                            Evaluate eligible emergency response units ranked by proximity, availability, and incident requirement compatibility.
+                        </p>
+                        <a asp-controller="Resources"
+                           asp-action="Recommendations"
+                           asp-route-incidentId="@Model.Id"
+                           class="btn btn-info text-white w-100 d-inline-flex justify-content-center align-items-center gap-2">
+                            <i class="bi bi-compass"></i>
+                            <span>View Recommended Units</span>
+                        </a>
                     </div>
                 </div>
             }

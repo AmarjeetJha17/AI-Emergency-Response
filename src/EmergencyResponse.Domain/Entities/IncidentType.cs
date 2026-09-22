@@ -14,4 +14,7 @@ public class IncidentType : BaseEntity
 
     public ICollection<Incident> Incidents { get; set; }
         = new List<Incident>();
+
+    public ICollection<IncidentTypeResourceRequirement> ResourceRequirements { get; set; }
+        = new List<IncidentTypeResourceRequirement>();
 }

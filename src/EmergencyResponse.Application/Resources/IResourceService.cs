@@ -38,4 +38,8 @@ public interface IResourceService
         Guid resourceId,
         string? notes,
         CancellationToken cancellationToken = default);
+
+    Task<ResourceRecommendationResponse> GetRecommendationsAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken = default);
 }

@@ -28,6 +28,9 @@
         if (window.resourceCommandCenter && typeof window.resourceCommandCenter.setConnectionStatus === 'function') {
             window.resourceCommandCenter.setConnectionStatus('Reconnecting...', 'bg-warning text-dark');
         }
+        if (window.resourceRecommendations && typeof window.resourceRecommendations.setConnectionStatus === 'function') {
+            window.resourceRecommendations.setConnectionStatus('Reconnecting...', 'bg-warning text-dark');
+        }
     });
 
     connection.onreconnected(function () {
@@ -44,6 +47,12 @@
         if (window.resourceCommandCenter && typeof window.resourceCommandCenter.refresh === 'function') {
             window.resourceCommandCenter.refresh();
         }
+        if (window.resourceRecommendations && typeof window.resourceRecommendations.setConnectionStatus === 'function') {
+            window.resourceRecommendations.setConnectionStatus('Live', 'bg-success');
+        }
+        if (window.resourceRecommendations && typeof window.resourceRecommendations.refresh === 'function') {
+            window.resourceRecommendations.refresh();
+        }
     });
 
     connection.onclose(function () {
@@ -52,6 +61,9 @@
         }
         if (window.resourceCommandCenter && typeof window.resourceCommandCenter.setConnectionStatus === 'function') {
             window.resourceCommandCenter.setConnectionStatus('Disconnected', 'bg-danger');
+        }
+        if (window.resourceRecommendations && typeof window.resourceRecommendations.setConnectionStatus === 'function') {
+            window.resourceRecommendations.setConnectionStatus('Disconnected', 'bg-danger');
         }
     });
 
@@ -77,6 +89,9 @@
         }
         if (window.resourceCommandCenter && typeof window.resourceCommandCenter.refresh === 'function') {
             await window.resourceCommandCenter.refresh();
+        }
+        if (window.resourceRecommendations && typeof window.resourceRecommendations.refresh === 'function') {
+            await window.resourceRecommendations.refresh();
         }
     });
 
@@ -294,6 +309,9 @@
             if (window.resourceCommandCenter && typeof window.resourceCommandCenter.setConnectionStatus === 'function') {
                 window.resourceCommandCenter.setConnectionStatus('Live', 'bg-success');
             }
+            if (window.resourceRecommendations && typeof window.resourceRecommendations.setConnectionStatus === 'function') {
+                window.resourceRecommendations.setConnectionStatus('Live', 'bg-success');
+            }
         }
         catch (error) {
             console.error('[SignalR] Connection failed:', error);
@@ -302,6 +320,9 @@
             }
             if (window.resourceCommandCenter && typeof window.resourceCommandCenter.setConnectionStatus === 'function') {
                 window.resourceCommandCenter.setConnectionStatus('Connection failed', 'bg-danger');
+            }
+            if (window.resourceRecommendations && typeof window.resourceRecommendations.setConnectionStatus === 'function') {
+                window.resourceRecommendations.setConnectionStatus('Connection failed', 'bg-danger');
             }
         }
     }

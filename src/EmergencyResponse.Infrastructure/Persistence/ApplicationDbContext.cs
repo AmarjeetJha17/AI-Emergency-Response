@@ -19,6 +19,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<IncidentType> IncidentTypes => Set<IncidentType>();
 
+    public DbSet<IncidentTypeResourceRequirement> IncidentTypeResourceRequirements => Set<IncidentTypeResourceRequirement>();
+
     public DbSet<Incident> Incidents => Set<Incident>();
 
     public DbSet<IncidentLocation> IncidentLocations => Set<IncidentLocation>();
@@ -60,6 +62,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         if (Database.ProviderName?.EndsWith("Sqlite", StringComparison.OrdinalIgnoreCase) == true)
         {
             modelBuilder.Entity<Incident>().Ignore(x => x.Embedding);
+            modelBuilder.Entity<Resource>().Property(x => x.RowVersion).ValueGeneratedNever();
 
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
@@ -91,6 +94,17 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             if (entry.State == EntityState.Modified)
             {
                 entry.Entity.UpdatedAtUtc = now;
+            }
+        }
+
+        if (Database.ProviderName?.EndsWith("Sqlite", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            foreach (var entry in ChangeTracker.Entries<Resource>())
+            {
+                if (entry.State is EntityState.Added or EntityState.Modified)
+                {
+                    entry.Entity.RowVersion = Guid.NewGuid().ToByteArray();
+                }
             }
         }
 

@@ -188,4 +188,29 @@ public sealed class ResourceApiClient : IResourceApiClient
             throw new HttpRequestException($"Resource release failed: {err}", null, response.StatusCode);
         }
     }
+
+    public async Task<ResourceRecommendationResponse> GetRecommendationsAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            $"api/resources/recommendations/{incidentId}",
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var err = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException($"Fetching recommendations failed: {err}", null, response.StatusCode);
+        }
+
+        var result = await response.Content
+            .ReadFromJsonAsync<ResourceRecommendationResponse>(cancellationToken);
+
+        return result ?? throw new InvalidOperationException("Empty response received from recommendations endpoint.");
+    }
 }
