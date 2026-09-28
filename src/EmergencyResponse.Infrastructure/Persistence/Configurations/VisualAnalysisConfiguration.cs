@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -41,6 +41,17 @@ public class VisualAnalysisConfiguration
 
         builder.Property(x => x.FailureReason)
             .HasMaxLength(4000);
+
+        builder.Property(x => x.FailureCategory)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.AttemptNumber)
+            .HasDefaultValue(1)
+            .IsRequired();
+
+        builder.Property(x => x.RetryCount)
+            .HasDefaultValue(0)
+            .IsRequired();
 
         builder.HasOne(x => x.IncidentMedia)
             .WithMany()

@@ -310,6 +310,56 @@
     transform: scale(1.15);
 }
 
+/* Resource Marker Status Variants */
+.resource-marker-available {
+    background: #198754;
+    border-color: #d1e7dd;
+}
+
+.resource-marker-assigned {
+    background: #0d6efd;
+    border-color: #cfe2ff;
+}
+
+.resource-marker-dispatched {
+    background: #0dcaf0;
+    color: #212529;
+    border-color: #cff4fc;
+}
+
+.resource-marker-enroute {
+    background: #ffc107;
+    color: #212529;
+    border-color: #fff3cd;
+}
+
+.resource-marker-onscene {
+    background: #dc3545;
+    border-color: #f8d7da;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.4), 0 2px 6px rgba(0, 0, 0, 0.35);
+    animation: onScenePulse 2s infinite ease-in-out;
+}
+
+@keyframes onScenePulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.4), 0 2px 6px rgba(0, 0, 0, 0.35); }
+    50% { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0.7), 0 2px 8px rgba(0, 0, 0, 0.5); }
+}
+
+.resource-marker-returning {
+    background: #6c757d;
+    border-color: #e2e3e5;
+}
+
+.resource-marker-unavailable {
+    background: #212529;
+    border-color: #495057;
+}
+
+.resource-marker-maintenance {
+    background: #495057;
+    border-color: #ced4da;
+}
+
 .resource-popup {
     min-width: 200px;
     padding: 4px;
@@ -345,5 +395,20 @@
 
 #incidentDetailsDrawer .offcanvas-body {
     font-size: 0.9rem;
+}
+
+/* Situation Layer Styling (Phase 12 Part 3) */
+.situation-pin {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.situation-pin:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
+}
+
+.situation-map-popup .list-unstyled li:last-child {
+    border-bottom: none !important;
 }
 

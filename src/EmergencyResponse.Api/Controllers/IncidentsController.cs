@@ -36,6 +36,7 @@ public class IncidentsController : ControllerBase
     private readonly IIncidentMediaService _incidentMediaService;
     private readonly IVisualAnalysisQueue _visualAnalysisQueue;
     private readonly IIncidentMediaStorage _mediaStorage;
+    private readonly IAIAnalysisQueue? _aiAnalysisQueue;
 
     public IncidentsController(
         IIncidentService incidentService,
@@ -46,7 +47,8 @@ public class IncidentsController : ControllerBase
         IIncidentNotificationService notificationService,
         IIncidentMediaService incidentMediaService,
         IVisualAnalysisQueue visualAnalysisQueue,
-        IIncidentMediaStorage mediaStorage)
+        IIncidentMediaStorage mediaStorage,
+        IAIAnalysisQueue? aiAnalysisQueue = null)
     {
         _incidentService = incidentService;
         _duplicateIncidentService = duplicateIncidentService;
@@ -57,6 +59,7 @@ public class IncidentsController : ControllerBase
         _incidentMediaService = incidentMediaService;
         _visualAnalysisQueue = visualAnalysisQueue;
         _mediaStorage = mediaStorage;
+        _aiAnalysisQueue = aiAnalysisQueue;
     }
 
     [Authorize]
@@ -750,5 +753,102 @@ public class IncidentsController : ControllerBase
                 cancellationToken);
 
         return Ok(result);
+    }
+
+    [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+    [HttpPost("{id:guid}/ai/reprocess")]
+    public async Task<IActionResult> ReprocessAI(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var incident = await _dbContext.Incidents.FindAsync(new object[] { id }, cancellationToken);
+        if (incident is null)
+        {
+            return NotFound($"Incident {id} not found.");
+        }
+
+        if (_aiAnalysisQueue is not null)
+        {
+            await _aiAnalysisQueue.EnqueueAsync(new IncidentAIJob(id), cancellationToken);
+        }
+
+        return Accepted(new { message = $"AI re-processing enqueued for incident {id}." });
+    }
+
+    [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+    [HttpPost("{id:guid}/duplicates/reprocess")]
+    public async Task<IActionResult> ReprocessDuplicates(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var incident = await _dbContext.Incidents.FindAsync(new object[] { id }, cancellationToken);
+        if (incident is null)
+        {
+            return NotFound($"Incident {id} not found.");
+        }
+
+        incident.DuplicateDetectionStatus = DuplicateDetectionStatus.Processing;
+        incident.DuplicateDetectionFailureReason = null;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _duplicateIncidentService.GenerateEmbeddingAsync(id, cancellationToken);
+            await _duplicateIncidentService.FindCandidatesAsync(id, cancellationToken: cancellationToken);
+
+            incident.DuplicateDetectionStatus = DuplicateDetectionStatus.Completed;
+            incident.DuplicateDetectionCompletedAtUtc = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            await _notificationService.NotifyDashboardUpdatedAsync(
+                new DashboardUpdatedEvent
+                {
+                    Reason = DashboardUpdateReasons.DuplicateDetected,
+                    IncidentId = id,
+                    UpdatedAtUtc = DateTime.UtcNow
+                },
+                cancellationToken);
+
+            return Ok(new { message = $"Duplicate detection reprocessed for incident {id}." });
+        }
+        catch (Exception ex)
+        {
+            incident.DuplicateDetectionStatus = DuplicateDetectionStatus.Failed;
+            incident.DuplicateDetectionFailureReason = ex.Message;
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            return Ok(new { message = $"Duplicate detection reprocessed with warnings: {ex.Message}", status = "Failed" });
+        }
+    }
+
+    [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+    [HttpPost("{id:guid}/visual/reprocess")]
+    public async Task<IActionResult> ReprocessVisual(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var incident = await _dbContext.Incidents.FindAsync(new object[] { id }, cancellationToken);
+        if (incident is null)
+        {
+            return NotFound($"Incident {id} not found.");
+        }
+
+        var mediaList = await _dbContext.IncidentMedia
+            .Where(m => m.IncidentId == id)
+            .ToListAsync(cancellationToken);
+
+        if (mediaList.Count == 0)
+        {
+            return NotFound($"No media found for incident {id}.");
+        }
+
+        foreach (var media in mediaList)
+        {
+            await _visualAnalysisQueue.EnqueueAsync(
+                new VisualAnalysisJob { IncidentMediaId = media.Id, IsVideo = media.MediaType == IncidentMediaType.Video },
+                cancellationToken);
+        }
+
+        return Accepted(new { message = $"Visual analysis re-processing enqueued for {mediaList.Count} media items." });
     }
 }

@@ -31,4 +31,14 @@ public class AIAnalysis : BaseEntity
 
     public string? FailureReason { get; set; }
     public string? ExtractedFactsJson { get; set; }
+
+    public int AttemptNumber { get; set; } = 1;
+    public int RetryCount { get; set; } = 0;
+    public DateTime? LastAttemptAtUtc { get; set; }
+    public DateTime? NextRetryAtUtc { get; set; }
+    public string? FailureCategory { get; set; }
+
+    public int? InputTokens { get; set; }
+    public int? OutputTokens { get; set; }
+    public int? TotalTokens { get; set; }
 }

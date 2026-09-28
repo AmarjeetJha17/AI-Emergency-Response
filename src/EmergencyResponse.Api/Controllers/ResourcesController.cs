@@ -142,6 +142,51 @@ public sealed class ResourcesController : ControllerBase
         }
     }
 
+    [HttpPost("{resourceId:guid}/command")]
+    public async Task<ActionResult<ResourceCommandResult>> ExecuteCommand(
+        Guid resourceId,
+        ResourceCommandRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _resourceService.ExecuteCommandAsync(
+                resourceId,
+                request,
+                cancellationToken);
+
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (ResourceConcurrencyException ex)
+        {
+            return StatusCode(StatusCodes.Status409Conflict, ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpGet("{resourceId:guid}/history")]
+    public async Task<ActionResult<IReadOnlyList<ResourceStatusHistoryItem>>> GetHistory(
+        Guid resourceId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var history = await _resourceService.GetHistoryAsync(resourceId, cancellationToken);
+            return Ok(history);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
+
     [HttpGet("recommendations/{incidentId:guid}")]
     public async Task<ActionResult<ResourceRecommendationResponse>> GetRecommendations(
         Guid incidentId,

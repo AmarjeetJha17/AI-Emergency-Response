@@ -1,11 +1,24 @@
+using System.Text;
 using EmergencyResponse.Application.Dashboard;
+using EmergencyResponse.Application.Escalation;
 using EmergencyResponse.Application.Map;
 using EmergencyResponse.Application.Resources;
+using EmergencyResponse.Application.Situations;
+using EmergencyResponse.Application.Situations.Jobs;
 using EmergencyResponse.Infrastructure.Dashboard;
+using EmergencyResponse.Infrastructure.Escalation;
 using EmergencyResponse.Infrastructure.Map;
 using EmergencyResponse.Infrastructure.Resources;
+using EmergencyResponse.Infrastructure.Situations;
+using EmergencyResponse.Application.Notifications;
+using EmergencyResponse.Infrastructure.Notifications;
 
-using System.Text;
+using EmergencyResponse.Api.Health;
+using EmergencyResponse.Api.Middleware;
+using EmergencyResponse.Application.Observability;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 using EmergencyResponse.Api.Common.ErrorHandling;
 using EmergencyResponse.Api.Hubs;
@@ -88,6 +101,10 @@ builder.Services.Configure<ResourceRecommendationOptions>(
     builder.Configuration.GetSection(
         ResourceRecommendationOptions.SectionName));
 
+builder.Services.Configure<SituationDetectionOptions>(
+    builder.Configuration.GetSection(
+        SituationDetectionOptions.SectionName));
+
 builder.Services.AddScoped<
     IJwtTokenService,
     JwtTokenService>();
@@ -167,6 +184,35 @@ builder.Services.AddScoped<
     IResourceService,
     ResourceService>();
 
+builder.Services.AddScoped<
+    IIncidentEscalationService,
+    IncidentEscalationService>();
+
+builder.Services.AddScoped<
+    ISituationNumberGenerator,
+    SituationNumberGenerator>();
+
+builder.Services.AddScoped<
+    IOperationalSituationService,
+    OperationalSituationService>();
+builder.Services.AddScoped<
+    ISituationService>(sp => (ISituationService)sp.GetRequiredService<IOperationalSituationService>());
+
+builder.Services.AddSingleton<
+    ISituationEvaluationQueue,
+    SituationEvaluationQueue>();
+
+builder.Services.AddHostedService<
+    IncidentSituationBackgroundWorker>();
+
+builder.Services.AddSingleton<
+    INotificationRuleEngine,
+    NotificationRuleEngine>();
+
+builder.Services.AddScoped<
+    INotificationService,
+    NotificationService>();
+
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddScoped<
@@ -243,10 +289,43 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddProblemDetails();
 
-builder.Services.AddHealthChecks();
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource =>
+    {
+        resource.AddService(
+            serviceName: "EmergencyResponse.Api",
+            serviceVersion: "1.0.0");
+    })
+    .WithTracing(tracing =>
+    {
+        tracing
+            .AddSource(EmergencyResponseTelemetry.ActivitySourceName)
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddSqlClientInstrumentation()
+            .AddConsoleExporter();
+    })
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddMeter(EmergencyResponseTelemetry.MeterName)
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddConsoleExporter();
+    });
+
+builder.Services.AddSingleton<IWorkerHealthState, WorkerHealthState>();
+
+builder.Services.AddHealthChecks()
+    .AddCheck<SqlServerHealthCheck>("sqlserver", tags: ["ready"])
+    .AddCheck<BackgroundWorkerHealthCheck>("workers", tags: ["ready"])
+    .AddCheck<AIProviderHealthCheck>("ai", tags: ["ready"]);
 
 
 var app = builder.Build();
+
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -284,6 +363,16 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false
+});
+
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 
 app.MapHealthChecks("/health");
 

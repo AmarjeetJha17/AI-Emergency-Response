@@ -8,7 +8,8 @@
         ?? new List<VisualEvidenceViewModel>();
 }
 
-<div class="container py-4">
+<div class="container py-4" data-incident-id="@Model.Id">
+    @Html.AntiForgeryToken()
 
     <div class="d-flex justify-content-between align-items-center mb-4">
 
@@ -25,6 +26,158 @@
         </a>
 
     </div>
+
+    @* Active Escalation Alerts (Phase 12) *@
+    @if (Model.ActiveEscalations != null && Model.ActiveEscalations.Any())
+    {
+        <div class="mb-4">
+            @foreach (var esc in Model.ActiveEscalations)
+            {
+                var levelBorder = esc.Level switch
+                {
+                    EscalationLevel.Critical => "border-danger bg-danger-subtle",
+                    EscalationLevel.High => "border-warning bg-warning-subtle",
+                    EscalationLevel.Elevated => "border-info bg-info-subtle",
+                    _ => "border-secondary bg-light"
+                };
+                var levelBadge = esc.Level switch
+                {
+                    EscalationLevel.Critical => "bg-danger text-white",
+                    EscalationLevel.High => "bg-warning text-dark",
+                    EscalationLevel.Elevated => "bg-info text-dark",
+                    _ => "bg-secondary text-white"
+                };
+                var statusBadge = esc.Status switch
+                {
+                    EscalationStatus.Open => "bg-danger",
+                    EscalationStatus.Acknowledged => "bg-primary",
+                    _ => "bg-secondary"
+                };
+
+                <div class="card shadow-sm border-start border-4 @levelBorder mb-3">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fs-4">&#9888;</span>
+                                <div>
+                                    <h5 class="mb-0 fw-bold">ESCALATION ALERT: @esc.TypeName</h5>
+                                    <div class="small text-muted">Created: @esc.CreatedAtUtc.ToString("dd MMM yyyy HH:mm:ss") UTC</div>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <span class="badge @levelBadge px-2 py-1">@esc.LevelName Priority</span>
+                                <span class="badge @statusBadge px-2 py-1">@esc.StatusName</span>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-white rounded border mb-2">
+                            <strong>Reason:</strong> @esc.Reason
+                            @if (esc.Evidence != null && esc.Evidence.Any())
+                            {
+                                <ul class="list-unstyled mb-0 mt-2 small text-muted font-monospace bg-light p-2 rounded">
+                                    @foreach (var ev in esc.Evidence)
+                                    {
+                                        <li>&bull; @ev</li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+
+                        @if (esc.Status == EscalationStatus.Acknowledged)
+                        {
+                            <div class="small text-muted mb-2">
+                                <i class="bi bi-check-circle text-primary"></i> Acknowledged by <strong>@(esc.AcknowledgedByUserName ?? esc.AcknowledgedByUserId ?? "Operator")</strong> at @esc.AcknowledgedAtUtc?.ToString("HH:mm:ss") UTC
+                            </div>
+                        }
+
+                        @if (User.IsInRole("Operator") || User.IsInRole("EmergencyAdmin") || User.IsInRole("SystemAdmin"))
+                        {
+                            <div class="d-flex gap-2 mt-3">
+                                @if (esc.Status == EscalationStatus.Open)
+                                {
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="openEscalationModal('@esc.Id', 'Acknowledge', 'Acknowledge Escalation Alert')">
+                                        Acknowledge
+                                    </button>
+                                }
+                                <button type="button" class="btn btn-sm btn-success" onclick="openEscalationModal('@esc.Id', 'Resolve', 'Resolve Escalation Alert')">
+                                    Resolve
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openEscalationModal('@esc.Id', 'Dismiss', 'Dismiss Escalation Alert')">
+                                    Dismiss
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @* Operational Situations Membership (Phase 12 Part 3) *@
+    @{
+        var operationalSituations = ViewBag.OperationalSituations as IEnumerable<EmergencyResponse.Application.Situations.DTOs.OperationalSituationResponse>
+            ?? Enumerable.Empty<EmergencyResponse.Application.Situations.DTOs.OperationalSituationResponse>();
+    }
+    @if (operationalSituations.Any())
+    {
+        <div class="mb-4">
+            @foreach (var sit in operationalSituations)
+            {
+                var sitBorder = sit.Level switch
+                {
+                    EmergencyResponse.Domain.Enums.EscalationLevel.Critical => "border-danger bg-danger-subtle",
+                    EmergencyResponse.Domain.Enums.EscalationLevel.High => "border-warning bg-warning-subtle",
+                    EmergencyResponse.Domain.Enums.EscalationLevel.Elevated => "border-info bg-info-subtle",
+                    _ => "border-primary bg-primary-subtle"
+                };
+                var sitBadge = sit.Level switch
+                {
+                    EmergencyResponse.Domain.Enums.EscalationLevel.Critical => "bg-danger text-white",
+                    EmergencyResponse.Domain.Enums.EscalationLevel.High => "bg-warning text-dark",
+                    EmergencyResponse.Domain.Enums.EscalationLevel.Elevated => "bg-info text-dark",
+                    _ => "bg-primary text-white"
+                };
+
+                <div class="card shadow-sm border-start border-4 @sitBorder mb-3">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fs-4">&#127757;</span>
+                                <div>
+                                    <div class="text-uppercase small fw-bold text-muted">Part of Operational Situation</div>
+                                    <h5 class="mb-0 fw-bold">@sit.SituationNumber: @sit.Title</h5>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <span class="badge @sitBadge px-2 py-1">@sit.LevelName</span>
+                                <span class="badge bg-secondary px-2 py-1">@sit.StatusName</span>
+                                @if (sit.ResourceShortageDetected)
+                                {
+                                    <span class="badge bg-danger">Shortage Detected</span>
+                                }
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(sit.Summary))
+                        {
+                            <p class="mb-2 text-muted small">@sit.Summary</p>
+                        }
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                            <div class="small text-muted">
+                                <span>Total member incidents: <strong>@sit.IncidentCount</strong></span>
+                                @if (sit.PeopleAffected > 0)
+                                {
+                                    <span class="ms-3">People affected: <strong>@sit.PeopleAffected</strong></span>
+                                }
+                            </div>
+                            <a asp-controller="Situations" asp-action="Details" asp-route-id="@sit.Id" class="btn btn-sm btn-outline-primary">
+                                View Situation Command Center &rarr;
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 
     <div class="row g-4">
 
@@ -249,6 +402,49 @@
 
                     </div>
                 </div>
+
+                @if (Model.AssignedResources != null && Model.AssignedResources.Any())
+                {
+                    <div class="card shadow-sm mb-4 border-start border-4 border-primary">
+                        <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                            <strong class="d-flex align-items-center gap-2">
+                                <i class="bi bi-shield-check text-primary"></i>
+                                <span>Assigned Units (@Model.AssignedResources.Count)</span>
+                            </strong>
+                            <a asp-controller="Resources" asp-action="Index" class="btn btn-outline-primary btn-sm py-0 px-2 small">Command Center</a>
+                        </div>
+                        <div class="card-body p-0">
+                            <ul class="list-group list-group-flush small">
+                                @foreach (var r in Model.AssignedResources)
+                                {
+                                    var resBadge = r.Status switch
+                                    {
+                                        "Available" => "bg-success",
+                                        "Assigned" => "bg-primary",
+                                        "Dispatched" => "bg-info text-dark",
+                                        "EnRoute" => "bg-warning text-dark",
+                                        "OnScene" => "bg-danger",
+                                        "Returning" => "bg-secondary",
+                                        _ => "bg-secondary"
+                                    };
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <a asp-controller="Resources" asp-action="Details" asp-route-id="@r.ResourceId" class="fw-semibold text-decoration-none">
+                                                @r.ResourceName
+                                            </a>
+                                            <span class="text-muted ms-1">(@r.ResourceType)</span>
+                                            <div class="text-muted" style="font-size: 0.72rem;">
+                                                Assigned: @r.AssignedAtUtc.ToString("HH:mm")
+                                                @(r.OnSceneAtUtc.HasValue ? $" | On Scene: {r.OnSceneAtUtc.Value:HH:mm}" : "")
+                                            </div>
+                                        </div>
+                                        <span class="badge @resBadge">@r.Status</span>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                }
 
                 <div class="card shadow-sm mb-4 border-start border-4 border-info">
                     <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
@@ -623,6 +819,30 @@
             isModal="true"
             header="Frame Findings">
 </ejs-dialog>
+
+<div class="modal fade" id="escalationActionModal" tabindex="-1" aria-labelledby="escalationModalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="escalationModalTitle">Escalation Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="escalationActionId" />
+                <input type="hidden" id="escalationActionType" />
+                <div class="mb-3">
+                    <label for="escalationNotes" class="form-label">Operator Notes / Rationale</label>
+                    <textarea class="form-control" id="escalationNotes" rows="3" placeholder="Enter notes, operational context, or reason for this action..."></textarea>
+                </div>
+                <div id="escalationActionError" class="alert alert-danger d-none small"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="escalationSubmitBtn" onclick="submitEscalationAction()">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 </div>@* end .container *@
 

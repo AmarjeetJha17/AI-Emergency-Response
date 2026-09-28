@@ -7,9 +7,11 @@ using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Application.Decision.Interfaces;
 using EmergencyResponse.Application.Media;
+using EmergencyResponse.Application.Situations;
 using EmergencyResponse.Infrastructure.Decision;
 using EmergencyResponse.Infrastructure.Media;
 using EmergencyResponse.Infrastructure.Persistence.Repositories;
+using EmergencyResponse.Infrastructure.Situations;
 
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
@@ -148,6 +150,10 @@ public static class DependencyInjection
             IVideoFrameExtractor,
             FfmpegVideoFrameExtractor>();
 
+        services.AddScoped<
+            ISituationAnalysisService,
+            SituationAnalysisService>();
+
         return services;
     }
 }
@@ -200,11 +206,41 @@ public static class DependencyInjectionTest
         services.AddScoped<IVideoFrameExtractor, NullVideoFrameExtractor>();
         services.AddScoped<IIncidentEmbeddingService, NullIncidentEmbeddingService>();
         services.AddScoped<IDuplicateIncidentService, NullDuplicateIncidentService>();
+        services.AddScoped<ISituationAnalysisService, NullSituationAnalysisService>();
 
         return services;
     }
 
     // ── Null-object stubs for test environment ────────────────────────────
+
+    private sealed class NullSituationAnalysisService : ISituationAnalysisService
+    {
+        public Task<EmergencyResponse.Application.Situations.SituationAnalysisResult> AnalyzeSituationAsync(
+            EmergencyResponse.Application.Situations.SituationSnapshot snapshot,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new EmergencyResponse.Application.Situations.SituationAnalysisResult
+            {
+                SituationTitle = "Test Operational Situation",
+                SituationSummary = "Operational test summary.",
+                KeyObservations = ["Test Cluster"],
+                RecommendedActions = ["Test Coordination"],
+                ConfidenceExplanation = "Stable",
+                Confidence = 0.9
+            });
+
+        public Task<EmergencyResponse.Application.Situations.SituationAnalysisResult> AnalyzeAsync(
+            string situationContext,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new EmergencyResponse.Application.Situations.SituationAnalysisResult
+            {
+                SituationTitle = "Test Operational Situation",
+                SituationSummary = "Operational test summary.",
+                KeyObservations = ["Test Cluster"],
+                RecommendedActions = ["Test Coordination"],
+                ConfidenceExplanation = "Stable",
+                Confidence = 0.9
+            });
+    }
 
     private sealed class NullIncidentAnalysisService : IIncidentAnalysisService
     {

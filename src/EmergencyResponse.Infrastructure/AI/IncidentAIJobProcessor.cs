@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Net.Http;
 using System.Text.Json;
 
 using EmergencyResponse.Application.AI.DTOs;
@@ -5,9 +7,12 @@ using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.AI.Jobs;
 using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Application.Decision.Interfaces;
+using EmergencyResponse.Application.Escalation;
 using EmergencyResponse.Application.Events;
 using EmergencyResponse.Application.Interfaces;
+using EmergencyResponse.Application.Observability;
 using EmergencyResponse.Application.Realtime;
+using EmergencyResponse.Application.Situations.Jobs;
 using EmergencyResponse.Domain.Entities;
 using EmergencyResponse.Domain.Enums;
 using EmergencyResponse.Infrastructure.Persistence;
@@ -31,6 +36,8 @@ public sealed class IncidentAIJobProcessor
     private readonly IDuplicateIncidentService _duplicateIncidentService;
     private readonly IIncidentAIOrchestrationService _aiOrchestrationService;
     private readonly IIncidentNotificationService _notificationService;
+    private readonly IIncidentEscalationService _escalationService;
+    private readonly ISituationEvaluationQueue _situationQueue;
     private readonly IServiceScopeFactory _scopeFactory;
 
     public IncidentAIJobProcessor(
@@ -43,7 +50,9 @@ public sealed class IncidentAIJobProcessor
         ILogger<IncidentAIJobProcessor> logger,
         IAIReviewPolicy reviewPolicy,
         IIncidentNotificationService notificationService,
-        IDuplicateIncidentService duplicateIncidentService)
+        IDuplicateIncidentService duplicateIncidentService,
+        IIncidentEscalationService escalationService,
+        ISituationEvaluationQueue situationQueue)
     {
         _scopeFactory = scopeFactory;
         _dbContext = dbContext;
@@ -55,12 +64,18 @@ public sealed class IncidentAIJobProcessor
         _reviewPolicy = reviewPolicy;
         _notificationService = notificationService;
         _duplicateIncidentService = duplicateIncidentService;
+        _escalationService = escalationService;
+        _situationQueue = situationQueue;
     }
 
     public async Task ProcessAsync(
         IncidentAIJob job,
         CancellationToken cancellationToken = default)
     {
+        using var activity = EmergencyResponseTelemetry.ActivitySource.StartActivity("AI.IncidentAnalysis");
+        activity?.SetTag("incident.id", job.IncidentId.ToString());
+        activity?.SetTag("ai.model", _aiOptions.Model);
+
         var incident =
             await _dbContext.Incidents
                 .Include(x => x.IncidentType)
@@ -78,6 +93,11 @@ public sealed class IncidentAIJobProcessor
             return;
         }
 
+        activity?.SetTag("incident.type", incident.IncidentType?.Name ?? "Unknown");
+
+        var previousAnalysisCount = await _dbContext.AIAnalyses
+            .CountAsync(x => x.IncidentId == incident.Id, cancellationToken);
+
         var analysis = new AIAnalysis
         {
             Id = Guid.NewGuid(),
@@ -88,7 +108,10 @@ public sealed class IncidentAIJobProcessor
             PromptVersion = "IncidentAnalysis_v1",
             InputReference = $"Incident:{incident.Id}",
             OutputJson = "{}",
-            HumanReviewed = false
+            HumanReviewed = false,
+            AttemptNumber = previousAnalysisCount + 1,
+            RetryCount = 0,
+            LastAttemptAtUtc = DateTime.UtcNow
         };
 
         _dbContext.AIAnalyses.Add(analysis);
@@ -106,6 +129,7 @@ public sealed class IncidentAIJobProcessor
             await _dbContext.SaveChangesAsync(
                 cancellationToken);
 
+            var dupTimer = Stopwatch.StartNew();
             try
             {
                 await _duplicateIncidentService.GenerateEmbeddingAsync(
@@ -115,6 +139,10 @@ public sealed class IncidentAIJobProcessor
                 await _duplicateIncidentService.FindCandidatesAsync(
                     incident.Id,
                     cancellationToken: cancellationToken);
+
+                dupTimer.Stop();
+                EmergencyResponseTelemetry.DuplicateDetectionDuration.Record(dupTimer.Elapsed.TotalMilliseconds);
+                EmergencyResponseTelemetry.DuplicateDetections.Add(1);
 
                 incident.DuplicateDetectionStatus =
                     DuplicateDetectionStatus.Completed;
@@ -136,6 +164,7 @@ public sealed class IncidentAIJobProcessor
             }
             catch (Exception ex)
             {
+                dupTimer.Stop();
                 incident.DuplicateDetectionStatus =
                     DuplicateDetectionStatus.Failed;
 
@@ -186,6 +215,8 @@ public sealed class IncidentAIJobProcessor
                     cancellationToken);
 
             started.Stop();
+            EmergencyResponseTelemetry.AIAnalysisDuration.Record(started.Elapsed.TotalMilliseconds);
+            EmergencyResponseTelemetry.AIAnalysesCompleted.Add(1);
 
             var decision =
                 _decisionService.Evaluate(
@@ -212,6 +243,8 @@ public sealed class IncidentAIJobProcessor
 
             analysis.ExecutionTimeMs =
                 started.ElapsedMilliseconds;
+
+            var previousSeverity = incident.Severity;
 
             incident.Severity =
                 decision.Severity.Severity;
@@ -279,9 +312,41 @@ public sealed class IncidentAIJobProcessor
                 incident.Id,
                 incident.Severity,
                 incident.Priority);
+
+            try
+            {
+                await _escalationService.EvaluateIncidentAsync(
+                    incident.Id,
+                    previousSeverity,
+                    cancellationToken);
+            }
+            catch (Exception escEx)
+            {
+                _logger.LogWarning(
+                    escEx,
+                    "Escalation evaluation failed for incident {IncidentId}",
+                    incident.Id);
+            }
+
+            try
+            {
+                await _situationQueue.EnqueueAsync(
+                    new SituationEvaluationJob(incident.Id, "AIAnalysisCompleted"),
+                    cancellationToken);
+            }
+            catch (Exception sitEx)
+            {
+                _logger.LogWarning(
+                    sitEx,
+                    "Situation evaluation enqueue failed for incident {IncidentId}",
+                    incident.Id);
+            }
         }
         catch (Exception ex)
         {
+            EmergencyResponseTelemetry.AIAnalysesFailed.Add(1);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+
             analysis.Status =
                 AIAnalysisStatus.Failed;
 
@@ -290,13 +355,41 @@ public sealed class IncidentAIJobProcessor
                     ? ex.Message
                     : ex.Message[..2000];
 
+            analysis.FailureCategory = CategorizeFailure(ex);
+            analysis.LastAttemptAtUtc = DateTime.UtcNow;
+            analysis.RetryCount++;
+            analysis.NextRetryAtUtc = DateTime.UtcNow.AddSeconds(
+                Math.Min(300, Math.Pow(2, analysis.RetryCount) * 5));
+
             await _dbContext.SaveChangesAsync(
                 cancellationToken);
 
             _logger.LogError(
                 ex,
-                "AI analysis failed for incident {IncidentId}.",
-                incident.Id);
+                "AI analysis failed for incident {IncidentId}. Category={Category}.",
+                incident.Id,
+                analysis.FailureCategory);
         }
+    }
+
+    private static string CategorizeFailure(Exception ex)
+    {
+        if (ex is TaskCanceledException or OperationCanceledException or TimeoutException)
+        {
+            return "Timeout";
+        }
+        if (ex is HttpRequestException httpEx)
+        {
+            if (httpEx.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                return "RateLimited";
+            if ((int?)httpEx.StatusCode >= 500)
+                return "ProviderUnavailable";
+            return "TransientNetwork";
+        }
+        if (ex is JsonException)
+        {
+            return "SchemaValidation";
+        }
+        return "Unknown";
     }
 }

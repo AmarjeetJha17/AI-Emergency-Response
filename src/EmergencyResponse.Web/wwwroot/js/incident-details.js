@@ -77,3 +77,78 @@ function openFrameFindings(incidentId, mediaId, json) {
         '<div style="overflow-y:auto;max-height:80vh;padding:1rem">' + rows + '</div>';
     dialog.show();
 }
+
+function openEscalationModal(escalationId, actionType, actionTitle) {
+    var idEl = document.getElementById('escalationActionId');
+    var actionEl = document.getElementById('escalationActionType');
+    var titleEl = document.getElementById('escalationModalTitle');
+    var notesEl = document.getElementById('escalationNotes');
+    var errEl = document.getElementById('escalationActionError');
+
+    if (idEl) idEl.value = escalationId;
+    if (actionEl) actionEl.value = actionType;
+    if (titleEl) titleEl.innerText = actionTitle;
+    if (notesEl) notesEl.value = '';
+    if (errEl) {
+        errEl.classList.add('d-none');
+        errEl.innerText = '';
+    }
+
+    var modalEl = document.getElementById('escalationActionModal');
+    if (modalEl && window.bootstrap) {
+        var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+}
+
+async function submitEscalationAction() {
+    var id = document.getElementById('escalationActionId')?.value;
+    var action = document.getElementById('escalationActionType')?.value;
+    var notes = document.getElementById('escalationNotes')?.value;
+    var btn = document.getElementById('escalationSubmitBtn');
+    var errEl = document.getElementById('escalationActionError');
+
+    if (!id || !action) return;
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = 'Processing...';
+    }
+
+    var token = (document.querySelector('input[name="__RequestVerificationToken"]') || {}).value || '';
+
+    try {
+        var resp = await fetch('/Escalations/' + action + '?id=' + encodeURIComponent(id), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token
+            },
+            body: JSON.stringify({ notes: notes || null })
+        });
+
+        var data = await resp.json().catch(function () { return {}; });
+
+        if (resp.ok && data.success) {
+            location.reload();
+        } else {
+            if (errEl) {
+                errEl.innerText = data.message || 'Operation failed.';
+                errEl.classList.remove('d-none');
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = 'Confirm';
+            }
+        }
+    } catch (err) {
+        if (errEl) {
+            errEl.innerText = 'Network error: ' + err.message;
+            errEl.classList.remove('d-none');
+        }
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = 'Confirm';
+        }
+    }
+}

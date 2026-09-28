@@ -1,5 +1,6 @@
-﻿using EmergencyResponse.Application.AI.Interfaces;
+using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.AI.Jobs;
+using EmergencyResponse.Application.Observability;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -13,15 +14,18 @@ public sealed class IncidentAIBackgroundWorker
     private readonly IAIAnalysisQueue _queue;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<IncidentAIBackgroundWorker> _logger;
+    private readonly IWorkerHealthState? _workerHealthState;
 
     public IncidentAIBackgroundWorker(
         IAIAnalysisQueue queue,
         IServiceScopeFactory scopeFactory,
-        ILogger<IncidentAIBackgroundWorker> logger)
+        ILogger<IncidentAIBackgroundWorker> logger,
+        IWorkerHealthState? workerHealthState = null)
     {
         _queue = queue;
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _workerHealthState = workerHealthState;
     }
 
     protected override async Task ExecuteAsync(
@@ -57,6 +61,8 @@ public sealed class IncidentAIBackgroundWorker
                 await processor.ProcessAsync(
                     job,
                     stoppingToken);
+
+                _workerHealthState?.MarkSuccess("IncidentAIWorker");
             }
             catch (Exception ex)
             {

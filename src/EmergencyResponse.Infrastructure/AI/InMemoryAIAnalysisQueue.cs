@@ -1,7 +1,8 @@
-﻿using System.Threading.Channels;
+using System.Threading.Channels;
 
 using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.AI.Jobs;
+using EmergencyResponse.Application.Observability;
 
 namespace EmergencyResponse.Infrastructure.AI;
 
@@ -31,12 +32,20 @@ public sealed class InMemoryAIAnalysisQueue
         await _channel.Writer.WriteAsync(
             job,
             cancellationToken);
+
+        EmergencyResponseTelemetry.AIJobsEnqueued.Add(1);
+        EmergencyResponseTelemetry.AIQueueLength.Add(1);
     }
 
     public async ValueTask<IncidentAIJob> DequeueAsync(
         CancellationToken cancellationToken)
     {
-        return await _channel.Reader.ReadAsync(
+        var job = await _channel.Reader.ReadAsync(
             cancellationToken);
+
+        EmergencyResponseTelemetry.AIJobsProcessed.Add(1);
+        EmergencyResponseTelemetry.AIQueueLength.Add(-1);
+
+        return job;
     }
 }

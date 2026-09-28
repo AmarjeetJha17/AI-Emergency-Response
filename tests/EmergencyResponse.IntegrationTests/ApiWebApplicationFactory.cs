@@ -3,6 +3,7 @@ using EmergencyResponse.Application.AI.DTOs;
 using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.AI.VisualAnalysis;
 using EmergencyResponse.Application.Media;
+using EmergencyResponse.Application.Situations;
 using EmergencyResponse.Infrastructure.Persistence;
 
 using Microsoft.AspNetCore.Hosting;
@@ -81,6 +82,10 @@ public sealed class ApiWebApplicationFactory
                 IEmbeddingGenerator<string, Embedding<float>>,
                 NoOpEmbeddingGenerator>();
 
+            services.RemoveAll<ISituationAnalysisService>();
+            services.AddScoped<ISituationAnalysisService,
+                NoOpSituationAnalysisService>();
+
             // ── Replace local media storage with temp-dir ──────────────────
             services.RemoveAll<IIncidentMediaStorage>();
             services.AddSingleton<IIncidentMediaStorage>(
@@ -111,6 +116,39 @@ public sealed class ApiWebApplicationFactory
                 Facts                 = new EmergencyFacts(),
                 RecommendedDepartment = "Fire",
                 Confidence            = 0.5
+            });
+    }
+
+    private sealed class NoOpSituationAnalysisService : ISituationAnalysisService
+    {
+        public Task<SituationAnalysisResult> AnalyzeSituationAsync(
+            SituationSnapshot snapshot,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new SituationAnalysisResult
+            {
+                SituationTitle = "Test Operational Situation",
+                SituationSummary = "Automated test situation summary.",
+                KeyObservations = ["Observation 1", "Observation 2"],
+                MainHazards = ["Hazard 1"],
+                OperationalConcerns = ["Concern 1"],
+                RecommendedActions = ["Action 1"],
+                ConfidenceExplanation = "High Confidence",
+                Confidence = 0.95
+            });
+
+        public Task<SituationAnalysisResult> AnalyzeAsync(
+            string situationContext,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new SituationAnalysisResult
+            {
+                SituationTitle = "Test Operational Situation",
+                SituationSummary = "Automated test situation summary.",
+                KeyObservations = ["Observation 1", "Observation 2"],
+                MainHazards = ["Hazard 1"],
+                OperationalConcerns = ["Concern 1"],
+                RecommendedActions = ["Action 1"],
+                ConfidenceExplanation = "High Confidence",
+                Confidence = 0.95
             });
     }
 

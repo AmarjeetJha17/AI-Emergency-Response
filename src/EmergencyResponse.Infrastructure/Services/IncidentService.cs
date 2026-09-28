@@ -1,7 +1,8 @@
-﻿using EmergencyResponse.Application.AI.Interfaces;
+using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.AI.Jobs;
 using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.DTOs.Incidents;
+using EmergencyResponse.Application.Escalation.DTOs;
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Domain.Entities;
 using EmergencyResponse.Domain.Enums;
@@ -313,6 +314,56 @@ public sealed class IncidentService : IIncidentService
             })
             .ToList();
 
+        var assignedResources = await _dbContext.ResourceAssignments
+            .AsNoTracking()
+            .Include(a => a.Resource)
+            .Where(a => a.IncidentId == id && a.IsActive)
+            .OrderBy(a => a.AssignedAtUtc)
+            .Select(a => new IncidentAssignedResourceResponse
+            {
+                ResourceId = a.ResourceId,
+                ResourceName = a.Resource.Name,
+                ResourceType = a.Resource.Type.ToString(),
+                Status = a.Resource.Status.ToString(),
+                AssignedAtUtc = a.AssignedAtUtc,
+                DispatchedAtUtc = a.DispatchedAtUtc,
+                EnRouteAtUtc = a.EnRouteAtUtc,
+                OnSceneAtUtc = a.OnSceneAtUtc,
+                ReturningAtUtc = a.ReturningAtUtc
+            })
+            .ToListAsync(cancellationToken);
+
+        var activeEscalations = await _dbContext.IncidentEscalations
+            .AsNoTracking()
+            .Where(e => e.IncidentId == id && (e.Status == EscalationStatus.Open || e.Status == EscalationStatus.Acknowledged))
+            .OrderByDescending(e => e.Level)
+            .ThenByDescending(e => e.CreatedAtUtc)
+            .Select(e => new IncidentEscalationResponse
+            {
+                Id = e.Id,
+                IncidentId = e.IncidentId,
+                IncidentNumber = incident.IncidentNumber,
+                IncidentTitle = incident.Title,
+                Type = e.Type,
+                TypeName = e.Type.ToString(),
+                Level = e.Level,
+                LevelName = e.Level.ToString(),
+                Status = e.Status,
+                StatusName = e.Status.ToString(),
+                Reason = e.Reason,
+                Score = e.Score,
+                RequiresHumanReview = e.RequiresHumanReview,
+                AcknowledgedByUserId = e.AcknowledgedByUserId,
+                AcknowledgedByUserName = e.AcknowledgedByUserId,
+                AcknowledgedAtUtc = e.AcknowledgedAtUtc,
+                ResolvedByUserId = e.ResolvedByUserId,
+                ResolvedByUserName = e.ResolvedByUserId,
+                ResolvedAtUtc = e.ResolvedAtUtc,
+                ResolutionNotes = e.ResolutionNotes,
+                CreatedAtUtc = e.CreatedAtUtc
+            })
+            .ToListAsync(cancellationToken);
+
         return new IncidentResponse
         {
             Id = incident.Id,
@@ -351,7 +402,9 @@ public sealed class IncidentService : IIncidentService
 
             ReportedAtUtc  = incident.ReportedAtUtc,
             VisualEvidence = visualEvidence,
-            StatusHistory  = statusHistory
+            StatusHistory  = statusHistory,
+            AssignedResources = assignedResources,
+            ActiveEscalations = activeEscalations
         };
     }
 

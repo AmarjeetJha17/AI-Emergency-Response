@@ -54,6 +54,17 @@ public class AIAnalysisConfiguration
         builder.Property(x => x.FailureReason)
             .HasMaxLength(2000);
 
+        builder.Property(x => x.FailureCategory)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.AttemptNumber)
+            .HasDefaultValue(1)
+            .IsRequired();
+
+        builder.Property(x => x.RetryCount)
+            .HasDefaultValue(0)
+            .IsRequired();
+
         builder.Property(x => x.ExtractedFactsJson)
             .HasColumnType("nvarchar(max)");
     }

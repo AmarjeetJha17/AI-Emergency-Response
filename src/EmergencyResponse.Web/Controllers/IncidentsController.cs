@@ -1,3 +1,4 @@
+using EmergencyResponse.Application.Situations.DTOs;
 using EmergencyResponse.Application.DTOs.Incidents;
 using EmergencyResponse.Web.Models.Incidents;
 using EmergencyResponse.Web.Services;
@@ -16,13 +17,16 @@ public class IncidentsController : Controller
 {
     private readonly IIncidentApiClient _incidentApiClient;
     private readonly IIncidentTypeApiClient _incidentTypeApiClient;
+    private readonly ISituationApiClient _situationApiClient;
 
     public IncidentsController(
         IIncidentApiClient incidentApiClient,
-        IIncidentTypeApiClient incidentTypeApiClient)
+        IIncidentTypeApiClient incidentTypeApiClient,
+        ISituationApiClient situationApiClient)
     {
         _incidentApiClient = incidentApiClient;
         _incidentTypeApiClient = incidentTypeApiClient;
+        _situationApiClient = situationApiClient;
     }
 
     [HttpGet]
@@ -163,6 +167,18 @@ public class IncidentsController : Controller
                 .ToList();
 
             ViewBag.VisualEvidence = evidence;
+
+            try
+            {
+                var allOpenSituations = await _situationApiClient.GetOpenSituationsAsync(cancellationToken);
+                ViewBag.OperationalSituations = allOpenSituations
+                    .Where(s => s.Incidents.Any(i => i.IncidentId == id))
+                    .ToList();
+            }
+            catch
+            {
+                ViewBag.OperationalSituations = Array.Empty<OperationalSituationResponse>();
+            }
         }
 
         return View(incident);

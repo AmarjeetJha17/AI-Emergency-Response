@@ -62,4 +62,21 @@ public sealed record IncidentResponse
     public IReadOnlyList<IncidentMediaResponse> VisualEvidence { get; init; } = [];
 
     public IReadOnlyList<IncidentStatusHistoryResponse> StatusHistory { get; init; } = [];
+
+    public IReadOnlyList<IncidentAssignedResourceResponse> AssignedResources { get; init; } = [];
+
+    public IReadOnlyList<EmergencyResponse.Application.Escalation.DTOs.IncidentEscalationResponse> ActiveEscalations { get; init; } = [];
+}
+
+public sealed record IncidentAssignedResourceResponse
+{
+    public Guid ResourceId { get; init; }
+    public string ResourceName { get; init; } = null!;
+    public string ResourceType { get; init; } = null!;
+    public string Status { get; init; } = null!;
+    public DateTime AssignedAtUtc { get; init; }
+    public DateTime? DispatchedAtUtc { get; init; }
+    public DateTime? EnRouteAtUtc { get; init; }
+    public DateTime? OnSceneAtUtc { get; init; }
+    public DateTime? ReturningAtUtc { get; init; }
 }

@@ -29,6 +29,11 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("AttemptNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<double?>("Confidence")
                         .HasPrecision(5, 4)
                         .HasColumnType("float(5)");
@@ -41,6 +46,10 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("ExtractedFactsJson")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FailureCategory")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("FailureReason")
                         .HasMaxLength(2000)
@@ -61,6 +70,12 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<int?>("InputTokens")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastAttemptAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("ModelName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -70,16 +85,30 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTime?>("NextRetryAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("OutputJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("OutputTokens")
+                        .HasColumnType("int");
 
                     b.Property<string>("PromptVersion")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("RetryCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TotalTokens")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
@@ -412,6 +441,72 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.ToTable("IncidentDuplicateMatches", (string)null);
                 });
 
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.IncidentEscalation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AcknowledgedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AcknowledgedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EvidenceJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("IncidentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("RequiresHumanReview")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ResolutionNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("ResolvedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ResolvedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<double?>("Score")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("float(5)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Type", "Status");
+
+                    b.HasIndex("IncidentId", "Status", "CreatedAtUtc");
+
+                    b.ToTable("IncidentEscalations");
+                });
+
             modelBuilder.Entity("EmergencyResponse.Domain.Entities.IncidentLocation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -702,6 +797,19 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("DeduplicationKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("IncidentEscalationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IncidentId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
@@ -710,32 +818,216 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<Guid?>("OperationalSituationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("ReadAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("TargetDepartmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TargetRole")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("UserId")
-                        .IsRequired()
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "IsRead");
+                    b.HasIndex("IncidentEscalationId");
+
+                    b.HasIndex("IncidentId");
+
+                    b.HasIndex("OperationalSituationId");
+
+                    b.HasIndex("DeduplicationKey", "UserId", "Status");
+
+                    b.HasIndex("TargetRole", "Status", "CreatedAtUtc");
+
+                    b.HasIndex("UserId", "Status", "CreatedAtUtc");
 
                     b.ToTable("Notifications", (string)null);
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.OperationalSituation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Casualties")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CriticalIncidentCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("HighIncidentCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("IncidentCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastAIAnalysisAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastEvaluatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PeopleAffected")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RequiresHumanReview")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ResourceShortageDetected")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SituationNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<double?>("SituationScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("float(5)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SituationNumber")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "Level", "CreatedAtUtc");
+
+                    b.ToTable("OperationalSituations");
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.OperationalSituationAnalysis", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("GeneratedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("HumanDecision")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("HumanReviewed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("InputSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModelName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OperationalSituationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OutputJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PromptVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationalSituationId", "GeneratedAtUtc");
+
+                    b.ToTable("OperationalSituationAnalyses");
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.OperationalSituationIncident", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AddedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("IncidentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsPrimaryIncident")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("OperationalSituationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IncidentId");
+
+                    b.HasIndex("OperationalSituationId", "IncidentId")
+                        .IsUnique();
+
+                    b.ToTable("OperationalSituationIncidents");
                 });
 
             modelBuilder.Entity("EmergencyResponse.Domain.Entities.Resource", b =>
@@ -915,6 +1207,11 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("AttemptNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<DateTime?>("CompletedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -926,6 +1223,10 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.Property<long?>("ExecutionTimeMs")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("FailureCategory")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("FailureReason")
                         .HasMaxLength(4000)
@@ -956,6 +1257,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("IncidentMediaId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("LastAttemptAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("ModelName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -965,6 +1269,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTime?>("NextRetryAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("PromptVersion")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -972,6 +1279,11 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("RawOutputJson")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RetryCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -1287,6 +1599,17 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Navigation("SourceIncident");
                 });
 
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.IncidentEscalation", b =>
+                {
+                    b.HasOne("EmergencyResponse.Domain.Entities.Incident", "Incident")
+                        .WithMany()
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Incident");
+                });
+
             modelBuilder.Entity("EmergencyResponse.Domain.Entities.IncidentLocation", b =>
                 {
                     b.HasOne("EmergencyResponse.Domain.Entities.Incident", "Incident")
@@ -1348,6 +1671,60 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("IncidentType");
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("EmergencyResponse.Domain.Entities.IncidentEscalation", "IncidentEscalation")
+                        .WithMany()
+                        .HasForeignKey("IncidentEscalationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EmergencyResponse.Domain.Entities.Incident", "Incident")
+                        .WithMany()
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EmergencyResponse.Domain.Entities.OperationalSituation", "OperationalSituation")
+                        .WithMany()
+                        .HasForeignKey("OperationalSituationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Incident");
+
+                    b.Navigation("IncidentEscalation");
+
+                    b.Navigation("OperationalSituation");
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.OperationalSituationAnalysis", b =>
+                {
+                    b.HasOne("EmergencyResponse.Domain.Entities.OperationalSituation", "OperationalSituation")
+                        .WithMany("Analyses")
+                        .HasForeignKey("OperationalSituationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OperationalSituation");
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.OperationalSituationIncident", b =>
+                {
+                    b.HasOne("EmergencyResponse.Domain.Entities.Incident", "Incident")
+                        .WithMany()
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EmergencyResponse.Domain.Entities.OperationalSituation", "OperationalSituation")
+                        .WithMany("Incidents")
+                        .HasForeignKey("OperationalSituationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Incident");
+
+                    b.Navigation("OperationalSituation");
                 });
 
             modelBuilder.Entity("EmergencyResponse.Domain.Entities.Resource", b =>
@@ -1501,6 +1878,13 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Navigation("Incidents");
 
                     b.Navigation("ResourceRequirements");
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.OperationalSituation", b =>
+                {
+                    b.Navigation("Analyses");
+
+                    b.Navigation("Incidents");
                 });
 
             modelBuilder.Entity("EmergencyResponse.Domain.Entities.Resource", b =>

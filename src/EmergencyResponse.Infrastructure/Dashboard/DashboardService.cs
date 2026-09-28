@@ -1,3 +1,4 @@
+using EmergencyResponse.Domain.Notifications;
 using EmergencyResponse.Application.Dashboard;
 using EmergencyResponse.Domain.Enums;
 using EmergencyResponse.Infrastructure.Persistence;
@@ -57,6 +58,73 @@ public sealed class DashboardService : IDashboardService
                  !x.HumanReviewed,
             cancellationToken);
 
+        var openEscalations = await _db.IncidentEscalations
+            .AsNoTracking()
+            .CountAsync(
+                x => x.Status == EscalationStatus.Open,
+                cancellationToken);
+
+        var criticalEscalations = await _db.IncidentEscalations
+            .AsNoTracking()
+            .CountAsync(
+                x => x.Status == EscalationStatus.Open &&
+                     x.Level == EscalationLevel.Critical,
+                cancellationToken);
+
+        var unacknowledged = await _db.IncidentEscalations
+            .AsNoTracking()
+            .CountAsync(
+                x => x.Status == EscalationStatus.Open &&
+                     x.RequiresHumanReview,
+                cancellationToken);
+
+        var openSituations = await _db.OperationalSituations
+            .AsNoTracking()
+            .CountAsync(
+                x => x.Status == EscalationStatus.Open,
+                cancellationToken);
+
+        var criticalSituations = await _db.OperationalSituations
+            .AsNoTracking()
+            .CountAsync(
+                x => x.Status == EscalationStatus.Open &&
+                     x.Level == EscalationLevel.Critical,
+                cancellationToken);
+
+        var situationsWithResourceShortage = await _db.OperationalSituations
+            .AsNoTracking()
+            .CountAsync(
+                x => x.Status == EscalationStatus.Open &&
+                     x.ResourceShortageDetected,
+                cancellationToken);
+
+        var now = DateTime.UtcNow;
+        var unreadNotifications = await _db.Notifications
+            .AsNoTracking()
+            .CountAsync(
+                x => !x.IsRead &&
+                     x.Status == NotificationStatus.Unread &&
+                     (x.ExpiresAtUtc == null || x.ExpiresAtUtc > now),
+                cancellationToken);
+
+        var criticalNotifications = await _db.Notifications
+            .AsNoTracking()
+            .CountAsync(
+                x => !x.IsRead &&
+                     x.Status == NotificationStatus.Unread &&
+                     x.Priority == NotificationPriority.Critical &&
+                     (x.ExpiresAtUtc == null || x.ExpiresAtUtc > now),
+                cancellationToken);
+
+        var urgentNotifications = await _db.Notifications
+            .AsNoTracking()
+            .CountAsync(
+                x => !x.IsRead &&
+                     x.Status == NotificationStatus.Unread &&
+                     x.Priority == NotificationPriority.Urgent &&
+                     (x.ExpiresAtUtc == null || x.ExpiresAtUtc > now),
+                cancellationToken);
+
         return new DashboardSummary
         {
             CriticalIncidents = critical,
@@ -67,7 +135,16 @@ public sealed class DashboardService : IDashboardService
             UnassignedIncidents = unassigned,
             AwaitingAIReview = aiReview,
             AwaitingDuplicateReview = duplicateReview,
-            AwaitingVisualReview = visualReview
+            AwaitingVisualReview = visualReview,
+            OpenEscalations = openEscalations,
+            CriticalEscalations = criticalEscalations,
+            UnacknowledgedEscalations = unacknowledged,
+            OpenSituations = openSituations,
+            CriticalSituations = criticalSituations,
+            SituationsWithResourceShortage = situationsWithResourceShortage,
+            UnreadNotifications = unreadNotifications,
+            CriticalNotifications = criticalNotifications,
+            UrgentNotifications = urgentNotifications
         };
     }
 

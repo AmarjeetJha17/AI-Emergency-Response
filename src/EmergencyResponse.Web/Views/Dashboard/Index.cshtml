@@ -120,6 +120,137 @@
 
     </div>
 
+    @* Escalation & Situation Awareness KPI cards *@
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-4">
+            <div class="card shadow-sm @(Model.Summary.OpenEscalations > 0 ? "border-danger" : "")">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="fs-2 text-danger">&#9888;</div>
+                    <div>
+                        <div class="text-muted small">Open Escalation Alerts</div>
+                        <div class="fs-3 fw-bold text-danger" id="openEscalationsCount">@Model.Summary.OpenEscalations</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm @(Model.Summary.CriticalEscalations > 0 ? "border-danger border-2" : "")">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="fs-2 text-danger">&#128680;</div>
+                    <div>
+                        <div class="text-muted small">Critical Escalations</div>
+                        <div class="fs-3 fw-bold text-danger" id="criticalEscalationsCount">@Model.Summary.CriticalEscalations</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm @(Model.Summary.UnacknowledgedEscalations > 0 ? "border-warning" : "")">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="fs-2 text-warning">&#9200;</div>
+                    <div>
+                        <div class="text-muted small">Awaiting Acknowledge</div>
+                        <div class="fs-3 fw-bold text-warning" id="unacknowledgedEscalationsCount">@Model.Summary.UnacknowledgedEscalations</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    @* Operational Situations KPI cards (Phase 12 Part 3) *@
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <a asp-controller="Situations" asp-action="Index" class="text-decoration-none">
+                <div class="card shadow-sm border-start border-4 border-warning h-100">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="fs-2 text-warning"><i class="bi bi-diagram-3"></i></div>
+                        <div>
+                            <div class="text-muted small">Open Situations</div>
+                            <div class="fs-3 fw-bold text-dark" id="openSituationsCount">@Model.Summary.OpenSituations</div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4">
+            <a asp-controller="Situations" asp-action="Index" asp-route-level="Critical" class="text-decoration-none">
+                <div class="card shadow-sm border-start border-4 border-danger h-100 @(Model.Summary.CriticalSituations > 0 ? "border-danger border-2" : "")">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="fs-2 text-danger"><i class="bi bi-fire"></i></div>
+                        <div>
+                            <div class="text-muted small">Critical Situations</div>
+                            <div class="fs-3 fw-bold text-danger" id="criticalSituationsCount">@Model.Summary.CriticalSituations</div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4">
+            <a asp-controller="Situations" asp-action="Index" asp-route-resourceShortage="true" class="text-decoration-none">
+                <div class="card shadow-sm border-start border-4 border-danger h-100 @(Model.Summary.SituationsWithResourceShortage > 0 ? "border-danger border-2" : "")">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="fs-2 text-danger"><i class="bi bi-shield-slash"></i></div>
+                        <div>
+                            <div class="text-muted small">Situations with Resource Shortage</div>
+                            <div class="fs-3 fw-bold text-danger" id="situationsWithResourceShortageCount">@Model.Summary.SituationsWithResourceShortage</div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    @* Operational Notifications & Alerts KPI cards (Phase 12 Part 4) *@
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <a asp-controller="Notifications" asp-action="Index" asp-route-status="Unread" class="text-decoration-none">
+                <div class="card shadow-sm border-start border-4 border-info h-100 @(Model.Summary.UnreadNotifications > 0 ? "border-info" : "")">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="fs-2 text-info"><i class="bi bi-bell"></i></div>
+                        <div>
+                            <div class="text-muted small">Unread Operator Alerts</div>
+                            <div class="fs-3 fw-bold text-dark" id="unreadNotificationsCount">@Model.Summary.UnreadNotifications</div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4">
+            <a asp-controller="Notifications" asp-action="Index" asp-route-priority="Critical" class="text-decoration-none">
+                <div class="card shadow-sm border-start border-4 border-danger h-100 @(Model.Summary.CriticalNotifications > 0 ? "border-danger border-2" : "")">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="fs-2 text-danger"><i class="bi bi-exclamation-diamond-fill"></i></div>
+                        <div>
+                            <div class="text-muted small">Critical Alert Notifications</div>
+                            <div class="fs-3 fw-bold text-danger" id="criticalNotificationsCount">@Model.Summary.CriticalNotifications</div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4">
+            <a asp-controller="Notifications" asp-action="Index" asp-route-priority="Urgent" class="text-decoration-none">
+                <div class="card shadow-sm border-start border-4 border-warning h-100 @(Model.Summary.UrgentNotifications > 0 ? "border-warning border-2" : "")">
+                    <div class="card-body d-flex align-items-center gap-3">
+                        <div class="fs-2 text-warning"><i class="bi bi-shield-exclamation"></i></div>
+                        <div>
+                            <div class="text-muted small">Urgent Alert Notifications</div>
+                            <div class="fs-3 fw-bold text-warning" id="urgentNotificationsCount">@Model.Summary.UrgentNotifications</div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
     @* Incident Command Grid *@
     @if (!Model.GridItems.Any())
     {

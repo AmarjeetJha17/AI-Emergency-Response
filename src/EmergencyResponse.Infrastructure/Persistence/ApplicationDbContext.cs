@@ -52,6 +52,18 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<VisualAnalysis> VisualAnalyses =>
         Set<VisualAnalysis>();
 
+    public DbSet<IncidentEscalation> IncidentEscalations =>
+        Set<IncidentEscalation>();
+
+    public DbSet<OperationalSituation> OperationalSituations =>
+        Set<OperationalSituation>();
+
+    public DbSet<OperationalSituationIncident> OperationalSituationIncidents =>
+        Set<OperationalSituationIncident>();
+
+    public DbSet<OperationalSituationAnalysis> OperationalSituationAnalyses =>
+        Set<OperationalSituationAnalysis>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

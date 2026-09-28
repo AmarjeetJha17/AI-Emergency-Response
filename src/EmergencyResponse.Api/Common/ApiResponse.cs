@@ -1,4 +1,4 @@
-﻿namespace EmergencyResponse.Api.Common;
+namespace EmergencyResponse.Api.Common;
 
 public class ApiResponse<T>
 {

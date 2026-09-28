@@ -6,6 +6,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.19.1" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
     <PackageReference Include="Syncfusion.AspNetCore.Charts" Version="34.1.29" />
     <PackageReference Include="Syncfusion.AspNetCore.Grid" Version="34.1.29" />
     <PackageReference Include="Syncfusion.AspNetCore.Navigations" Version="34.1.29" />

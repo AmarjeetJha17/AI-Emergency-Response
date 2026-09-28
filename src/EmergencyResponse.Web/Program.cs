@@ -3,8 +3,31 @@ using EmergencyResponse.Web.Services;
 using EmergencyResponse.Web.Services.Api;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// OpenTelemetry Configuration
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource =>
+    {
+        resource.AddService(
+            serviceName: "EmergencyResponse.Web",
+            serviceVersion: "1.0.0");
+    })
+    .WithTracing(tracing =>
+    {
+        tracing
+            .AddSource("EmergencyResponse.Web")
+            .AddConsoleExporter();
+    })
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddConsoleExporter();
+    });
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -19,7 +42,8 @@ builder.Services.AddHttpClient<IAuthApiClient, AuthApiClient>(
     {
         client.BaseAddress = new Uri(
             builder.Configuration["ApiSettings:BaseUrl"]!);
-    });
+    })
+    .AddStandardResilienceHandler();
 
 builder.Services
     .AddAuthentication(
@@ -50,7 +74,8 @@ builder.Services
             client.BaseAddress = new Uri(
                 builder.Configuration["ApiSettings:BaseUrl"]!);
         })
-    .AddHttpMessageHandler<BearerTokenHandler>();
+    .AddHttpMessageHandler<BearerTokenHandler>()
+    .AddStandardResilienceHandler();
 
 builder.Services
     .AddHttpClient<IIncidentTypeApiClient, IncidentTypeApiClient>(
@@ -59,7 +84,8 @@ builder.Services
             client.BaseAddress = new Uri(
                 builder.Configuration["ApiSettings:BaseUrl"]!);
         })
-    .AddHttpMessageHandler<BearerTokenHandler>();
+    .AddHttpMessageHandler<BearerTokenHandler>()
+    .AddStandardResilienceHandler();
 
 builder.Services
     .AddHttpClient<IDashboardApiClient, DashboardApiClient>(
@@ -68,7 +94,8 @@ builder.Services
             client.BaseAddress = new Uri(
                 builder.Configuration["ApiSettings:BaseUrl"]!);
         })
-    .AddHttpMessageHandler<BearerTokenHandler>();
+    .AddHttpMessageHandler<BearerTokenHandler>()
+    .AddStandardResilienceHandler();
 
 builder.Services
     .AddHttpClient<IEmergencyMapApiClient, EmergencyMapApiClient>(
@@ -77,7 +104,8 @@ builder.Services
             client.BaseAddress = new Uri(
                 builder.Configuration["ApiSettings:BaseUrl"]!);
         })
-    .AddHttpMessageHandler<BearerTokenHandler>();
+    .AddHttpMessageHandler<BearerTokenHandler>()
+    .AddStandardResilienceHandler();
 
 builder.Services
     .AddHttpClient<IResourceApiClient, ResourceApiClient>(
@@ -86,7 +114,38 @@ builder.Services
             client.BaseAddress = new Uri(
                 builder.Configuration["ApiSettings:BaseUrl"]!);
         })
-    .AddHttpMessageHandler<BearerTokenHandler>();
+    .AddHttpMessageHandler<BearerTokenHandler>()
+    .AddStandardResilienceHandler();
+
+builder.Services
+    .AddHttpClient<IEscalationApiClient, EscalationApiClient>(
+        client =>
+        {
+            client.BaseAddress = new Uri(
+                builder.Configuration["ApiSettings:BaseUrl"]!);
+        })
+    .AddHttpMessageHandler<BearerTokenHandler>()
+    .AddStandardResilienceHandler();
+
+builder.Services
+    .AddHttpClient<ISituationApiClient, SituationApiClient>(
+        client =>
+        {
+            client.BaseAddress = new Uri(
+                builder.Configuration["ApiSettings:BaseUrl"]!);
+        })
+    .AddHttpMessageHandler<BearerTokenHandler>()
+    .AddStandardResilienceHandler();
+
+builder.Services
+    .AddHttpClient<INotificationApiClient, NotificationApiClient>(
+        client =>
+        {
+            client.BaseAddress = new Uri(
+                builder.Configuration["ApiSettings:BaseUrl"]!);
+        })
+    .AddHttpMessageHandler<BearerTokenHandler>()
+    .AddStandardResilienceHandler();
 
 builder.Services.Configure<MapOptions>(
     builder.Configuration.GetSection(
@@ -131,6 +190,5 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
-
 
 app.Run();

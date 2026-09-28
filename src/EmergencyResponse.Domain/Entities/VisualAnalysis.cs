@@ -1,4 +1,4 @@
-﻿using EmergencyResponse.Domain.Common;
+using EmergencyResponse.Domain.Common;
 using EmergencyResponse.Domain.Enums;
 
 namespace EmergencyResponse.Domain.Entities;
@@ -48,4 +48,10 @@ public class VisualAnalysis : BaseEntity
     /// Null for image analyses or when frames were not persisted.
     /// </summary>
     public string? FrameStorageKeysJson { get; set; }
+
+    public int AttemptNumber { get; set; } = 1;
+    public int RetryCount { get; set; } = 0;
+    public DateTime? LastAttemptAtUtc { get; set; }
+    public DateTime? NextRetryAtUtc { get; set; }
+    public string? FailureCategory { get; set; }
 }

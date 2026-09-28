@@ -140,11 +140,21 @@
         });
     }
 
-    function getResourceIcon(resourceType) {
+    function getResourceIcon(resourceType, status) {
         var label = String(resourceType || 'Resource');
+        var s = String(status || '').toLowerCase().replace(/\s+/g, '');
+        var statusClass = 'available';
+        if (s === 'assigned' || s === '1') statusClass = 'assigned';
+        else if (s === 'dispatched' || s === '2') statusClass = 'dispatched';
+        else if (s === 'enroute' || s === '3') statusClass = 'enroute';
+        else if (s === 'onscene' || s === '4') statusClass = 'onscene';
+        else if (s === 'returning' || s === '5') statusClass = 'returning';
+        else if (s === 'unavailable' || s === '6') statusClass = 'unavailable';
+        else if (s === 'maintenance' || s === '7') statusClass = 'maintenance';
+
         return L.divIcon({
             className: 'resource-marker-wrapper',
-            html: '<div class="resource-marker" title="' + escapeHtml(label) + '"><span>R</span></div>',
+            html: '<div class="resource-marker resource-marker-' + statusClass + '" title="' + escapeHtml(label) + ' (' + escapeHtml(formatResourceStatus(status)) + ')"><span>R</span></div>',
             iconSize: [26, 26],
             iconAnchor: [13, 13],
             popupAnchor: [0, -13]
@@ -454,7 +464,7 @@
             }
 
             var latLng = [res.latitude, res.longitude];
-            var icon = getResourceIcon(res.resourceType);
+            var icon = getResourceIcon(res.resourceType, res.status);
             var marker = L.marker(latLng, { icon: icon });
 
             var deptHtml = res.departmentName
@@ -468,8 +478,19 @@
             var statusClass = getResourceStatusBadgeClass(res.status);
             var statusText = formatResourceStatus(res.status);
 
+            var milestoneHtml = '';
+            if (res.onSceneAtUtc) {
+                milestoneHtml = '<div class="small text-muted mb-1">On Scene: ' + new Date(res.onSceneAtUtc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</div>';
+            } else if (res.enRouteAtUtc) {
+                milestoneHtml = '<div class="small text-muted mb-1">En Route: ' + new Date(res.enRouteAtUtc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</div>';
+            } else if (res.dispatchedAtUtc) {
+                milestoneHtml = '<div class="small text-muted mb-1">Dispatched: ' + new Date(res.dispatchedAtUtc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</div>';
+            } else if (res.assignedAtUtc) {
+                milestoneHtml = '<div class="small text-muted mb-1">Assigned: ' + new Date(res.assignedAtUtc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</div>';
+            }
+
             var incidentHtml = res.activeIncidentNumber
-                ? '<div class="mb-1"><strong>Incident:</strong> <a href="/Dashboard?incidentId=' + encodeURIComponent(res.activeIncidentId || '') + '" class="badge bg-primary text-decoration-none" title="View incident in dashboard">' + escapeHtml(res.activeIncidentNumber) + '</a></div>'
+                ? '<div class="mb-1"><strong>Incident:</strong> <a href="/Incidents/Details/' + encodeURIComponent(res.activeIncidentId || '') + '" class="badge bg-primary text-decoration-none" title="View incident details">' + escapeHtml(res.activeIncidentNumber) + '</a></div>'
                 : '';
 
             marker.bindPopup(
@@ -477,6 +498,7 @@
                     '<div class="fw-bold fs-6">' + escapeHtml(res.name) + '</div>' +
                     '<div class="small text-muted mb-1">' + escapeHtml(res.resourceType) + '</div>' +
                     '<div class="mb-1"><strong>Status:</strong> <span class="badge ' + statusClass + '">' + escapeHtml(statusText) + '</span></div>' +
+                    milestoneHtml +
                     incidentHtml +
                     deptHtml +
                     updatedHtml +

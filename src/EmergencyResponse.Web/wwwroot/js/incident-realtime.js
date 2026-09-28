@@ -134,6 +134,60 @@
         }
     }
 
+    // ── Escalation Live Update Listener ─────────────────────────────────────
+    connection.on('EscalationUpdated', async function (event) {
+        console.log('[SignalR] Escalation update received:', event);
+        if (isDashboard) {
+            await refreshDashboard();
+        }
+        if (window.emergencyMapState && typeof window.emergencyMapState.refreshMap === 'function') {
+            await window.emergencyMapState.refreshMap();
+        }
+        const currentContainer = document.querySelector('[data-incident-id]');
+        if (currentContainer && currentContainer.dataset.incidentId === event.incidentId) {
+            setTimeout(function () { location.reload(); }, 1200);
+        }
+    });
+
+    // ── Situation Live Update Listener ───────────────────────────────────────
+    connection.on('SituationUpdated', async function (event) {
+        console.log('[SignalR] Situation update received:', event);
+
+        if (typeof window.refreshSituationCommandCenter === 'function') {
+            await window.refreshSituationCommandCenter();
+        }
+
+        if (typeof window.refreshSituationMap === 'function') {
+            await window.refreshSituationMap();
+        }
+
+        if (typeof window.refreshDashboardSituationKpis === 'function') {
+            await window.refreshDashboardSituationKpis();
+        }
+
+        if (isDashboard) {
+            await refreshDashboard();
+        }
+
+        if (window.emergencyMapState && typeof window.emergencyMapState.refreshMap === 'function') {
+            await window.emergencyMapState.refreshMap();
+        }
+    });
+
+    // ── Notification Live Update Listener ────────────────────────────────────
+    connection.on('NotificationCreated', async function (notification) {
+        console.log('[SignalR] Notification created received:', notification);
+        if (typeof window.showNotificationToast === 'function') {
+            window.showNotificationToast(notification);
+        }
+        if (typeof window.loadNotificationSummary === 'function') {
+            await window.loadNotificationSummary();
+        }
+        if (isDashboard) {
+            await refreshDashboard();
+        }
+    });
+
     // ── Dashboard Updaters ──────────────────────────────────────────────────
     function setConnectionStatus(text, cssClass) {
         const element = document.getElementById('dashboardConnectionIndicator');
@@ -160,6 +214,18 @@
         const dupReview = summary.awaitingDuplicateReview ?? summary.AwaitingDuplicateReview ?? 0;
         const visReview = summary.awaitingVisualReview ?? summary.AwaitingVisualReview ?? 0;
 
+        const openEsc = summary.openEscalations ?? summary.OpenEscalations ?? 0;
+        const critEsc = summary.criticalEscalations ?? summary.CriticalEscalations ?? 0;
+        const unackEsc = summary.unacknowledgedEscalations ?? summary.UnacknowledgedEscalations ?? 0;
+
+        const openSit = summary.openSituations ?? summary.OpenSituations ?? 0;
+        const critSit = summary.criticalSituations ?? summary.CriticalSituations ?? 0;
+        const shortSit = summary.situationsWithResourceShortage ?? summary.SituationsWithResourceShortage ?? 0;
+
+        const unreadNotif = summary.unreadNotifications ?? summary.UnreadNotifications ?? 0;
+        const critNotif = summary.criticalNotifications ?? summary.CriticalNotifications ?? 0;
+        const urgNotif = summary.urgentNotifications ?? summary.UrgentNotifications ?? 0;
+
         setText('criticalIncidentCount', critical);
         setText('highIncidentCount', high);
         setText('activeIncidentCount', active);
@@ -168,6 +234,18 @@
         setText('aiReviewCount', aiReview);
         setText('duplicateReviewCount', dupReview);
         setText('visualReviewCount', visReview);
+
+        setText('openEscalationsCount', openEsc);
+        setText('criticalEscalationsCount', critEsc);
+        setText('unacknowledgedEscalationsCount', unackEsc);
+
+        setText('openSituationsCount', openSit);
+        setText('criticalSituationsCount', critSit);
+        setText('situationsWithResourceShortageCount', shortSit);
+
+        setText('unreadNotificationsCount', unreadNotif);
+        setText('criticalNotificationsCount', critNotif);
+        setText('urgentNotificationsCount', urgNotif);
 
         setText('notesActiveCount', active);
         setText('notesUnassignedCount', unassigned);
