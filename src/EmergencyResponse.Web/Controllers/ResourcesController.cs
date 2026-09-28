@@ -226,6 +226,52 @@ public sealed class ResourcesController : Controller
             return BadRequest(new { success = false, message = ex.Message });
         }
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Command(
+        [FromBody] ResourceCommandViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model == null || model.ResourceId == Guid.Empty)
+        {
+            return BadRequest(new { success = false, message = "Resource ID is required." });
+        }
+
+        try
+        {
+            var result = await _resourceApiClient.ExecuteCommandAsync(
+                model.ResourceId,
+                new ResourceCommandRequest
+                {
+                    Command = model.Command,
+                    Notes = model.Notes
+                },
+                cancellationToken);
+
+            return Json(new { success = true, result });
+        }
+        catch (ResourceConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Resource command concurrency conflict for resource {ResourceId}", model.ResourceId);
+            return StatusCode(StatusCodes.Status409Conflict, new { success = false, message = ex.Message });
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            _logger.LogWarning(ex, "Resource command concurrency conflict for resource {ResourceId}", model.ResourceId);
+            return StatusCode(StatusCodes.Status409Conflict, new { success = false, message = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Resource command failed for resource {ResourceId}", model.ResourceId);
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during resource command.");
+            return StatusCode(500, new { success = false, message = "An error occurred while executing the resource command." });
+        }
+    }
 }
 
 public sealed class AssignResourceViewModel
@@ -246,5 +292,12 @@ public sealed class ChangeStatusViewModel
 public sealed class ReleaseResourceViewModel
 {
     public Guid ResourceId { get; set; }
+    public string? Notes { get; set; }
+}
+
+public sealed class ResourceCommandViewModel
+{
+    public Guid ResourceId { get; set; }
+    public ResourceCommand Command { get; set; }
     public string? Notes { get; set; }
 }

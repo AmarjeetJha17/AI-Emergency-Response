@@ -45,14 +45,17 @@ public sealed record ResourceDetailsResponse
     public string? AssignmentRemarks { get; init; }
 
     public IReadOnlyList<ResourceStatusHistoryItem> StatusHistory { get; init; } = [];
+    public ResourceOperationalTiming? OperationalTiming { get; init; }
 }
 
 public sealed record ResourceStatusHistoryItem
 {
     public ResourceStatus PreviousStatus { get; init; }
     public ResourceStatus NewStatus { get; init; }
+    public Guid? IncidentId { get; init; }
+    public string? IncidentNumber { get; init; }
     public string? Reason { get; init; }
     public string? ChangedByUserId { get; init; }
+    public string? ChangedByUserName { get; init; }
     public DateTime ChangedAtUtc { get; init; }
-    public string? IncidentNumber { get; init; }
 }

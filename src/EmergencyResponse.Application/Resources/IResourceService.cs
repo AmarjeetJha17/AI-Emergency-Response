@@ -39,6 +39,15 @@ public interface IResourceService
         string? notes,
         CancellationToken cancellationToken = default);
 
+    Task<ResourceCommandResult> ExecuteCommandAsync(
+        Guid resourceId,
+        ResourceCommandRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ResourceStatusHistoryItem>> GetHistoryAsync(
+        Guid resourceId,
+        CancellationToken cancellationToken = default);
+
     Task<ResourceRecommendationResponse> GetRecommendationsAsync(
         Guid incidentId,
         CancellationToken cancellationToken = default);

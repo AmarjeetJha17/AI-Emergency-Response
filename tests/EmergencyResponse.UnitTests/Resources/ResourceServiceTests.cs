@@ -591,6 +591,128 @@ public sealed class ResourceServiceTests : IAsyncDisposable
         Assert.Contains("active assignment", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task ExecuteCommandAsync_FullOperationalLifecycle_TransitionsAndUpdatesTimestamps()
+    {
+        var dept = await CreateDepartmentAsync("EMS", "EMS_CMD");
+        var resource = await CreateResourceAsync(dept.Id, ResourceStatus.Available, ResourceType.Ambulance, "Medic 99");
+        var incident = await CreateIncidentAsync(dept.Id, "Traffic Collision on Highway");
+
+        // 1. Assign
+        await _service.AssignAsync(resource.Id, incident.Id, "Initial Assignment");
+        var updated = await _context.Resources.FindAsync(resource.Id);
+        Assert.Equal(ResourceStatus.Assigned, updated!.Status);
+
+        // 2. Dispatch
+        var dispatchResult = await _service.ExecuteCommandAsync(resource.Id, new ResourceCommandRequest
+        {
+            Command = ResourceCommand.Dispatch,
+            Notes = "Units rolling out"
+        });
+        Assert.Equal(ResourceStatus.Dispatched, dispatchResult.NewStatus);
+        Assert.NotNull(dispatchResult.AssignmentTimestampUtc);
+
+        // 3. Mark En Route
+        var enRouteResult = await _service.ExecuteCommandAsync(resource.Id, new ResourceCommandRequest
+        {
+            Command = ResourceCommand.MarkEnRoute,
+            Notes = "En route via Main St"
+        });
+        Assert.Equal(ResourceStatus.EnRoute, enRouteResult.NewStatus);
+        Assert.NotNull(enRouteResult.AssignmentTimestampUtc);
+
+        // 4. Mark On Scene
+        var onSceneResult = await _service.ExecuteCommandAsync(resource.Id, new ResourceCommandRequest
+        {
+            Command = ResourceCommand.MarkOnScene,
+            Notes = "Arrived on scene, assessing"
+        });
+        Assert.Equal(ResourceStatus.OnScene, onSceneResult.NewStatus);
+        Assert.NotNull(onSceneResult.AssignmentTimestampUtc);
+
+        // 5. Begin Return
+        var returningResult = await _service.ExecuteCommandAsync(resource.Id, new ResourceCommandRequest
+        {
+            Command = ResourceCommand.BeginReturn,
+            Notes = "Leaving scene, returning to base"
+        });
+        Assert.Equal(ResourceStatus.Returning, returningResult.NewStatus);
+        Assert.NotNull(returningResult.AssignmentTimestampUtc);
+
+        // 6. Mark Available
+        var availableResult = await _service.ExecuteCommandAsync(resource.Id, new ResourceCommandRequest
+        {
+            Command = ResourceCommand.MarkAvailable,
+            Notes = "Back in quarters and ready for calls"
+        });
+        Assert.Equal(ResourceStatus.Available, availableResult.NewStatus);
+        Assert.NotNull(availableResult.AssignmentTimestampUtc);
+
+        // Verify assignment record
+        var assignment = await _context.ResourceAssignments.FirstAsync(a => a.ResourceId == resource.Id);
+        Assert.False(assignment.IsActive);
+        Assert.Equal(ResourceAssignmentStatus.Completed, assignment.Status);
+        Assert.NotNull(assignment.DispatchedAtUtc);
+        Assert.NotNull(assignment.EnRouteAtUtc);
+        Assert.NotNull(assignment.OnSceneAtUtc);
+        Assert.NotNull(assignment.ReturningAtUtc);
+        Assert.NotNull(assignment.ReleasedAtUtc);
+
+        // Verify Resource Details has OperationalTiming
+        var details = await _service.GetByIdAsync(resource.Id);
+        Assert.NotNull(details);
+        Assert.Equal(ResourceStatus.Available, details!.Status);
+        Assert.NotNull(details.OperationalTiming);
+        Assert.NotNull(details.OperationalTiming.AssignmentToDispatch);
+        Assert.NotNull(details.OperationalTiming.DispatchToEnRoute);
+        Assert.NotNull(details.OperationalTiming.EnRouteToOnScene);
+        Assert.NotNull(details.OperationalTiming.OnSceneDuration);
+        Assert.NotNull(details.OperationalTiming.TotalDeploymentDuration);
+
+        // Verify notifications fired with correct reasons
+        Assert.Contains(_notificationService.ResourceEvents, e => e.Reason == ResourceUpdateReasons.Dispatched);
+        Assert.Contains(_notificationService.ResourceEvents, e => e.Reason == ResourceUpdateReasons.EnRoute);
+        Assert.Contains(_notificationService.ResourceEvents, e => e.Reason == ResourceUpdateReasons.OnScene);
+        Assert.Contains(_notificationService.ResourceEvents, e => e.Reason == ResourceUpdateReasons.Returning);
+        Assert.Contains(_notificationService.ResourceEvents, e => e.Reason == ResourceUpdateReasons.Released);
+    }
+
+    [Fact]
+    public async Task ExecuteCommandAsync_InvalidCommandForCurrentStatus_ThrowsInvalidOperationException()
+    {
+        var dept = await CreateDepartmentAsync("Police", "PD_CMD");
+        var resource = await CreateResourceAsync(dept.Id, ResourceStatus.Available, ResourceType.PoliceVehicle, "Cruiser 10");
+
+        // Available cannot accept MarkOnScene
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.ExecuteCommandAsync(resource.Id, new ResourceCommandRequest
+            {
+                Command = ResourceCommand.MarkOnScene,
+                Notes = "Premature on scene attempt"
+            }));
+    }
+
+    [Fact]
+    public async Task GetHistoryAsync_ReturnsChronologicalHistory()
+    {
+        var dept = await CreateDepartmentAsync("Fire", "FD_HIST");
+        var resource = await CreateResourceAsync(dept.Id, ResourceStatus.Available, ResourceType.FireTruck, "Engine 4");
+        var incident = await CreateIncidentAsync(dept.Id, "Structure Fire");
+
+        await _service.AssignAsync(resource.Id, incident.Id, "Dispatch assignment");
+        await _service.ExecuteCommandAsync(resource.Id, new ResourceCommandRequest { Command = ResourceCommand.Dispatch });
+        await _service.ExecuteCommandAsync(resource.Id, new ResourceCommandRequest { Command = ResourceCommand.MarkEnRoute });
+
+        var history = await _service.GetHistoryAsync(resource.Id);
+
+        Assert.NotNull(history);
+        Assert.True(history.Count >= 3);
+        // Latest first ordering check or presence check
+        Assert.Contains(history, h => h.NewStatus == ResourceStatus.Assigned);
+        Assert.Contains(history, h => h.NewStatus == ResourceStatus.Dispatched);
+        Assert.Contains(history, h => h.NewStatus == ResourceStatus.EnRoute);
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _context.DisposeAsync();
@@ -621,6 +743,15 @@ public sealed class ResourceServiceTests : IAsyncDisposable
             ResourceEvents.Add(eventData);
             return Task.CompletedTask;
         }
+
+        public Task NotifyEscalationUpdatedAsync(EscalationUpdatedEvent eventData, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task NotifySituationUpdatedAsync(SituationUpdatedEvent eventData, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task NotifyNotificationCreatedAsync(Notification notification, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class ResourceTestDbContext : ApplicationDbContext

@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 using EmergencyResponse.Application.Common.Geo;
+using EmergencyResponse.Application.Escalation;
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Application.Realtime;
 using EmergencyResponse.Application.Resources;
@@ -21,19 +22,22 @@ public sealed class ResourceService : IResourceService
     private readonly IIncidentNotificationService _notificationService;
     private readonly ILogger<ResourceService> _logger;
     private readonly ResourceRecommendationOptions _options;
+    private readonly IIncidentEscalationService? _escalationService;
 
     public ResourceService(
         ApplicationDbContext db,
         ICurrentUserService currentUserService,
         IIncidentNotificationService notificationService,
         ILogger<ResourceService> logger,
-        IOptions<ResourceRecommendationOptions>? options = null)
+        IOptions<ResourceRecommendationOptions>? options = null,
+        IIncidentEscalationService? escalationService = null)
     {
         _db = db;
         _currentUserService = currentUserService;
         _notificationService = notificationService;
         _logger = logger;
         _options = options?.Value ?? new ResourceRecommendationOptions();
+        _escalationService = escalationService;
     }
 
     public async Task<IReadOnlyList<ResourceDetailsResponse>> GetResourcesAsync(
@@ -57,7 +61,7 @@ public sealed class ResourceService : IResourceService
         var resource = await _db.Resources
             .AsNoTracking()
             .Include(r => r.Department)
-            .Include(r => r.Assignments.Where(a => a.IsActive))
+            .Include(r => r.Assignments)
                 .ThenInclude(a => a.Incident)
             .SingleOrDefaultAsync(r => r.Id == resourceId, cancellationToken);
 
@@ -75,10 +79,12 @@ public sealed class ResourceService : IResourceService
             {
                 PreviousStatus = h.PreviousStatus,
                 NewStatus = h.NewStatus,
+                IncidentId = h.IncidentId,
+                IncidentNumber = h.Incident != null ? h.Incident.IncidentNumber : null,
                 Reason = h.Reason,
                 ChangedByUserId = h.ChangedByUserId,
-                ChangedAtUtc = h.ChangedAtUtc,
-                IncidentNumber = h.Incident != null ? h.Incident.IncidentNumber : null
+                ChangedByUserName = h.ChangedByUserId,
+                ChangedAtUtc = h.ChangedAtUtc
             })
             .ToListAsync(cancellationToken);
 
@@ -306,6 +312,18 @@ public sealed class ResourceService : IResourceService
             },
             cancellationToken);
 
+        if (_escalationService != null)
+        {
+            try
+            {
+                await _escalationService.EvaluateIncidentAsync(incidentId, null, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to evaluate escalation after assignment for incident {IncidentId}", incidentId);
+            }
+        }
+
         return new ResourceAssignmentResult
         {
             AssignmentId = assignment.Id,
@@ -521,11 +539,223 @@ public sealed class ResourceService : IResourceService
             cancellationToken);
     }
 
+    public async Task<ResourceCommandResult> ExecuteCommandAsync(
+        Guid resourceId,
+        ResourceCommandRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var resource = await _db.Resources
+            .SingleOrDefaultAsync(
+                x => x.Id == resourceId,
+                cancellationToken);
+
+        if (resource is null)
+        {
+            throw new KeyNotFoundException("Resource not found.");
+        }
+
+        var assignment = await _db.ResourceAssignments
+            .Include(x => x.Incident)
+            .Where(x => x.ResourceId == resourceId && x.IsActive)
+            .OrderByDescending(x => x.AssignedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (assignment is null)
+        {
+            throw new InvalidOperationException("The resource has no active assignment.");
+        }
+
+        var previousStatus = resource.Status;
+
+        var targetStatus = ResourceCommandRules.GetTargetStatus(
+            previousStatus,
+            request.Command);
+
+        if (!ResourceStatusTransitionRules.IsAllowed(
+                previousStatus,
+                targetStatus))
+        {
+            throw new InvalidOperationException(
+                $"Transition from {previousStatus} to {targetStatus} is not allowed.");
+        }
+
+        var now = DateTime.UtcNow;
+
+        resource.Status = targetStatus;
+        resource.UpdatedAtUtc = now;
+
+        switch (targetStatus)
+        {
+            case ResourceStatus.Dispatched:
+                assignment.DispatchedAtUtc = now;
+                break;
+
+            case ResourceStatus.EnRoute:
+                assignment.EnRouteAtUtc = now;
+                break;
+
+            case ResourceStatus.OnScene:
+                assignment.OnSceneAtUtc = now;
+                break;
+
+            case ResourceStatus.Returning:
+                assignment.ReturningAtUtc = now;
+                break;
+
+            case ResourceStatus.Available:
+                assignment.ReleasedAtUtc = now;
+                assignment.IsActive = false;
+                assignment.Status = ResourceAssignmentStatus.Completed;
+                assignment.ReleaseNotes = request.Notes;
+                break;
+        }
+
+        _db.ResourceStatusHistories.Add(
+            new ResourceStatusHistory
+            {
+                Id = Guid.NewGuid(),
+                ResourceId = resourceId,
+                PreviousStatus = previousStatus,
+                NewStatus = targetStatus,
+                IncidentId = assignment.IncidentId,
+                ChangedAtUtc = now,
+                Reason = request.Notes,
+                ChangedByUserId = _currentUserService.UserId
+            });
+
+        _db.AuditLogs.Add(
+            new AuditLog
+            {
+                UserId = _currentUserService.UserId,
+                Action = "ResourceCommandExecuted",
+                EntityName = nameof(Resource),
+                EntityId = resourceId.ToString(),
+                NewValues = JsonSerializer.Serialize(new
+                {
+                    resourceId,
+                    incidentId = assignment.IncidentId,
+                    command = request.Command.ToString(),
+                    previousStatus = previousStatus.ToString(),
+                    newStatus = targetStatus.ToString(),
+                    notes = request.Notes,
+                    changedAtUtc = now
+                }),
+                OccurredAtUtc = now
+            });
+
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Concurrency conflict executing command {Command} on resource {ResourceId}.", request.Command, resourceId);
+            throw new ResourceConcurrencyException(
+                "The resource was changed by another operator. Refresh and try again.", ex);
+        }
+
+        var reason = targetStatus switch
+        {
+            ResourceStatus.Assigned => ResourceUpdateReasons.Assigned,
+            ResourceStatus.Dispatched => ResourceUpdateReasons.Dispatched,
+            ResourceStatus.EnRoute => ResourceUpdateReasons.EnRoute,
+            ResourceStatus.OnScene => ResourceUpdateReasons.OnScene,
+            ResourceStatus.Returning => ResourceUpdateReasons.Returning,
+            ResourceStatus.Available => ResourceUpdateReasons.Released,
+            _ => ResourceUpdateReasons.StatusChanged
+        };
+
+        await _notificationService.NotifyResourceUpdatedAsync(
+            new ResourceUpdatedEvent
+            {
+                ResourceId = resourceId,
+                IncidentId = assignment.IncidentId,
+                Reason = reason,
+                UpdatedAtUtc = now
+            },
+            cancellationToken);
+
+        var result = new ResourceCommandResult
+        {
+            ResourceId = resourceId,
+            IncidentId = assignment.IncidentId,
+            PreviousStatus = previousStatus,
+            NewStatus = targetStatus,
+            ChangedAtUtc = now,
+            AssignmentTimestampUtc = GetAssignmentTimestamp(assignment, targetStatus),
+            IncidentNumber = assignment.Incident?.IncidentNumber
+        };
+
+        if (_escalationService != null && assignment.IncidentId != Guid.Empty)
+        {
+            try
+            {
+                await _escalationService.EvaluateIncidentAsync(assignment.IncidentId, null, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to evaluate escalation after resource command for incident {IncidentId}", assignment.IncidentId);
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<IReadOnlyList<ResourceStatusHistoryItem>> GetHistoryAsync(
+        Guid resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        var exists = await _db.Resources.AnyAsync(r => r.Id == resourceId, cancellationToken);
+        if (!exists)
+        {
+            throw new KeyNotFoundException("Resource not found.");
+        }
+
+        var history = await _db.ResourceStatusHistories
+            .AsNoTracking()
+            .Include(h => h.Incident)
+            .Where(h => h.ResourceId == resourceId)
+            .OrderByDescending(h => h.ChangedAtUtc)
+            .Select(h => new ResourceStatusHistoryItem
+            {
+                PreviousStatus = h.PreviousStatus,
+                NewStatus = h.NewStatus,
+                IncidentId = h.IncidentId,
+                IncidentNumber = h.Incident != null ? h.Incident.IncidentNumber : null,
+                Reason = h.Reason,
+                ChangedByUserId = h.ChangedByUserId,
+                ChangedByUserName = h.ChangedByUserId,
+                ChangedAtUtc = h.ChangedAtUtc
+            })
+            .ToListAsync(cancellationToken);
+
+        return history;
+    }
+
+    private static DateTime? GetAssignmentTimestamp(
+        ResourceAssignment assignment,
+        ResourceStatus status)
+    {
+        return status switch
+        {
+            ResourceStatus.Assigned => assignment.AssignedAtUtc,
+            ResourceStatus.Dispatched => assignment.DispatchedAtUtc,
+            ResourceStatus.EnRoute => assignment.EnRouteAtUtc,
+            ResourceStatus.OnScene => assignment.OnSceneAtUtc,
+            ResourceStatus.Returning => assignment.ReturningAtUtc,
+            ResourceStatus.Available => assignment.ReleasedAtUtc,
+            _ => null
+        };
+    }
+
     private static ResourceDetailsResponse MapToDetailsResponse(
         Resource r,
         IReadOnlyList<ResourceStatusHistoryItem>? history = null)
     {
-        var active = r.Assignments.FirstOrDefault(a => a.IsActive);
+        var active = r.Assignments.FirstOrDefault(a => a.IsActive)
+            ?? r.Assignments.OrderByDescending(a => a.AssignedAtUtc).FirstOrDefault();
 
         return new ResourceDetailsResponse
         {
@@ -549,7 +779,8 @@ public sealed class ResourceService : IResourceService
             ReturningAtUtc = active?.ReturningAtUtc,
             AssignedByUserId = active?.AssignedByUserId,
             AssignmentRemarks = active?.Remarks,
-            StatusHistory = history ?? []
+            StatusHistory = history ?? [],
+            OperationalTiming = active != null ? ResourceTimingCalculator.Calculate(active) : null
         };
     }
 

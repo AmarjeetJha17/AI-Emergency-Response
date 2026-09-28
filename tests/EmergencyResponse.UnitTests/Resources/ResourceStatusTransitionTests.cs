@@ -55,4 +55,25 @@ public sealed class ResourceStatusTransitionTests
         Assert.False(
             ResourceStatusTransitionRules.IsAllowed(current, next));
     }
+
+    [Fact]
+    public void FullOperationalLifecycle_ShouldBeValid()
+    {
+        var lifecycle = new[]
+        {
+            (ResourceStatus.Available, ResourceStatus.Assigned),
+            (ResourceStatus.Assigned, ResourceStatus.Dispatched),
+            (ResourceStatus.Dispatched, ResourceStatus.EnRoute),
+            (ResourceStatus.EnRoute, ResourceStatus.OnScene),
+            (ResourceStatus.OnScene, ResourceStatus.Returning),
+            (ResourceStatus.Returning, ResourceStatus.Available)
+        };
+
+        foreach (var (from, to) in lifecycle)
+        {
+            Assert.True(
+                ResourceStatusTransitionRules.IsAllowed(from, to),
+                $"Transition from {from} to {to} should be allowed in the operational lifecycle.");
+        }
+    }
 }

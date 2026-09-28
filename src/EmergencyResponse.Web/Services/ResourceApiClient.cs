@@ -213,4 +213,62 @@ public sealed class ResourceApiClient : IResourceApiClient
 
         return result ?? throw new InvalidOperationException("Empty response received from recommendations endpoint.");
     }
+
+    public async Task<ResourceCommandResult> ExecuteCommandAsync(
+        Guid resourceId,
+        ResourceCommandRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.PostAsJsonAsync(
+            $"api/resources/{resourceId}/command",
+            request,
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            var conflictMsg = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new ResourceConcurrencyException(conflictMsg);
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var err = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException($"Resource command failed: {err}", null, response.StatusCode);
+        }
+
+        var result = await response.Content
+            .ReadFromJsonAsync<ResourceCommandResult>(cancellationToken);
+
+        return result ?? throw new InvalidOperationException("Empty response received from command endpoint.");
+    }
+
+    public async Task<IReadOnlyList<ResourceStatusHistoryItem>> GetHistoryAsync(
+        Guid resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            $"api/resources/{resourceId}/history",
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new KeyNotFoundException("Resource not found.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<IReadOnlyList<ResourceStatusHistoryItem>>(cancellationToken)
+            ?? [];
+    }
 }

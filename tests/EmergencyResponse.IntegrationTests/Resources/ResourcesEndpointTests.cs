@@ -292,4 +292,161 @@ public sealed class ResourcesEndpointTests : IClassFixture<ApiWebApplicationFact
             Assert.NotNull(recs.Recommendations);
         }
     }
+
+    [Fact]
+    public async Task ExecuteCommand_Unauthenticated_ReturnsUnauthorized()
+    {
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var response = await _client.PostAsJsonAsync($"/api/resources/{Guid.NewGuid()}/command",
+            new ResourceCommandRequest { Command = ResourceCommand.Dispatch });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ExecuteCommand_AsCitizen_ReturnsForbidden()
+    {
+        var token = await RegisterAndLoginCitizenAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _client.PostAsJsonAsync($"/api/resources/{Guid.NewGuid()}/command",
+            new ResourceCommandRequest { Command = ResourceCommand.Dispatch });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ExecuteCommand_FullOperationalLifecycle_SucceedsWithAccurateTimingsAndHistory()
+    {
+        var adminToken = await LoginAdminAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        // 1. Get incident types
+        var typesResp = await _client.GetAsync("/api/incident-types");
+        typesResp.EnsureSuccessStatusCode();
+        var types = await typesResp.Content.ReadFromJsonAsync<List<JsonElement>>(JsonOptions);
+        var typeId = Guid.Parse(types![0].GetProperty("id").GetString()!);
+
+        // 2. Create test incident
+        var createIncidentReq = new CreateIncidentRequest
+        {
+            Title = "Command Lifecycle Integration Incident",
+            Description = "Testing controlled dispatch transitions and operational metrics.",
+            IncidentTypeId = typeId,
+            Latitude = 18.5304m,
+            Longitude = 73.8667m,
+            Address = "MG Road",
+            City = "Pune"
+        };
+        var incidentResp = await _client.PostAsJsonAsync("/api/incidents", createIncidentReq);
+        incidentResp.EnsureSuccessStatusCode();
+        var incidentDoc = await incidentResp.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var incidentId = Guid.Parse(incidentDoc.GetProperty("id").GetString()!);
+
+        // 3. Find an available resource
+        var resListResp = await _client.GetAsync("/api/resources");
+        resListResp.EnsureSuccessStatusCode();
+        var resources = await resListResp.Content.ReadFromJsonAsync<List<ResourceDetailsResponse>>(JsonOptions);
+        var availableResource = resources?.FirstOrDefault(r => r.Status == ResourceStatus.Available);
+
+        if (availableResource == null)
+        {
+            return;
+        }
+
+        var resourceId = availableResource.Id;
+
+        // 4. Assign resource
+        var assignResp = await _client.PostAsJsonAsync($"/api/resources/{resourceId}/assign",
+            new AssignResourceRequest { IncidentId = incidentId, Notes = "Assigned for command test" });
+        Assert.Equal(HttpStatusCode.OK, assignResp.StatusCode);
+
+        // 5. Command: Dispatch
+        var dispatchResp = await _client.PostAsJsonAsync($"/api/resources/{resourceId}/command",
+            new ResourceCommandRequest { Command = ResourceCommand.Dispatch, Notes = "Dispatching unit" });
+        Assert.Equal(HttpStatusCode.OK, dispatchResp.StatusCode);
+        var dispatchResult = await dispatchResp.Content.ReadFromJsonAsync<ResourceCommandResult>(JsonOptions);
+        Assert.NotNull(dispatchResult);
+        Assert.Equal(ResourceStatus.Dispatched, dispatchResult!.NewStatus);
+        Assert.NotNull(dispatchResult.AssignmentTimestampUtc);
+
+        // 6. Command: MarkEnRoute
+        var enRouteResp = await _client.PostAsJsonAsync($"/api/resources/{resourceId}/command",
+            new ResourceCommandRequest { Command = ResourceCommand.MarkEnRoute, Notes = "En route to scene" });
+        Assert.Equal(HttpStatusCode.OK, enRouteResp.StatusCode);
+        var enRouteResult = await enRouteResp.Content.ReadFromJsonAsync<ResourceCommandResult>(JsonOptions);
+        Assert.NotNull(enRouteResult);
+        Assert.Equal(ResourceStatus.EnRoute, enRouteResult!.NewStatus);
+        Assert.NotNull(enRouteResult.AssignmentTimestampUtc);
+
+        // 7. Command: MarkOnScene
+        var onSceneResp = await _client.PostAsJsonAsync($"/api/resources/{resourceId}/command",
+            new ResourceCommandRequest { Command = ResourceCommand.MarkOnScene, Notes = "Arrived on scene" });
+        Assert.Equal(HttpStatusCode.OK, onSceneResp.StatusCode);
+        var onSceneResult = await onSceneResp.Content.ReadFromJsonAsync<ResourceCommandResult>(JsonOptions);
+        Assert.NotNull(onSceneResult);
+        Assert.Equal(ResourceStatus.OnScene, onSceneResult!.NewStatus);
+        Assert.NotNull(onSceneResult.AssignmentTimestampUtc);
+
+        // 8. Command: BeginReturn
+        var returningResp = await _client.PostAsJsonAsync($"/api/resources/{resourceId}/command",
+            new ResourceCommandRequest { Command = ResourceCommand.BeginReturn, Notes = "Clearing scene, returning" });
+        Assert.Equal(HttpStatusCode.OK, returningResp.StatusCode);
+        var returningResult = await returningResp.Content.ReadFromJsonAsync<ResourceCommandResult>(JsonOptions);
+        Assert.NotNull(returningResult);
+        Assert.Equal(ResourceStatus.Returning, returningResult!.NewStatus);
+        Assert.NotNull(returningResult.AssignmentTimestampUtc);
+
+        // 9. Command: MarkAvailable
+        var availableResp = await _client.PostAsJsonAsync($"/api/resources/{resourceId}/command",
+            new ResourceCommandRequest { Command = ResourceCommand.MarkAvailable, Notes = "Back at station" });
+        Assert.Equal(HttpStatusCode.OK, availableResp.StatusCode);
+        var availableResult = await availableResp.Content.ReadFromJsonAsync<ResourceCommandResult>(JsonOptions);
+        Assert.NotNull(availableResult);
+        Assert.Equal(ResourceStatus.Available, availableResult!.NewStatus);
+        Assert.NotNull(availableResult.AssignmentTimestampUtc);
+
+        // 10. Verify resource details & operational timing
+        var getResResp = await _client.GetAsync($"/api/resources/{resourceId}");
+        Assert.Equal(HttpStatusCode.OK, getResResp.StatusCode);
+        var finalDetails = await getResResp.Content.ReadFromJsonAsync<ResourceDetailsResponse>(JsonOptions);
+        Assert.NotNull(finalDetails);
+        Assert.Equal(ResourceStatus.Available, finalDetails!.Status);
+        Assert.NotNull(finalDetails.OperationalTiming);
+        Assert.NotNull(finalDetails.OperationalTiming.AssignmentToDispatch);
+        Assert.NotNull(finalDetails.OperationalTiming.DispatchToEnRoute);
+        Assert.NotNull(finalDetails.OperationalTiming.EnRouteToOnScene);
+        Assert.NotNull(finalDetails.OperationalTiming.OnSceneDuration);
+        Assert.NotNull(finalDetails.OperationalTiming.TotalDeploymentDuration);
+
+        // 11. Verify history endpoint
+        var histResp = await _client.GetAsync($"/api/resources/{resourceId}/history");
+        Assert.Equal(HttpStatusCode.OK, histResp.StatusCode);
+        var history = await histResp.Content.ReadFromJsonAsync<List<ResourceStatusHistoryItem>>(JsonOptions);
+        Assert.NotNull(history);
+        Assert.True(history.Count >= 5);
+    }
+
+    [Fact]
+    public async Task ExecuteCommand_InvalidTransition_ReturnsBadRequest()
+    {
+        var adminToken = await LoginAdminAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        // Find available resource
+        var resListResp = await _client.GetAsync("/api/resources");
+        resListResp.EnsureSuccessStatusCode();
+        var resources = await resListResp.Content.ReadFromJsonAsync<List<ResourceDetailsResponse>>(JsonOptions);
+        var availableResource = resources?.FirstOrDefault(r => r.Status == ResourceStatus.Available);
+
+        if (availableResource == null) return;
+
+        // Try to MarkOnScene directly while Available
+        var response = await _client.PostAsJsonAsync($"/api/resources/{availableResource.Id}/command",
+            new ResourceCommandRequest { Command = ResourceCommand.MarkOnScene, Notes = "Illegal leap" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
+

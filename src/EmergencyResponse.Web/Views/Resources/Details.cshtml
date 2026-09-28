@@ -4,6 +4,19 @@
     ViewData["Title"] = $"Resource Details - {Model.Name}";
 }
 
+@functions {
+    private static string FormatDuration(TimeSpan? duration)
+    {
+        if (!duration.HasValue) return "—";
+        var d = duration.Value;
+        if (d.TotalHours >= 1)
+            return $"{(int)d.TotalHours}h {d.Minutes}m {d.Seconds}s";
+        if (d.TotalMinutes >= 1)
+            return $"{d.Minutes}m {d.Seconds}s";
+        return $"{d.Seconds}s";
+    }
+}
+
 <div class="container-fluid py-3">
     @Html.AntiForgeryToken()
 
@@ -47,6 +60,35 @@
         </div>
 
         <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+            @switch (Model.Status)
+            {
+                case EmergencyResponse.Domain.Enums.ResourceStatus.Assigned:
+                    <button type="button" class="btn btn-primary btn-sm fw-semibold" onclick="executeDetailCommand('@Model.Id', 'Dispatch', 'Dispatch this resource?')">
+                        <i class="bi bi-send me-1"></i>Dispatch Unit
+                    </button>
+                    break;
+                case EmergencyResponse.Domain.Enums.ResourceStatus.Dispatched:
+                    <button type="button" class="btn btn-info btn-sm text-dark fw-semibold" onclick="executeDetailCommand('@Model.Id', 'MarkEnRoute', 'Mark this resource as En Route?')">
+                        <i class="bi bi-truck me-1"></i>Mark En Route
+                    </button>
+                    break;
+                case EmergencyResponse.Domain.Enums.ResourceStatus.EnRoute:
+                    <button type="button" class="btn btn-danger btn-sm fw-semibold" onclick="executeDetailCommand('@Model.Id', 'MarkOnScene', 'Confirm that this resource is On Scene?')">
+                        <i class="bi bi-check-circle me-1"></i>Mark On Scene
+                    </button>
+                    break;
+                case EmergencyResponse.Domain.Enums.ResourceStatus.OnScene:
+                    <button type="button" class="btn btn-secondary btn-sm fw-semibold" onclick="executeDetailCommand('@Model.Id', 'BeginReturn', 'Begin resource return?')">
+                        <i class="bi bi-arrow-return-left me-1"></i>Begin Return
+                    </button>
+                    break;
+                case EmergencyResponse.Domain.Enums.ResourceStatus.Returning:
+                    <button type="button" class="btn btn-success btn-sm fw-semibold" onclick="executeDetailCommand('@Model.Id', 'MarkAvailable', 'Mark this resource Available?')">
+                        <i class="bi bi-check2-all me-1"></i>Mark Available
+                    </button>
+                    break;
+            }
+
             @if (Model.Latitude.HasValue && Model.Longitude.HasValue)
             {
                 <a href="/Map?resourceId=@Model.Id" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">
@@ -200,6 +242,48 @@
                             </div>
                         </div>
 
+                        @if (Model.OperationalTiming != null)
+                        {
+                            <div class="mb-3 pt-2 border-top">
+                                <label class="small text-muted fw-semibold mb-2">Operational Response Timings</label>
+                                <div class="row g-2 small">
+                                    <div class="col-6">
+                                        <div class="p-2 border rounded bg-light">
+                                            <span class="text-muted d-block" style="font-size: 0.75rem;">Assigned &rarr; Dispatched</span>
+                                            <strong class="text-primary">@(FormatDuration(Model.OperationalTiming.AssignmentToDispatch))</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="p-2 border rounded bg-light">
+                                            <span class="text-muted d-block" style="font-size: 0.75rem;">Dispatched &rarr; En Route</span>
+                                            <strong class="text-info">@(FormatDuration(Model.OperationalTiming.DispatchToEnRoute))</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="p-2 border rounded bg-light">
+                                            <span class="text-muted d-block" style="font-size: 0.75rem;">En Route &rarr; On Scene</span>
+                                            <strong class="text-warning-emphasis">@(FormatDuration(Model.OperationalTiming.EnRouteToOnScene))</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="p-2 border rounded bg-light">
+                                            <span class="text-muted d-block" style="font-size: 0.75rem;">On Scene Duration</span>
+                                            <strong class="text-danger">@(FormatDuration(Model.OperationalTiming.OnSceneDuration))</strong>
+                                        </div>
+                                    </div>
+                                    @if (Model.OperationalTiming.TotalDeploymentDuration.HasValue)
+                                    {
+                                        <div class="col-12">
+                                            <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center">
+                                                <span class="text-muted" style="font-size: 0.75rem;">Total Mission Duration</span>
+                                                <strong class="text-success">@(FormatDuration(Model.OperationalTiming.TotalDeploymentDuration))</strong>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
                         @if (!string.IsNullOrEmpty(Model.AssignmentRemarks))
                         {
                             <div class="p-2 bg-light rounded small mb-3">
@@ -277,3 +361,45 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        async function executeDetailCommand(resourceId, command, confirmMessage) {
+            if (!confirm(confirmMessage || 'Execute operational command?')) {
+                return;
+            }
+
+            var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+            try {
+                var response = await fetch('/Resources/Command', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': token
+                    },
+                    body: JSON.stringify({
+                        resourceId: resourceId,
+                        command: command,
+                        notes: null
+                    })
+                });
+
+                if (response.status === 409) {
+                    alert('The resource was modified by another operator. Reloading latest details.');
+                    window.location.reload();
+                    return;
+                }
+
+                if (!response.ok) {
+                    var msg = await response.text();
+                    alert(msg || 'Resource command failed.');
+                    return;
+                }
+
+                window.location.reload();
+            } catch (err) {
+                alert('Network or server error executing command.');
+            }
+        }
+    </script>
+}

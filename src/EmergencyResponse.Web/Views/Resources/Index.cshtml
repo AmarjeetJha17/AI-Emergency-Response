@@ -291,6 +291,51 @@
     </e-content-template>
 </ejs-dialog>
 
+<!-- Dispatch Command Confirmation Dialog -->
+<ejs-dialog id="resourceCommandDialog"
+            width="460px"
+            showCloseIcon="true"
+            visible="false"
+            isModal="true"
+            header="Confirm Operational Dispatch Command">
+    <e-content-template>
+        <div id="commandDialogBody" class="p-2">
+            <div id="commandAlertContainer"></div>
+
+            <div class="mb-3">
+                <label class="form-label text-muted small mb-1">Resource Unit</label>
+                <div class="fw-bold fs-6" id="commandTargetName">-</div>
+                <div class="small text-muted" id="commandIncidentContainer">
+                    Active Incident: <span class="fw-semibold text-primary" id="commandTargetIncident">-</span>
+                </div>
+            </div>
+
+            <div class="mb-3 p-2 bg-light rounded border">
+                <div class="small text-muted mb-1">Target Operational State:</div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary fs-6" id="commandTargetBadge">-</span>
+                </div>
+            </div>
+
+            <input type="hidden" id="commandResourceId" value="" />
+            <input type="hidden" id="commandActionType" value="" />
+
+            <div class="mb-3">
+                <label for="commandNotes" class="form-label fw-semibold small">Operational Notes / Reason (Optional)</label>
+                <textarea id="commandNotes" class="form-control form-control-sm" rows="3" placeholder="Optional remarks e.g., 'Arrived west entrance', 'Patient handover completed'"></textarea>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-2 border-top">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="closeCommandDialog()">Cancel</button>
+                <button type="button" id="btnSubmitCommand" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" onclick="submitResourceCommand()">
+                    <span id="commandSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                    <span id="commandSubmitLabel">Confirm Command</span>
+                </button>
+            </div>
+        </div>
+    </e-content-template>
+</ejs-dialog>
+
 <!-- Grid Column Templates -->
 <script id="resourceStatusTemplate" type="text/x-template">
     ${if(Status == "Available" || Status == 0)}
@@ -343,8 +388,28 @@
             <button type="button" class="btn btn-outline-success py-0 px-2" onclick="openAssignModal('${Id}', '${Name}', '${DepartmentName}')">
                 Assign
             </button>
+        ${else if(Status == "Assigned" || Status == 1)}
+            <button type="button" class="btn btn-outline-primary py-0 px-2 fw-semibold" onclick="openCommandModal('${Id}', '${Name}', 'Dispatch', 'Dispatched', '${ActiveIncidentNumber}')">
+                Dispatch
+            </button>
+        ${else if(Status == "Dispatched" || Status == 2)}
+            <button type="button" class="btn btn-outline-info text-dark py-0 px-2 fw-semibold" onclick="openCommandModal('${Id}', '${Name}', 'MarkEnRoute', 'En Route', '${ActiveIncidentNumber}')">
+                En Route
+            </button>
+        ${else if(Status == "EnRoute" || Status == 3)}
+            <button type="button" class="btn btn-outline-danger py-0 px-2 fw-semibold" onclick="openCommandModal('${Id}', '${Name}', 'MarkOnScene', 'On Scene', '${ActiveIncidentNumber}')">
+                On Scene
+            </button>
+        ${else if(Status == "OnScene" || Status == 4)}
+            <button type="button" class="btn btn-outline-secondary py-0 px-2 fw-semibold" onclick="openCommandModal('${Id}', '${Name}', 'BeginReturn', 'Returning', '${ActiveIncidentNumber}')">
+                Begin Return
+            </button>
+        ${else if(Status == "Returning" || Status == 5)}
+            <button type="button" class="btn btn-outline-success py-0 px-2 fw-semibold" onclick="openCommandModal('${Id}', '${Name}', 'MarkAvailable', 'Available', '${ActiveIncidentNumber}')">
+                Available
+            </button>
         ${else}
-            <button type="button" class="btn btn-outline-primary py-0 px-2" onclick="openStatusModal('${Id}', '${Name}', '${Status}', '${ActiveIncidentId}')">
+            <button type="button" class="btn btn-outline-secondary py-0 px-2" onclick="openStatusModal('${Id}', '${Name}', '${Status}', '${ActiveIncidentId}')">
                 Update
             </button>
         ${/if}
@@ -704,6 +769,96 @@
                     }
                 } catch (err) {
                     alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">Network or server error during status transition.</div>';
+                } finally {
+                    spinner.classList.add('d-none');
+                    btn.disabled = false;
+                }
+            };
+
+            // ── Dispatch Command Modal Logic ────────────────────────────────────
+            window.openCommandModal = function (resourceId, resourceName, command, targetStatusText, incidentNumber) {
+                var alertContainer = document.getElementById('commandAlertContainer');
+                if (alertContainer) alertContainer.innerHTML = '';
+
+                document.getElementById('commandResourceId').value = resourceId;
+                document.getElementById('commandActionType').value = command;
+                document.getElementById('commandTargetName').textContent = resourceName;
+                document.getElementById('commandTargetIncident').textContent = incidentNumber && incidentNumber !== 'null' ? incidentNumber : 'Unassigned';
+                document.getElementById('commandNotes').value = '';
+
+                var targetBadge = document.getElementById('commandTargetBadge');
+                if (targetBadge) {
+                    targetBadge.textContent = targetStatusText;
+                    var badgeClass = 'bg-primary';
+                    if (targetStatusText === 'Dispatched') badgeClass = 'bg-info text-dark';
+                    else if (targetStatusText === 'En Route') badgeClass = 'bg-warning text-dark';
+                    else if (targetStatusText === 'On Scene') badgeClass = 'bg-danger';
+                    else if (targetStatusText === 'Returning') badgeClass = 'bg-secondary';
+                    else if (targetStatusText === 'Available') badgeClass = 'bg-success';
+                    targetBadge.className = 'badge fs-6 ' + badgeClass;
+                }
+
+                var submitLabel = document.getElementById('commandSubmitLabel');
+                if (submitLabel) {
+                    submitLabel.textContent = 'Confirm ' + (command === 'Dispatch' ? 'Dispatch' :
+                                                           command === 'MarkEnRoute' ? 'En Route' :
+                                                           command === 'MarkOnScene' ? 'On Scene' :
+                                                           command === 'BeginReturn' ? 'Return' :
+                                                           command === 'MarkAvailable' ? 'Available' : 'Command');
+                }
+
+                var dialogEl = document.getElementById('resourceCommandDialog');
+                var dialog = dialogEl?.ej2_instances?.[0];
+                if (dialog) dialog.show();
+            };
+
+            window.closeCommandDialog = function () {
+                var dialogEl = document.getElementById('resourceCommandDialog');
+                var dialog = dialogEl?.ej2_instances?.[0];
+                if (dialog) dialog.hide();
+            };
+
+            window.submitResourceCommand = async function () {
+                var resourceId = document.getElementById('commandResourceId').value;
+                var command = document.getElementById('commandActionType').value;
+                var notes = document.getElementById('commandNotes').value;
+                var alertContainer = document.getElementById('commandAlertContainer');
+
+                var spinner = document.getElementById('commandSpinner');
+                var btn = document.getElementById('btnSubmitCommand');
+                spinner.classList.remove('d-none');
+                btn.disabled = true;
+
+                try {
+                    var response = await fetch('/Resources/Command', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            resourceId: resourceId,
+                            command: command,
+                            notes: notes ? notes : null
+                        })
+                    });
+
+                    if (response.status === 409) {
+                        closeCommandDialog();
+                        await refreshCommandCenter();
+                        alert("The resource was changed by another operator. The latest fleet state has been reloaded.");
+                        return;
+                    }
+
+                    var result = await response.json();
+                    if (response.ok && result.success) {
+                        closeCommandDialog();
+                        await refreshCommandCenter();
+                    } else {
+                        alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">' + (result.message || 'Resource command failed.') + '</div>';
+                    }
+                } catch (err) {
+                    alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">Network or server error during command execution.</div>';
                 } finally {
                     spinner.classList.add('d-none');
                     btn.disabled = false;
