@@ -1,0 +1,533 @@
+@model EmergencyResponse.Application.Situations.DTOs.OperationalSituationResponse
+
+@{
+    ViewData["Title"] = $"Situation {Model.SituationNumber}";
+    var analysis = Model.LatestAnalysis;
+}
+
+<div class="container-fluid py-3" id="situationDetailsPage">
+    @Html.AntiForgeryToken()
+
+    <!-- Top Navigation Bar -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <div class="d-flex align-items-center gap-2">
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to Situations
+            </a>
+            <h2 class="h4 mb-0 fw-bold">@Model.SituationNumber</h2>
+            <span class="badge @(Model.Status == EmergencyResponse.Domain.Enums.EscalationStatus.Open ? "bg-warning text-dark" : "bg-success") px-2 py-1">
+                @Model.StatusName
+            </span>
+            <span class="badge @(Model.Level == EmergencyResponse.Domain.Enums.EscalationLevel.Critical ? "bg-danger" : (Model.Level == EmergencyResponse.Domain.Enums.EscalationLevel.High ? "bg-warning text-dark" : "bg-primary")) px-2 py-1">
+                @Model.LevelName
+            </span>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+            <a href="/Map?situationId=@Model.Id" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-geo-alt me-1"></i>View Cluster on Map
+            </a>
+            @if (Model.Status == EmergencyResponse.Domain.Enums.EscalationStatus.Open)
+            {
+                <button type="button" class="btn btn-info btn-sm text-dark" id="btnAcknowledgeDirect">
+                    <i class="bi bi-check2 me-1"></i>Acknowledge
+                </button>
+                @if (Model.RequiresHumanReview)
+                {
+                    <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#reviewModal">
+                        <i class="bi bi-check2-square me-1"></i>Review Situation
+                    </button>
+                }
+            }
+            @if (Model.Status == EmergencyResponse.Domain.Enums.EscalationStatus.Open || Model.Status == EmergencyResponse.Domain.Enums.EscalationStatus.Acknowledged)
+            {
+                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#resolveModal">
+                    <i class="bi bi-check-circle me-1"></i>Resolve Situation
+                </button>
+                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#dismissModal">
+                    <i class="bi bi-x-circle me-1"></i>Dismiss
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- Title & Description -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-body">
+            <h3 class="h5 fw-bold text-dark mb-2">@Model.Title</h3>
+            <p class="text-muted mb-3">@(Model.Summary ?? "No operational summary recorded.")</p>
+
+            <div class="row g-3 align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="small fw-semibold text-muted">Situation Severity Score</span>
+                        <span class="small fw-bold text-dark">@(Model.SituationScore?.ToString("F1") ?? "0.0") / 100</span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar @(Model.SituationScore >= 75 ? "bg-danger" : (Model.SituationScore >= 50 ? "bg-warning" : "bg-primary"))"
+                             role="progressbar"
+                             style="width: @(Math.Min(100, Model.SituationScore ?? 0))%"
+                             aria-valuenow="@(Model.SituationScore ?? 0)"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 text-md-end text-muted small">
+                    <div>Last Evaluated: <strong>@(Model.LastEvaluatedAtUtc?.ToString("yyyy-MM-dd HH:mm:ss UTC") ?? "Never")</strong></div>
+                    <div>Last AI Snapshot: <strong>@(Model.LastAIAnalysisAtUtc?.ToString("yyyy-MM-dd HH:mm:ss UTC") ?? "Never")</strong></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overview KPI Grid -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 border-start border-4 border-primary h-100">
+                <div class="card-body py-3">
+                    <div class="text-uppercase small text-muted fw-semibold">Member Incidents</div>
+                    <div class="fs-3 fw-bold text-primary">@Model.IncidentCount</div>
+                    <div class="small text-muted">@Model.CriticalIncidentCount Critical, @Model.HighIncidentCount High</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 border-start border-4 border-warning h-100">
+                <div class="card-body py-3">
+                    <div class="text-uppercase small text-muted fw-semibold">People Affected</div>
+                    <div class="fs-3 fw-bold text-dark">@Model.PeopleAffected</div>
+                    <div class="small text-muted">Across all member zones</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 border-start border-4 border-danger h-100">
+                <div class="card-body py-3">
+                    <div class="text-uppercase small text-muted fw-semibold">Reported Casualties</div>
+                    <div class="fs-3 fw-bold text-danger">@Model.Casualties</div>
+                    <div class="small text-muted">Requires urgent triage</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 border-start border-4 @(Model.ResourceShortageDetected ? "border-danger" : "border-success") h-100">
+                <div class="card-body py-3">
+                    <div class="text-uppercase small text-muted fw-semibold">Resource Availability</div>
+                    <div class="fs-4 fw-bold @(Model.ResourceShortageDetected ? "text-danger" : "text-success")">
+                        @(Model.ResourceShortageDetected ? "Shortage Detected" : "Adequate")
+                    </div>
+                    <div class="small text-muted">Based on department requirements</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Situation Assessment (GPT-5-mini) -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-robot text-primary fs-5"></i>
+                <h4 class="h6 mb-0 fw-bold">AI Situational Intelligence & Advisory Recommendations</h4>
+            </div>
+            @if (analysis != null)
+            {
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary-subtle text-dark border">
+                        Trajectory: @analysis.RiskTrajectory
+                    </span>
+                    <span class="badge bg-info-subtle text-info border border-info">
+                        Confidence: @((analysis.Confidence * 100).ToString("F0"))%
+                    </span>
+                </div>
+            }
+        </div>
+        <div class="card-body">
+            @if (analysis != null)
+            {
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <h5 class="small text-uppercase fw-bold text-primary mb-2"><i class="bi bi-binoculars me-1"></i>Key Observations & Patterns</h5>
+                            @if (analysis.KeyObservations.Any())
+                            {
+                                <ul class="list-group list-group-flush">
+                                    @foreach (var obs in analysis.KeyObservations)
+                                    {
+                                        <li class="list-group-item px-0 py-1 border-0 small text-secondary">
+                                            <i class="bi bi-dot text-primary fs-5 align-middle"></i>@obs
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <div class="text-muted small">None reported.</div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <h5 class="small text-uppercase fw-bold text-danger mb-2"><i class="bi bi-exclamation-triangle me-1"></i>Main Hazards</h5>
+                            @if (analysis.MainHazards.Any())
+                            {
+                                <ul class="list-group list-group-flush">
+                                    @foreach (var hazard in analysis.MainHazards)
+                                    {
+                                        <li class="list-group-item px-0 py-1 border-0 small text-secondary">
+                                            <i class="bi bi-arrow-right-short text-danger fs-5 align-middle"></i>@hazard
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <div class="text-muted small">No specific main hazards listed.</div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <h5 class="small text-uppercase fw-bold text-warning mb-2"><i class="bi bi-shield-exclamation me-1"></i>Operational Concerns</h5>
+                            @if (analysis.OperationalConcerns.Any())
+                            {
+                                <ul class="list-group list-group-flush">
+                                    @foreach (var concern in analysis.OperationalConcerns)
+                                    {
+                                        <li class="list-group-item px-0 py-1 border-0 small text-secondary">
+                                            <i class="bi bi-dash text-warning fs-5 align-middle"></i>@concern
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <div class="text-muted small">None reported.</div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <h5 class="small text-uppercase fw-bold text-success mb-2"><i class="bi bi-lightbulb me-1"></i>Recommended Focus (Advisory Only)</h5>
+                            @if (analysis.RecommendedActions.Any())
+                            {
+                                <ul class="list-group list-group-flush">
+                                    @foreach (var action in analysis.RecommendedActions)
+                                    {
+                                        <li class="list-group-item px-0 py-1 border-0 small text-secondary">
+                                            <i class="bi bi-check text-success fs-5 align-middle"></i>@action
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <div class="text-muted small">No specific actions recommended.</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-light border small mt-2 mb-0 text-muted">
+                    <i class="bi bi-info-circle me-1 text-primary"></i><strong>Advisory Notice:</strong>
+                    All situation summaries and recommended focuses are advisory only to support human operational decision making.
+                    Situations never automatically dispatch resources or issue public directives without operator confirmation.
+                </div>
+            }
+            else
+            {
+                <div class="text-muted p-3 text-center">
+                    <i class="bi bi-clock-history fs-3 d-block mb-2"></i>
+                    AI situation analysis is scheduled or in progress.
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Member Incidents Grid -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <span class="fw-bold text-dark fs-6"><i class="bi bi-collection-fill me-2 text-primary"></i>Correlated Incidents in Situation (@Model.Incidents.Count)</span>
+            <span class="text-muted small">Grouped by spatiotemporal proximity and continuous chain linkage</span>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small text-uppercase text-muted">
+                        <tr>
+                            <th>Incident #</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Severity</th>
+                            <th>Priority</th>
+                            <th>Coordinates</th>
+                            <th>Impact</th>
+                            <th>Role</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Incidents)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="fw-bold">@item.IncidentNumber</span>
+                                </td>
+                                <td>@item.Title</td>
+                                <td><span class="badge bg-light text-dark border">@(item.IncidentTypeName ?? "Unknown")</span></td>
+                                <td>
+                                    <span class="badge @(item.Severity == EmergencyResponse.Domain.Enums.SeverityLevel.Critical ? "bg-danger" : (item.Severity == EmergencyResponse.Domain.Enums.SeverityLevel.High ? "bg-warning text-dark" : "bg-secondary"))">
+                                        @item.Severity
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-dark border">@item.Priority</span>
+                                </td>
+                                <td class="small text-muted font-monospace">
+                                    @item.Latitude.ToString("F4"), @item.Longitude.ToString("F4")
+                                </td>
+                                <td class="small">
+                                    @item.PeopleAffected people
+                                    @if (item.Casualties > 0)
+                                    {
+                                        <span class="text-danger fw-bold">(@item.Casualties casualties)</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (item.IsPrimaryIncident)
+                                    {
+                                        <span class="badge bg-primary px-2 py-1"><i class="bi bi-star-fill me-1"></i>Primary Focal Point</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">Member</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <a href="/Incidents/Details/@item.IncidentId" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>Details
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="reviewModalLabel"><i class="bi bi-check2-square text-warning me-2"></i>Review Situation Assessment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="reviewDecision" class="form-label fw-semibold">Review Decision</label>
+                    <select id="reviewDecision" class="form-select">
+                        <option value="ConfirmedValid">Confirmed Valid Operational Cluster</option>
+                        <option value="RequiresMonitoring">Requires Continued Monitoring</option>
+                        <option value="EscalatedToCommand">Escalated to Command Center</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="reviewNotes" class="form-label fw-semibold">Operator Notes</label>
+                    <textarea id="reviewNotes" class="form-control" rows="3" placeholder="Enter observations or operational directives..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnSubmitReview">Confirm Review</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resolve Modal -->
+<div class="modal fade" id="resolveModal" tabindex="-1" aria-labelledby="resolveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="resolveModalLabel"><i class="bi bi-check-circle text-success me-2"></i>Resolve Operational Situation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info small">
+                    <i class="bi bi-info-circle-fill me-1"></i>
+                    <strong>Non-destructive boundary:</strong> Resolving this situation closes the high-level situation grouping. Member incidents will NOT be closed or altered.
+                </div>
+                <div class="mb-3">
+                    <label for="resolveNotes" class="form-label fw-semibold">Resolution Summary Notes</label>
+                    <textarea id="resolveNotes" class="form-control" rows="3" placeholder="Summary of situation containment and outcome..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success btn-sm" id="btnSubmitResolve">Resolve Situation</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dismiss Modal -->
+<div class="modal fade" id="dismissModal" tabindex="-1" aria-labelledby="dismissModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="dismissModalLabel"><i class="bi bi-x-circle text-danger me-2"></i>Dismiss Operational Situation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning small">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Dismissing marks this collection as unrelated or operational noise. Member incidents remain untouched.
+                </div>
+                <div class="mb-3">
+                    <label for="dismissNotes" class="form-label fw-semibold">Dismissal Reason</label>
+                    <textarea id="dismissNotes" class="form-control" rows="3" placeholder="Provide reason for dismissing this cluster..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger btn-sm" id="btnSubmitDismiss">Dismiss Situation</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const situationId = '@Model.Id';
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+            // Review action
+            const btnSubmitReview = document.getElementById('btnSubmitReview');
+            if (btnSubmitReview) {
+                btnSubmitReview.addEventListener('click', async function () {
+                    const decision = document.getElementById('reviewDecision').value;
+                    const notes = document.getElementById('reviewNotes').value;
+                    btnSubmitReview.disabled = true;
+
+                    try {
+                        const response = await fetch(`/Situations/Review/${situationId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': token
+                            },
+                            body: JSON.stringify({ decision: decision, notes: notes })
+                        });
+
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            const err = await response.json();
+                            alert('Review failed: ' + (err.message || 'Server error'));
+                            btnSubmitReview.disabled = false;
+                        }
+                    } catch (e) {
+                        alert('Error: ' + e.message);
+                        btnSubmitReview.disabled = false;
+                    }
+                });
+            }
+
+            // Acknowledge action
+            const btnAcknowledgeDirect = document.getElementById('btnAcknowledgeDirect');
+            if (btnAcknowledgeDirect) {
+                btnAcknowledgeDirect.addEventListener('click', async function () {
+                    if (!confirm('Acknowledge this situation cluster?')) return;
+                    btnAcknowledgeDirect.disabled = true;
+
+                    try {
+                        const response = await fetch(`/Situations/Acknowledge/${situationId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': token
+                            },
+                            body: JSON.stringify({ notes: 'Acknowledged from situation details.' })
+                        });
+
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            const err = await response.json();
+                            alert('Acknowledge failed: ' + (err.message || 'Server error'));
+                            btnAcknowledgeDirect.disabled = false;
+                        }
+                    } catch (e) {
+                        alert('Error: ' + e.message);
+                        btnAcknowledgeDirect.disabled = false;
+                    }
+                });
+            }
+
+            // Resolve action
+            const btnSubmitResolve = document.getElementById('btnSubmitResolve');
+            if (btnSubmitResolve) {
+                btnSubmitResolve.addEventListener('click', async function () {
+                    const notes = document.getElementById('resolveNotes').value;
+                    btnSubmitResolve.disabled = true;
+
+                    try {
+                        const response = await fetch(`/Situations/Resolve/${situationId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': token
+                            },
+                            body: JSON.stringify({ notes: notes })
+                        });
+
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            const err = await response.json();
+                            alert('Resolve failed: ' + (err.message || 'Server error'));
+                            btnSubmitResolve.disabled = false;
+                        }
+                    } catch (e) {
+                        alert('Error: ' + e.message);
+                        btnSubmitResolve.disabled = false;
+                    }
+                });
+            }
+
+            // Dismiss action
+            const btnSubmitDismiss = document.getElementById('btnSubmitDismiss');
+            if (btnSubmitDismiss) {
+                btnSubmitDismiss.addEventListener('click', async function () {
+                    const notes = document.getElementById('dismissNotes').value;
+                    btnSubmitDismiss.disabled = true;
+
+                    try {
+                        const response = await fetch(`/Situations/Dismiss/${situationId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': token
+                            },
+                            body: JSON.stringify({ notes: notes })
+                        });
+
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            const err = await response.json();
+                            alert('Dismiss failed: ' + (err.message || 'Server error'));
+                            btnSubmitDismiss.disabled = false;
+                        }
+                    } catch (e) {
+                        alert('Error: ' + e.message);
+                        btnSubmitDismiss.disabled = false;
+                    }
+                });
+            }
+        });
+    </script>
+}

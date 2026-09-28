@@ -1,0 +1,418 @@
+@model IReadOnlyList<EmergencyResponse.Application.Situations.DTOs.SituationCommandCenterItem>
+
+@{
+    ViewData["Title"] = "Situation Command Center";
+    var allItems = ViewBag.AllSituations as IReadOnlyList<EmergencyResponse.Application.Situations.DTOs.SituationCommandCenterItem> ?? Model ?? [];
+    var openCount = allItems.Count(s => s.Status == EmergencyResponse.Domain.Enums.EscalationStatus.Open || s.Status == EmergencyResponse.Domain.Enums.EscalationStatus.Acknowledged);
+    var criticalCount = allItems.Count(s => s.Level == EmergencyResponse.Domain.Enums.EscalationLevel.Critical);
+    var shortageCount = allItems.Count(s => s.ResourceShortageDetected);
+    var totalIncidents = allItems.Sum(s => s.IncidentCount);
+    var totalCasualties = allItems.Sum(s => s.Casualties);
+    var totalPeople = allItems.Sum(s => s.PeopleAffected);
+
+    var activeLevel = ViewBag.ActiveLevelFilter as string;
+    var activeShortage = ViewBag.ActiveResourceShortageFilter as bool?;
+    var isFiltered = !string.IsNullOrWhiteSpace(activeLevel) || activeShortage == true;
+}
+
+<div class="container-fluid py-3" id="situationCommandCenterPage">
+    @Html.AntiForgeryToken()
+
+    @if (ViewBag.ErrorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@ViewBag.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="h4 mb-0 fw-bold">Situation Command Center</h2>
+                <span id="situationLiveStatus" class="badge bg-success d-inline-flex align-items-center gap-1 px-2 py-1">
+                    <span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true" style="width: 0.5rem; height: 0.5rem;"></span> Live
+                </span>
+            </div>
+            <div class="text-muted small">Unified operational awareness, cross-incident escalation clustering, and real-time oversight</div>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+            <button id="btnEvaluate" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">
+                <span id="evaluatingSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                <i class="bi bi-cpu me-1"></i>Re-evaluate Clusters
+            </button>
+            <a asp-controller="Map" asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-geo-alt me-1"></i>Live Map
+            </a>
+            <a asp-controller="Dashboard" asp-action="Index" class="btn btn-primary btn-sm">
+                Incident Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Active Filter Indicator Banner -->
+    @if (isFiltered)
+    {
+        <div class="alert alert-info py-2 px-3 d-flex justify-content-between align-items-center mb-3">
+            <div class="small">
+                <i class="bi bi-funnel-fill me-1"></i>
+                <strong>Filtered View:</strong>
+                @if (!string.IsNullOrWhiteSpace(activeLevel))
+                {
+                    <span class="badge bg-primary me-2">Level: @activeLevel</span>
+                }
+                @if (activeShortage == true)
+                {
+                    <span class="badge bg-danger me-2">Resource Shortage: Yes</span>
+                }
+                Showing <strong>@Model.Count</strong> of <strong>@allItems.Count</strong> operational situations.
+            </div>
+            <a asp-action="Index" class="btn btn-sm btn-outline-dark">
+                Clear Filters
+            </a>
+        </div>
+    }
+
+    <!-- Operational KPI Cards (Clickable operational entry points) -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <a asp-action="Index" class="text-decoration-none">
+                <div class="card shadow-sm border-0 border-start border-4 border-warning h-100 kpi-card-hover">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-uppercase small text-muted fw-semibold">Open Situations</div>
+                                <div class="fs-2 fw-bold text-warning" id="kpiOpenSituations">@openCount</div>
+                                <div class="small text-muted">Active incident clusters</div>
+                            </div>
+                            <div class="rounded-circle p-3 bg-warning-subtle text-warning">
+                                <i class="bi bi-diagram-3 fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <a asp-action="Index" asp-route-level="Critical" class="text-decoration-none">
+                <div class="card shadow-sm border-0 border-start border-4 border-danger h-100 kpi-card-hover @(activeLevel?.Equals("Critical", StringComparison.OrdinalIgnoreCase) == true ? "bg-danger-subtle" : "")">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-uppercase small text-muted fw-semibold">Critical Situations</div>
+                                <div class="fs-2 fw-bold text-danger" id="kpiCriticalSituations">@criticalCount</div>
+                                <div class="small text-muted">Click to filter critical</div>
+                            </div>
+                            <div class="rounded-circle p-3 bg-danger-subtle text-danger">
+                                <i class="bi bi-fire fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <a asp-action="Index" asp-route-resourceShortage="true" class="text-decoration-none">
+                <div class="card shadow-sm border-0 border-start border-4 border-danger h-100 kpi-card-hover @(activeShortage == true ? "bg-danger-subtle" : "")">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-uppercase small text-muted fw-semibold">Resource Shortages</div>
+                                <div class="fs-2 fw-bold text-danger" id="kpiResourceShortages">@shortageCount</div>
+                                <div class="small text-muted">Click to filter shortages</div>
+                            </div>
+                            <div class="rounded-circle p-3 bg-danger-subtle text-danger">
+                                <i class="bi bi-shield-slash fs-4"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 border-start border-4 border-secondary h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-uppercase small text-muted fw-semibold">Human Impact</div>
+                            <div class="fs-2 fw-bold text-dark" id="kpiHumanImpact">@totalPeople <span class="fs-6 fw-normal text-danger">(@totalCasualties casualties)</span></div>
+                            <div class="small text-muted">Across @totalIncidents member incidents</div>
+                        </div>
+                        <div class="rounded-circle p-3 bg-secondary-subtle text-dark">
+                            <i class="bi bi-people fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Situation Command Grid -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <div>
+                <span class="fw-bold text-dark fs-6"><i class="bi bi-layers-fill me-2 text-primary"></i>Operational Situations Queue</span>
+                <span class="text-muted small ms-2 d-none d-md-inline">Authoritative operational queue with real-time state synchronization</span>
+            </div>
+            <div class="small text-muted">
+                Advisory awareness grouping &bull; Member incidents remain independent
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <ejs-grid id="situationGrid"
+                      dataSource="@(Model ?? [])"
+                      toolbar="@(new List<string>() { "Search" })"
+                      allowPaging="true"
+                      allowSorting="true"
+                      allowFiltering="true"
+                      allowResizing="true"
+                      height="520">
+
+                <e-grid-pageSettings pageSize="15" pageSizes="true">
+                </e-grid-pageSettings>
+
+                <e-grid-filterSettings type="Menu">
+                </e-grid-filterSettings>
+
+                <e-grid-columns>
+                    <e-grid-column field="SituationNumber"
+                                   headerText="Situation #"
+                                   template="#numberTemplate"
+                                   width="150"
+                                   freeze="Left">
+                    </e-grid-column>
+
+                    <e-grid-column field="Title"
+                                   headerText="Situation Title"
+                                   width="240">
+                    </e-grid-column>
+
+                    <e-grid-column field="Level"
+                                   headerText="Level"
+                                   template="#levelTemplate"
+                                   width="120">
+                    </e-grid-column>
+
+                    <e-grid-column field="Status"
+                                   headerText="Status"
+                                   template="#statusTemplate"
+                                   width="130">
+                    </e-grid-column>
+
+                    <e-grid-column field="SituationScore"
+                                   headerText="Score"
+                                   format="N1"
+                                   width="90">
+                    </e-grid-column>
+
+                    <e-grid-column field="IncidentCount"
+                                   headerText="Incidents"
+                                   width="100">
+                    </e-grid-column>
+
+                    <e-grid-column field="CriticalIncidentCount"
+                                   headerText="Critical"
+                                   width="90">
+                    </e-grid-column>
+
+                    <e-grid-column field="PeopleAffected"
+                                   headerText="People"
+                                   width="90">
+                    </e-grid-column>
+
+                    <e-grid-column field="Casualties"
+                                   headerText="Casualties"
+                                   width="100">
+                    </e-grid-column>
+
+                    <e-grid-column field="ResourceShortageDetected"
+                                   headerText="Shortage"
+                                   template="#shortageTemplate"
+                                   width="120">
+                    </e-grid-column>
+
+                    <e-grid-column field="RequiresHumanReview"
+                                   headerText="Review"
+                                   template="#reviewTemplate"
+                                   width="120">
+                    </e-grid-column>
+
+                    <e-grid-column field="LastEvaluatedAtUtc"
+                                   headerText="Last Evaluated"
+                                   format="yyyy-MM-dd HH:mm"
+                                   width="150">
+                    </e-grid-column>
+
+                    <e-grid-column headerText="Actions"
+                                   template="#actionTemplate"
+                                   width="170"
+                                   textAlign="Center">
+                    </e-grid-column>
+                </e-grid-columns>
+            </ejs-grid>
+        </div>
+    </div>
+</div>
+
+<!-- Grid Templates -->
+<script id="numberTemplate" type="text/x-template">
+    <a href="/Situations/Details/${Id}" class="fw-bold text-decoration-none">
+        ${SituationNumber}
+    </a>
+</script>
+
+<script id="levelTemplate" type="text/x-template">
+    ${if(Level === 4 || Level === 'Critical')}
+        <span class="badge bg-danger px-2 py-1"><i class="bi bi-exclamation-octagon-fill me-1"></i>Critical</span>
+    ${else if(Level === 3 || Level === 'High')}
+        <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>High</span>
+    ${else if(Level === 2 || Level === 'Elevated')}
+        <span class="badge bg-primary px-2 py-1"><i class="bi bi-info-circle-fill me-1"></i>Elevated</span>
+    ${else}
+        <span class="badge bg-secondary px-2 py-1">Advisory</span>
+    ${/if}
+</script>
+
+<script id="statusTemplate" type="text/x-template">
+    ${if(Status === 1 || Status === 'Open')}
+        <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-record-circle me-1"></i>Open</span>
+    ${else if(Status === 2 || Status === 'Acknowledged')}
+        <span class="badge bg-info text-dark px-2 py-1"><i class="bi bi-check2-circle me-1"></i>Acknowledged</span>
+    ${else if(Status === 3 || Status === 'Resolved')}
+        <span class="badge bg-success px-2 py-1"><i class="bi bi-check-all me-1"></i>Resolved</span>
+    ${else}
+        <span class="badge bg-secondary px-2 py-1">Dismissed</span>
+    ${/if}
+</script>
+
+<script id="shortageTemplate" type="text/x-template">
+    ${if(ResourceShortageDetected)}
+        <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1"><i class="bi bi-exclamation-circle me-1"></i>Shortage</span>
+    ${else}
+        <span class="badge bg-light text-muted border px-2 py-1">Adequate</span>
+    ${/if}
+</script>
+
+<script id="reviewTemplate" type="text/x-template">
+    ${if(RequiresHumanReview)}
+        <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-clock-history me-1"></i>Pending</span>
+    ${else}
+        <span class="badge bg-success px-2 py-1"><i class="bi bi-check2-circle me-1"></i>Reviewed</span>
+    ${/if}
+</script>
+
+<script id="actionTemplate" type="text/x-template">
+    <div class="d-inline-flex gap-1">
+        <a href="/Situations/Details/${Id}" class="btn btn-sm btn-outline-primary" title="View Situation">
+            <i class="bi bi-eye"></i>
+        </a>
+        ${if(Status === 1 || Status === 'Open')}
+            <button type="button" class="btn btn-sm btn-outline-info" onclick="acknowledgeSituation('${Id}')" title="Acknowledge Situation">
+                <i class="bi bi-check2"></i> Ack
+            </button>
+        ${/if}
+    </div>
+</script>
+
+@section Scripts {
+    <script>
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+
+        // Authoritative snapshot refresh
+        window.refreshSituationCommandCenter = async function () {
+            try {
+                const response = await fetch('/Situations/Snapshot', { credentials: 'same-origin' });
+                if (!response.ok) {
+                    console.error('Failed to refresh situations snapshot:', response.status);
+                    return;
+                }
+
+                const data = await response.json();
+                const gridObj = document.getElementById('situationGrid')?.ej2_instances?.[0];
+                if (gridObj) {
+                    gridObj.dataSource = data;
+                    gridObj.refresh();
+                }
+
+                // Update KPI counts
+                const openCount = data.filter(s => s.status === 1 || s.status === 'Open' || s.status === 2 || s.status === 'Acknowledged').length;
+                const critCount = data.filter(s => s.level === 4 || s.level === 'Critical').length;
+                const shortCount = data.filter(s => s.resourceShortageDetected).length;
+
+                const elOpen = document.getElementById('kpiOpenSituations');
+                if (elOpen) elOpen.innerText = openCount;
+                const elCrit = document.getElementById('kpiCriticalSituations');
+                if (elCrit) elCrit.innerText = critCount;
+                const elShort = document.getElementById('kpiResourceShortages');
+                if (elShort) elShort.innerText = shortCount;
+            } catch (err) {
+                console.error('Error refreshing situation command center:', err);
+            }
+        };
+
+        // Acknowledge Action
+        window.acknowledgeSituation = async function (situationId) {
+            if (!confirm('Acknowledge this situation cluster?')) return;
+
+            try {
+                const response = await fetch(`/Situations/Acknowledge/${situationId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': token
+                    },
+                    body: JSON.stringify({ notes: 'Acknowledged from command center.' })
+                });
+
+                if (response.ok) {
+                    await window.refreshSituationCommandCenter();
+                } else {
+                    const err = await response.json();
+                    alert('Acknowledge failed: ' + (err.message || 'Server error'));
+                }
+            } catch (e) {
+                alert('Network error: ' + e.message);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const btnEvaluate = document.getElementById('btnEvaluate');
+            const spinner = document.getElementById('evaluatingSpinner');
+
+            if (btnEvaluate) {
+                btnEvaluate.addEventListener('click', async function () {
+                    btnEvaluate.disabled = true;
+                    spinner.classList.remove('d-none');
+
+                    try {
+                        const response = await fetch('/Situations/Evaluate', {
+                            method: 'POST',
+                            headers: {
+                                'RequestVerificationToken': token,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (response.ok) {
+                            setTimeout(() => { window.location.reload(); }, 1200);
+                        } else {
+                            const err = await response.json();
+                            alert('Evaluation failed: ' + (err.message || 'Server error'));
+                            btnEvaluate.disabled = false;
+                            spinner.classList.add('d-none');
+                        }
+                    } catch (e) {
+                        alert('Network error during evaluation: ' + e.message);
+                        btnEvaluate.disabled = false;
+                        spinner.classList.add('d-none');
+                    }
+                });
+            }
+        });
+    </script>
+}
