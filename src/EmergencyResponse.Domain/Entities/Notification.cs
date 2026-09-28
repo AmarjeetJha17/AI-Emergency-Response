@@ -1,18 +1,45 @@
 using EmergencyResponse.Domain.Common;
+using EmergencyResponse.Domain.Notifications;
 
 namespace EmergencyResponse.Domain.Entities;
 
-public class Notification : BaseEntity
+public sealed class Notification : BaseEntity
 {
-    public string UserId { get; set; } = null!;
+    public string? UserId { get; set; }
 
-    public string Title { get; set; } = null!;
+    public string? TargetRole { get; set; }
 
-    public string Message { get; set; } = null!;
+    public Guid? TargetDepartmentId { get; set; }
 
-    public string Type { get; set; } = null!;
+    public NotificationType Type { get; set; }
+
+    public NotificationPriority Priority { get; set; }
+
+    public NotificationStatus Status { get; set; } = NotificationStatus.Unread;
+
+    public string Title { get; set; } = string.Empty;
+
+    public string Message { get; set; } = string.Empty;
+
+    public Guid? IncidentId { get; set; }
+
+    public Incident? Incident { get; set; }
+
+    public Guid? OperationalSituationId { get; set; }
+
+    public OperationalSituation? OperationalSituation { get; set; }
+
+    public Guid? IncidentEscalationId { get; set; }
+
+    public IncidentEscalation? IncidentEscalation { get; set; }
 
     public bool IsRead { get; set; }
 
     public DateTime? ReadAtUtc { get; set; }
+
+    public DateTime? ExpiresAtUtc { get; set; }
+
+    public string? DeduplicationKey { get; set; }
+
+    public string? MetadataJson { get; set; }
 }
