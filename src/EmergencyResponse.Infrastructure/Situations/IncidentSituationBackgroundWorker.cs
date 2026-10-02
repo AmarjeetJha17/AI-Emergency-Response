@@ -29,6 +29,7 @@ public sealed class IncidentSituationBackgroundWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Incident situation background worker started.");
+        _workerHealthState?.MarkStarted("IncidentSituationWorker");
 
         while (!stoppingToken.IsCancellationRequested)
         {

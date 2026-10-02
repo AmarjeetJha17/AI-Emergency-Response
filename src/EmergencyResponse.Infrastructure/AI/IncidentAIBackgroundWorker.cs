@@ -33,6 +33,7 @@ public sealed class IncidentAIBackgroundWorker
     {
         _logger.LogInformation(
             "Incident AI background worker started.");
+        _workerHealthState?.MarkStarted("IncidentAIWorker");
 
         while (!stoppingToken.IsCancellationRequested)
         {

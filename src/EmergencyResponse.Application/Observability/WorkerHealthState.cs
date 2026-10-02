@@ -19,6 +19,11 @@ public sealed class WorkerHealthState : IWorkerHealthState
         _workerTicks.AddOrUpdate(workerName, _ => nowTicks, (_, _) => nowTicks);
     }
 
+    public void MarkStarted(string workerName)
+    {
+        MarkSuccess(workerName);
+    }
+
     public DateTime? LastSuccessUtc
     {
         get

@@ -1,0 +1,20 @@
+{
+  "modelName": "EscalationRisk",
+  "modelVersion": "v1",
+  "datasetVersion": "escalation-risk-dataset-v1",
+  "featureSchemaVersion": "incident-escalation-features-v1",
+  "predictionTarget": "EscalationWithinSixHours",
+  "predictionWindowHours": 6,
+  "trainedAtUtc": "2026-10-02T00:00:00Z",
+  "trainingDataStartUtc": "2026-10-02T00:00:00Z",
+  "trainingDataEndUtc": "2026-10-02T00:00:00Z",
+  "trainingRows": 0,
+  "validationRows": 0,
+  "testRows": 0,
+  "accuracy": 0,
+  "f1": 0,
+  "precision": 0,
+  "recall": 0,
+  "auc": 0,
+  "algorithm": "PrepackagedDevelopmentArtifact"
+}

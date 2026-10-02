@@ -40,6 +40,7 @@ public sealed class VisualAnalysisBackgroundWorker : BackgroundService
     {
         _logger.LogInformation(
             "Visual analysis background worker started.");
+        _workerHealthState?.MarkStarted("VisualAnalysisWorker");
 
         while (!stoppingToken.IsCancellationRequested)
         {
