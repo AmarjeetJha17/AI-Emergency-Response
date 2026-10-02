@@ -64,6 +64,24 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<OperationalSituationAnalysis> OperationalSituationAnalyses =>
         Set<OperationalSituationAnalysis>();
 
+    public DbSet<PredictiveAnalysis> PredictiveAnalyses =>
+        Set<PredictiveAnalysis>();
+
+    public DbSet<IncidentPredictionSnapshot> IncidentPredictionSnapshots =>
+        Set<IncidentPredictionSnapshot>();
+
+    public DbSet<OperationalForecast> OperationalForecasts =>
+        Set<OperationalForecast>();
+
+    public DbSet<ForecastEvaluation> ForecastEvaluations =>
+        Set<ForecastEvaluation>();
+
+    public DbSet<IncidentEnvironmentalContext> IncidentEnvironmentalContexts =>
+        Set<IncidentEnvironmentalContext>();
+
+    public DbSet<EnvironmentalGridSnapshot> EnvironmentalGridSnapshots =>
+        Set<EnvironmentalGridSnapshot>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

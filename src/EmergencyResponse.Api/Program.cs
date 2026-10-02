@@ -320,7 +320,8 @@ builder.Services.AddSingleton<IWorkerHealthState, WorkerHealthState>();
 builder.Services.AddHealthChecks()
     .AddCheck<SqlServerHealthCheck>("sqlserver", tags: ["ready"])
     .AddCheck<BackgroundWorkerHealthCheck>("workers", tags: ["ready"])
-    .AddCheck<AIProviderHealthCheck>("ai", tags: ["ready"]);
+    .AddCheck<AIProviderHealthCheck>("ai", tags: ["ready"])
+    .AddCheck<PredictiveModelHealthCheck>("predictive-model");
 
 
 var app = builder.Build();

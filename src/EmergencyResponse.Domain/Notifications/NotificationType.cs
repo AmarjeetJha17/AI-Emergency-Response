@@ -23,5 +23,9 @@ public enum NotificationType
     ResourceAssignment = 41,
     ResourceStatusChanged = 42,
 
+    ForecastGenerated = 50,
+    PotentialResourceShortageForecast = 51,
+    HotspotTrendChanged = 52,
+
     System = 90
 }

@@ -1,11 +1,17 @@
 @model EmergencyResponse.Application.DTOs.Incidents.IncidentResponse
 @using EmergencyResponse.Domain.Enums
+@using EmergencyResponse.Application.Predictive
 @using EmergencyResponse.Web.Models.Incidents
 
 @{
     ViewData["Title"] = "Incident Details";
     var visualEvidence = ViewBag.VisualEvidence as List<VisualEvidenceViewModel>
         ?? new List<VisualEvidenceViewModel>();
+    var escalationPrediction =
+        ViewBag.EscalationPrediction as EscalationRiskPrediction;
+    var canReviewPrediction = User.IsInRole("Operator") ||
+        User.IsInRole("EmergencyAdmin") ||
+        User.IsInRole("SystemAdmin");
 }
 
 <div class="container py-4" data-incident-id="@Model.Id">
@@ -341,6 +347,67 @@
 
                 </div>
             </div>
+
+            @if (canReviewPrediction)
+            {
+                <div class="card shadow-sm mb-4" id="predictiveIntelligenceCard">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>Predictive Intelligence</strong>
+                        <span class="badge bg-warning text-dark">Advisory</span>
+                    </div>
+                    <div class="card-body">
+                        @if (escalationPrediction is null)
+                        {
+                            <p class="small text-muted mb-3">
+                                No escalation-risk prediction is available yet.
+                            </p>
+                        }
+                        else
+                        {
+                            var probability = Math.Clamp(escalationPrediction.Probability * 100, 0, 100);
+                            var riskClass = probability >= 70 ? "bg-danger" :
+                                probability >= 50 ? "bg-warning" : "bg-success";
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small text-muted">Estimated escalation probability</span>
+                                <strong>@probability.ToString("F1")%</strong>
+                            </div>
+                            <div class="progress mb-2" style="height: 10px">
+                                <div class="progress-bar @riskClass"
+                                     role="progressbar"
+                                     style="width:@probability.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)%"
+                                     aria-valuenow="@probability"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100"></div>
+                            </div>
+                            <div class="small text-muted mb-2">
+                                @escalationPrediction.ModelName v@escalationPrediction.ModelVersion
+                                · @escalationPrediction.GeneratedAtUtc.ToString("dd MMM yyyy HH:mm:ss") UTC
+                            </div>
+                            <div class="small mb-3">
+                                <strong>Signals considered</strong>
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    @foreach (var signal in escalationPrediction.SignalsConsidered)
+                                    {
+                                        <span class="badge bg-light text-dark border">@signal.Key</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <div class="alert alert-warning small mb-3">
+                            &#9888; Advisory prediction &mdash; operator review required.
+                            This signal never changes severity, priority, dispatch, or escalation state automatically.
+                        </div>
+                        <form asp-action="ReprocessPrediction" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-primary">
+                                Re-evaluate Prediction
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
 
             @if (User.IsInRole("Operator") || User.IsInRole("EmergencyAdmin") || User.IsInRole("SystemAdmin"))
             {

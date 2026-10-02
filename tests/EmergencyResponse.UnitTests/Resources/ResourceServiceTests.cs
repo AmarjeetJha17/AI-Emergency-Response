@@ -752,6 +752,9 @@ public sealed class ResourceServiceTests : IAsyncDisposable
 
         public Task NotifyNotificationCreatedAsync(Notification notification, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+
+        public Task NotifyPredictionUpdatedAsync(PredictionUpdatedEvent eventData, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class ResourceTestDbContext : ApplicationDbContext

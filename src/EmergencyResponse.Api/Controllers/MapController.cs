@@ -1,4 +1,5 @@
 using EmergencyResponse.Application.Map;
+using EmergencyResponse.Application.Predictive.Hotspots;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,10 +12,14 @@ namespace EmergencyResponse.Api.Controllers;
 public sealed class MapController : ControllerBase
 {
     private readonly IEmergencyMapService _mapService;
+    private readonly IHotspotService _hotspotService;
 
-    public MapController(IEmergencyMapService mapService)
+    public MapController(
+        IEmergencyMapService mapService,
+        IHotspotService hotspotService)
     {
         _mapService = mapService;
+        _hotspotService = hotspotService;
     }
 
     [HttpGet("incidents")]
@@ -55,5 +60,13 @@ public sealed class MapController : ControllerBase
     {
         var zones = await _mapService.GetOperationalZonesAsync(cancellationToken);
         return Ok(zones);
+    }
+
+    [HttpGet("hotspots")]
+    public async Task<ActionResult<IReadOnlyList<HotspotResult>>> GetHotspots(
+        [FromQuery] int hours = 24,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await _hotspotService.GetHotspotsAsync(hours, cancellationToken));
     }
 }

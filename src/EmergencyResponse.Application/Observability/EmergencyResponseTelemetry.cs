@@ -49,4 +49,22 @@ public static class EmergencyResponseTelemetry
 
     public static readonly Histogram<double> VisualAnalysisDuration =
         Meter.CreateHistogram<double>("emergency.visual.analysis.duration", unit: "ms");
+
+    public static readonly Counter<long> PredictionsCompleted =
+        Meter.CreateCounter<long>("emergency.predictions.completed");
+
+    public static readonly Counter<long> PredictionsFailed =
+        Meter.CreateCounter<long>("emergency.predictions.failed");
+
+    public static readonly Counter<long> PredictionJobsEnqueued =
+        Meter.CreateCounter<long>("emergency.prediction.jobs.enqueued");
+
+    public static readonly Counter<long> PredictionJobsProcessed =
+        Meter.CreateCounter<long>("emergency.prediction.jobs.processed");
+
+    public static readonly UpDownCounter<long> PredictionQueueLength =
+        Meter.CreateUpDownCounter<long>("emergency.prediction.queue.length");
+
+    public static readonly Histogram<double> PredictionDuration =
+        Meter.CreateHistogram<double>("emergency.prediction.duration", unit: "ms");
 }

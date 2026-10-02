@@ -588,6 +588,45 @@
 
     </div>
 
+    <section class="card shadow-sm mb-4 border-start border-4 border-primary">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="h5 mb-1">Predictive Outlook</h2>
+                    <div class="small text-muted">
+                        Advisory forecasts only; operational commands remain human-controlled.
+                    </div>
+                </div>
+                <button id="refreshPredictiveOutlook" class="btn btn-sm btn-outline-primary">
+                    Refresh
+                </button>
+            </div>
+            <div id="predictiveOutlookStatus" class="small text-muted mb-2">
+                Loading forecast data...
+            </div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="text-muted small">Incident volume next 24h</div>
+                        <div id="forecastIncidentVolume" class="fs-3 fw-bold">--</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="text-muted small">Potential resource shortages</div>
+                        <div id="forecastShortageCount" class="fs-3 fw-bold text-warning">--</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="text-muted small">Increasing forecast hotspots</div>
+                        <div id="forecastHotspotCount" class="fs-3 fw-bold text-danger">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     @* Grid cell templates *@
     <script id="severityTemplate" type="text/x-template">
         ${if(Severity === 'Critical')}
@@ -657,6 +696,43 @@
         document.addEventListener("DOMContentLoaded", function () {
             setTimeout(focusSelectedIncident, 300);
             setTimeout(focusSelectedIncident, 800);
+
+            async function loadPredictiveOutlook() {
+                var status = document.getElementById("predictiveOutlookStatus");
+                try {
+                    var responses = await Promise.all([
+                        fetch("/api/predictive/incident-volume?horizon=24"),
+                        fetch("/api/predictive/hotspots?hours=24")
+                    ]);
+                    if (!responses[0].ok || !responses[1].ok) {
+                        throw new Error("Forecast API unavailable");
+                    }
+
+                    var volume = await responses[0].json();
+                    var hotspots = await responses[1].json();
+                    var total = Array.isArray(volume.points)
+                        ? volume.points.reduce(function (sum, point) {
+                            return sum + (Number(point.forecast) || 0);
+                        }, 0)
+                        : 0;
+                    document.getElementById("forecastIncidentVolume").textContent =
+                        volume.isAvailable === false ? "Unavailable" : Math.round(total);
+                    document.getElementById("forecastHotspotCount").textContent =
+                        Array.isArray(hotspots)
+                            ? hotspots.filter(function (item) {
+                                return item.trend === "Increasing";
+                            }).length
+                            : 0;
+                    document.getElementById("forecastShortageCount").textContent = "Review demand";
+                    status.textContent = "Updated " + new Date().toLocaleTimeString();
+                } catch (error) {
+                    status.textContent = "Forecast data is currently unavailable.";
+                }
+            }
+
+            document.getElementById("refreshPredictiveOutlook")
+                ?.addEventListener("click", loadPredictiveOutlook);
+            loadPredictiveOutlook();
         });
     </script>
 }

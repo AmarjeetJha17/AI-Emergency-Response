@@ -12,6 +12,10 @@ using EmergencyResponse.Application.DTOs.Incidents;
 using EmergencyResponse.Application.Events;
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Application.Realtime;
+using EmergencyResponse.Application.Predictive;
+using EmergencyResponse.Application.Predictive.Interfaces;
+using EmergencyResponse.Application.Predictive.Jobs;
+using EmergencyResponse.Application.Intelligence;
 
 using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.Media;
@@ -37,6 +41,8 @@ public class IncidentsController : ControllerBase
     private readonly IVisualAnalysisQueue _visualAnalysisQueue;
     private readonly IIncidentMediaStorage _mediaStorage;
     private readonly IAIAnalysisQueue? _aiAnalysisQueue;
+    private readonly IEscalationRiskPredictionService _predictionService;
+    private readonly IPredictiveAnalysisQueue? _predictiveAnalysisQueue;
 
     public IncidentsController(
         IIncidentService incidentService,
@@ -48,7 +54,9 @@ public class IncidentsController : ControllerBase
         IIncidentMediaService incidentMediaService,
         IVisualAnalysisQueue visualAnalysisQueue,
         IIncidentMediaStorage mediaStorage,
-        IAIAnalysisQueue? aiAnalysisQueue = null)
+        IAIAnalysisQueue? aiAnalysisQueue = null,
+        IEscalationRiskPredictionService? predictionService = null,
+        IPredictiveAnalysisQueue? predictiveAnalysisQueue = null)
     {
         _incidentService = incidentService;
         _duplicateIncidentService = duplicateIncidentService;
@@ -60,6 +68,9 @@ public class IncidentsController : ControllerBase
         _visualAnalysisQueue = visualAnalysisQueue;
         _mediaStorage = mediaStorage;
         _aiAnalysisQueue = aiAnalysisQueue;
+        _predictionService = predictionService
+            ?? throw new ArgumentNullException(nameof(predictionService));
+        _predictiveAnalysisQueue = predictiveAnalysisQueue;
     }
 
     [Authorize]
@@ -105,6 +116,136 @@ public class IncidentsController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    [Authorize(Roles = "Responder,Operator,EmergencyAdmin,SystemAdmin")]
+    [HttpGet("{id:guid}/environment")]
+    public async Task<ActionResult<object>> GetEnvironment(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var context = await _dbContext.IncidentEnvironmentalContexts
+            .AsNoTracking()
+            .Where(x => x.IncidentId == id)
+            .OrderByDescending(x => x.ObservedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return context is null
+            ? NotFound()
+            : Ok(new
+            {
+                context.IncidentId,
+                context.ObservedAtUtc,
+                context.Provider,
+                context.ProviderVersion,
+                context.Latitude,
+                context.Longitude,
+                context.TemperatureC,
+                context.ApparentTemperatureC,
+                context.RelativeHumidity,
+                context.WindSpeedKph,
+                context.WindDirectionDegrees,
+                context.PrecipitationMm,
+                context.VisibilityKm,
+                context.PressureHpa,
+                context.CloudCoverPercent,
+                context.WeatherPhrase,
+                context.HasSevereWeatherAlert,
+                context.SevereWeatherAlertTypesJson,
+                context.AirQualityCategory,
+                context.AirQualityIndex,
+                context.ContextHash
+            });
+    }
+
+    [Authorize(Roles = "Responder,Operator,EmergencyAdmin,SystemAdmin")]
+    [HttpGet("{id:guid}/context")]
+    public async Task<ActionResult<IncidentContextSnapshot>> GetContext(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var incident = await _dbContext.Incidents
+            .AsNoTracking()
+            .Include(x => x.IncidentType)
+            .Include(x => x.Locations)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (incident is null)
+        {
+            return NotFound();
+        }
+
+        var environment = await _dbContext.IncidentEnvironmentalContexts
+            .AsNoTracking()
+            .Where(x => x.IncidentId == id)
+            .OrderByDescending(x => x.ObservedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        var prediction = await _dbContext.PredictiveAnalyses
+            .AsNoTracking()
+            .Where(x => x.IncidentId == id)
+            .OrderByDescending(x => x.GeneratedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        var visual = await _dbContext.VisualAnalyses
+            .AsNoTracking()
+            .Where(x => x.IncidentId == id && x.FindingsJson != null)
+            .OrderByDescending(x => x.CompletedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        VisualContext? visualContext = null;
+        if (visual?.FindingsJson is not null)
+        {
+            try
+            {
+                var findings = JsonSerializer.Deserialize<VisualContext>(
+                    visual.FindingsJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                visualContext = findings;
+            }
+            catch (JsonException)
+            {
+                visualContext = null;
+            }
+        }
+
+        var location = incident.Locations.FirstOrDefault(x => x.IsPrimary)
+            ?? incident.Locations.FirstOrDefault();
+        var alertTypes = environment?.SevereWeatherAlertTypesJson is null
+            ? []
+            : JsonSerializer.Deserialize<IReadOnlyList<string>>(
+                environment.SevereWeatherAlertTypesJson) ?? [];
+
+        return Ok(new IncidentContextSnapshot
+        {
+            Incident = new IncidentContextIncident
+            {
+                IncidentType = incident.IncidentType.Name,
+                Title = incident.Title,
+                Description = incident.Description,
+                Latitude = location is null ? 0 : (double)location.Latitude,
+                Longitude = location is null ? 0 : (double)location.Longitude,
+                PeopleAffected = incident.PeopleAffected ?? 0,
+                VehiclesAffected = incident.VehiclesAffected ?? 0,
+                Casualties = incident.Casualties ?? 0,
+                SeverityScore = incident.SeverityScore,
+                PriorityScore = incident.PriorityScore
+            },
+            Visual = visualContext,
+            Environment = environment is null
+                ? null
+                : new EnvironmentalContext
+                {
+                    TemperatureC = environment.TemperatureC,
+                    WindSpeedKph = environment.WindSpeedKph,
+                    PrecipitationMm = environment.PrecipitationMm,
+                    VisibilityKm = environment.VisibilityKm,
+                    RelativeHumidity = environment.RelativeHumidity,
+                    HasSevereWeatherAlert = environment.HasSevereWeatherAlert,
+                    SevereWeatherTypes = alertTypes,
+                    AirQualityIndex = environment.AirQualityIndex
+                },
+            PredictionProbability = prediction?.Probability,
+            PredictionModelVersion = prediction?.ModelVersion,
+            PredictionFeatureSchemaVersion = prediction?.FeatureSchemaVersion
+        });
     }
 
     [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
@@ -753,6 +894,62 @@ public class IncidentsController : ControllerBase
                 cancellationToken);
 
         return Ok(result);
+    }
+
+    [Authorize(Roles = $"{ApplicationRoles.Responder},{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+    [HttpGet("{id:guid}/predictions/escalation-risk")]
+    public async Task<ActionResult<EscalationRiskPrediction>> GetEscalationRiskPrediction(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var incidentExists = await _dbContext.Incidents
+            .AsNoTracking()
+            .AnyAsync(x => x.Id == id, cancellationToken);
+
+        if (!incidentExists)
+        {
+            return NotFound($"Incident {id} not found.");
+        }
+
+        var prediction = (await _predictionService
+            .GetHistoryAsync(id, cancellationToken))
+            .FirstOrDefault();
+
+        return prediction is null
+            ? NotFound($"No escalation-risk prediction exists for incident {id}.")
+            : Ok(prediction);
+    }
+
+    [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+    [HttpPost("{id:guid}/predictions/reprocess")]
+    public async Task<IActionResult> ReprocessPrediction(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var incidentExists = await _dbContext.Incidents
+            .AsNoTracking()
+            .AnyAsync(x => x.Id == id, cancellationToken);
+
+        if (!incidentExists)
+        {
+            return NotFound($"Incident {id} not found.");
+        }
+
+        if (_predictiveAnalysisQueue is null)
+        {
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                "Predictive analysis is not available.");
+        }
+
+        await _predictiveAnalysisQueue.EnqueueAsync(
+            new PredictiveAnalysisJob(id, "ManualReprocess"),
+            cancellationToken);
+
+        return Accepted(new
+        {
+            message = $"Predictive analysis re-processing enqueued for incident {id}."
+        });
     }
 
     [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]

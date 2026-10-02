@@ -409,6 +409,7 @@ public sealed class NotificationServiceTests : IAsyncDisposable
         public Task NotifyResourceUpdatedAsync(ResourceUpdatedEvent eventData, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task NotifyEscalationUpdatedAsync(EscalationUpdatedEvent eventData, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task NotifySituationUpdatedAsync(SituationUpdatedEvent eventData, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyPredictionUpdatedAsync(PredictionUpdatedEvent eventData, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class NotificationTestDbContext : ApplicationDbContext

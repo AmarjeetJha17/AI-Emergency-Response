@@ -29,4 +29,8 @@ public interface IIncidentNotificationService
     Task NotifyNotificationCreatedAsync(
         Notification notification,
         CancellationToken cancellationToken = default);
+
+    Task NotifyPredictionUpdatedAsync(
+        PredictionUpdatedEvent eventData,
+        CancellationToken cancellationToken = default);
 }

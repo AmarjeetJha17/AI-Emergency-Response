@@ -6,11 +6,25 @@ using EmergencyResponse.Application.AI.DuplicateDetection;
 using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Application.Decision.Interfaces;
+using EmergencyResponse.Application.ExternalContext;
 using EmergencyResponse.Application.Media;
+using EmergencyResponse.Application.Predictive;
+using EmergencyResponse.Application.Predictive.Escalation;
+using EmergencyResponse.Application.Predictive.Forecasting;
+using EmergencyResponse.Application.Predictive.Hotspots;
+using EmergencyResponse.Application.Predictive.ResourceDemand;
+using EmergencyResponse.Application.Predictive.Interfaces;
+using EmergencyResponse.Application.Predictive.Training;
 using EmergencyResponse.Application.Situations;
 using EmergencyResponse.Infrastructure.Decision;
 using EmergencyResponse.Infrastructure.Media;
 using EmergencyResponse.Infrastructure.Persistence.Repositories;
+using EmergencyResponse.Infrastructure.Predictive;
+using EmergencyResponse.Infrastructure.Predictive.Forecasting;
+using EmergencyResponse.Infrastructure.Predictive.Hotspots;
+using EmergencyResponse.Infrastructure.Predictive.ResourceDemand;
+using EmergencyResponse.Infrastructure.ExternalContext;
+using EmergencyResponse.Infrastructure.Predictive.Training;
 using EmergencyResponse.Infrastructure.Situations;
 
 using Microsoft.Extensions.AI;
@@ -26,6 +40,16 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddMemoryCache();
+        services.Configure<AzureMapsOptions>(
+            configuration.GetSection(AzureMapsOptions.SectionName));
+        services.AddHttpClient<IWeatherContextClient, AzureMapsWeatherClient>();
+        services.AddSingleton<IExternalContextQueue, InMemoryExternalContextQueue>();
+        services.AddScoped<
+            IIncidentExternalContextService,
+            IncidentExternalContextService>();
+        services.AddHostedService<ExternalContextBackgroundWorker>();
+
         var options =
             configuration
                 .GetSection(AIOptions.SectionName)
@@ -138,6 +162,47 @@ public static class DependencyInjection
 
         services.AddHostedService<
             VisualAnalysisBackgroundWorker>();
+
+        services.AddScoped<
+            IEscalationPredictionFeatureBuilder,
+            EscalationPredictionFeatureBuilder>();
+
+        services.AddSingleton<
+            IPredictiveAnalysisQueue,
+            InMemoryPredictiveAnalysisQueue>();
+
+        services.AddScoped<
+            IEscalationRiskPredictionService,
+            EscalationRiskPredictionService>();
+
+        services.AddScoped<
+            IIncidentPredictionSnapshotBuilder,
+            IncidentPredictionSnapshotBuilder>();
+
+        services.AddScoped<
+            IEscalationLabelGenerator,
+            EscalationLabelGenerator>();
+
+        services.AddHostedService<
+            PredictiveAnalysisBackgroundWorker>();
+
+        services.AddHostedService<
+            ForecastGenerationBackgroundWorker>();
+
+        services.AddScoped<
+            IForecastingService,
+            IncidentVolumeForecastService>();
+
+        services.AddScoped<
+            IResourceDemandForecastService,
+            ResourceDemandForecastService>();
+
+        services.AddScoped<
+            IHotspotService,
+            HotspotService>();
+
+        services.Configure<HotspotOptions>(
+            configuration.GetSection("Predictive:Hotspots"));
 
         services.AddScoped<
             IIncidentMediaService,

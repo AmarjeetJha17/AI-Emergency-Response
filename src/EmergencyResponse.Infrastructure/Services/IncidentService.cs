@@ -4,6 +4,7 @@ using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.DTOs.Incidents;
 using EmergencyResponse.Application.Escalation.DTOs;
 using EmergencyResponse.Application.Interfaces;
+using EmergencyResponse.Application.ExternalContext;
 using EmergencyResponse.Domain.Entities;
 using EmergencyResponse.Domain.Enums;
 using EmergencyResponse.Infrastructure.Persistence;
@@ -20,17 +21,20 @@ public sealed class IncidentService : IIncidentService
     private readonly IIncidentNumberGenerator _numberGenerator;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAIAnalysisQueue _aiQueue;
+    private readonly IExternalContextQueue _externalContextQueue;
 
     public IncidentService(
         ApplicationDbContext dbContext,
         IIncidentNumberGenerator numberGenerator,
         ICurrentUserService currentUserService,
-        IAIAnalysisQueue aiQueue)
+        IAIAnalysisQueue aiQueue,
+        IExternalContextQueue externalContextQueue)
     {
         _dbContext = dbContext;
         _numberGenerator = numberGenerator;
         _currentUserService = currentUserService;
         _aiQueue = aiQueue;
+        _externalContextQueue = externalContextQueue;
     }
 
     public async Task<IncidentResponse> CreateAsync(
@@ -108,6 +112,13 @@ public sealed class IncidentService : IIncidentService
 
         await _aiQueue.EnqueueAsync(
             new IncidentAIJob(incident.Id),
+            cancellationToken);
+
+        await _externalContextQueue.EnqueueAsync(
+            new ExternalContextJob(
+                incident.Id,
+                (double)request.Latitude,
+                (double)request.Longitude),
             cancellationToken);
 
         return new IncidentResponse

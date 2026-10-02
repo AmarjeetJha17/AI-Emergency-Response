@@ -1,6 +1,7 @@
 using EmergencyResponse.Application.AI.DTOs;
 using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.DTOs.Incidents;
+using EmergencyResponse.Application.Predictive;
 
 namespace EmergencyResponse.Web.Services;
 
@@ -68,5 +69,13 @@ public interface IIncidentApiClient
     Task<IncidentResponse?> UpdateStatusAsync(
         Guid id,
         UpdateIncidentStatusRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<EscalationRiskPrediction?> GetEscalationRiskPredictionAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken = default);
+
+    Task ReprocessPredictionAsync(
+        Guid incidentId,
         CancellationToken cancellationToken = default);
 }

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using EmergencyResponse.Application.AI.DTOs;
 using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.DTOs.Incidents;
+using EmergencyResponse.Application.Predictive;
 
 namespace EmergencyResponse.Web.Services;
 
@@ -333,5 +334,43 @@ public sealed class IncidentApiClient : IIncidentApiClient
         return await response.Content
             .ReadFromJsonAsync<IncidentResponse>(
                 cancellationToken);
+    }
+
+    public async Task<EscalationRiskPrediction?> GetEscalationRiskPredictionAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.GetAsync(
+            $"api/incidents/{incidentId}/predictions/escalation-risk",
+            cancellationToken);
+
+        if (response.StatusCode is HttpStatusCode.NotFound or
+            HttpStatusCode.Unauthorized or
+            HttpStatusCode.Forbidden)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<EscalationRiskPrediction>(
+            cancellationToken);
+    }
+
+    public async Task ReprocessPredictionAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.PostAsync(
+            $"api/incidents/{incidentId}/predictions/reprocess",
+            content: null,
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        response.EnsureSuccessStatusCode();
     }
 }

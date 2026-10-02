@@ -134,4 +134,16 @@ public sealed class IncidentNotificationService
                 .SendAsync("NotificationCreated", evt, cancellationToken);
         }
     }
+
+    public async Task NotifyPredictionUpdatedAsync(
+        PredictionUpdatedEvent eventData,
+        CancellationToken cancellationToken = default)
+    {
+        await _hubContext.Clients
+            .Group(SignalRGroups.DashboardOperators)
+            .SendAsync(
+                "PredictionUpdated",
+                eventData,
+                cancellationToken);
+    }
 }

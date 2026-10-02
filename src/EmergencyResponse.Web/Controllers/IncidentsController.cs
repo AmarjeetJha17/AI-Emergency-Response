@@ -170,6 +170,11 @@ public class IncidentsController : Controller
 
             try
             {
+                ViewBag.EscalationPrediction =
+                    await _incidentApiClient.GetEscalationRiskPredictionAsync(
+                        id,
+                        cancellationToken);
+
                 var allOpenSituations = await _situationApiClient.GetOpenSituationsAsync(cancellationToken);
                 ViewBag.OperationalSituations = allOpenSituations
                     .Where(s => s.Incidents.Any(i => i.IncidentId == id))
@@ -182,6 +187,18 @@ public class IncidentsController : Controller
         }
 
         return View(incident);
+    }
+
+    [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReprocessPrediction(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        await _incidentApiClient.ReprocessPredictionAsync(id, cancellationToken);
+        TempData["SuccessMessage"] = "Predictive analysis re-evaluation enqueued.";
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]

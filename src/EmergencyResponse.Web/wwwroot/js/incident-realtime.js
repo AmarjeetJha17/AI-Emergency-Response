@@ -149,6 +149,17 @@
         }
     });
 
+    connection.on('PredictionUpdated', function (event) {
+        console.log('[SignalR] PredictionUpdated', event);
+        const currentContainer = document.querySelector('[data-incident-id]');
+        const incidentId = event && (event.incidentId || event.IncidentId);
+        if (currentContainer &&
+            incidentId &&
+            currentContainer.dataset.incidentId.toLowerCase() === incidentId.toLowerCase()) {
+            setTimeout(function () { location.reload(); }, 300);
+        }
+    });
+
     // ── Situation Live Update Listener ───────────────────────────────────────
     connection.on('SituationUpdated', async function (event) {
         console.log('[SignalR] Situation update received:', event);

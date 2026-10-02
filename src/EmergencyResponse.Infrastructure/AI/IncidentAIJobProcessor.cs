@@ -11,6 +11,8 @@ using EmergencyResponse.Application.Escalation;
 using EmergencyResponse.Application.Events;
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Application.Observability;
+using EmergencyResponse.Application.Predictive.Interfaces;
+using EmergencyResponse.Application.Predictive.Jobs;
 using EmergencyResponse.Application.Realtime;
 using EmergencyResponse.Application.Situations.Jobs;
 using EmergencyResponse.Domain.Entities;
@@ -38,6 +40,7 @@ public sealed class IncidentAIJobProcessor
     private readonly IIncidentNotificationService _notificationService;
     private readonly IIncidentEscalationService _escalationService;
     private readonly ISituationEvaluationQueue _situationQueue;
+    private readonly IPredictiveAnalysisQueue? _predictiveQueue;
     private readonly IServiceScopeFactory _scopeFactory;
 
     public IncidentAIJobProcessor(
@@ -52,7 +55,8 @@ public sealed class IncidentAIJobProcessor
         IIncidentNotificationService notificationService,
         IDuplicateIncidentService duplicateIncidentService,
         IIncidentEscalationService escalationService,
-        ISituationEvaluationQueue situationQueue)
+        ISituationEvaluationQueue situationQueue,
+        IPredictiveAnalysisQueue? predictiveQueue = null)
     {
         _scopeFactory = scopeFactory;
         _dbContext = dbContext;
@@ -66,6 +70,7 @@ public sealed class IncidentAIJobProcessor
         _duplicateIncidentService = duplicateIncidentService;
         _escalationService = escalationService;
         _situationQueue = situationQueue;
+        _predictiveQueue = predictiveQueue;
     }
 
     public async Task ProcessAsync(
@@ -340,6 +345,23 @@ public sealed class IncidentAIJobProcessor
                     sitEx,
                     "Situation evaluation enqueue failed for incident {IncidentId}",
                     incident.Id);
+            }
+
+            if (_predictiveQueue != null)
+            {
+                try
+                {
+                    await _predictiveQueue.EnqueueAsync(
+                        new PredictiveAnalysisJob(incident.Id, "AIAnalysisCompleted"),
+                        cancellationToken);
+                }
+                catch (Exception predEx)
+                {
+                    _logger.LogWarning(
+                        predEx,
+                        "Predictive analysis enqueue failed for incident {IncidentId}",
+                        incident.Id);
+                }
             }
         }
         catch (Exception ex)
