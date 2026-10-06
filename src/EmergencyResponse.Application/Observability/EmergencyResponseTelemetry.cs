@@ -67,4 +67,31 @@ public static class EmergencyResponseTelemetry
 
     public static readonly Histogram<double> PredictionDuration =
         Meter.CreateHistogram<double>("emergency.prediction.duration", unit: "ms");
+
+    public static readonly Counter<long> CopilotToolCalls =
+        Meter.CreateCounter<long>("emergency.copilot.tool.calls");
+
+    public static readonly Counter<long> CopilotToolFailures =
+        Meter.CreateCounter<long>("emergency.copilot.tool.failures");
+
+    public static readonly Histogram<double> CopilotToolDuration =
+        Meter.CreateHistogram<double>("emergency.copilot.tool.duration", unit: "ms");
+
+    public static readonly Counter<long> CopilotActionsProposed =
+        Meter.CreateCounter<long>("emergency.copilot.actions.proposed");
+
+    public static readonly Counter<long> CopilotActionsApproved =
+        Meter.CreateCounter<long>("emergency.copilot.actions.approved");
+
+    public static readonly Counter<long> CopilotActionsRejected =
+        Meter.CreateCounter<long>("emergency.copilot.actions.rejected");
+
+    public static readonly Counter<long> CopilotActionsExpired =
+        Meter.CreateCounter<long>("emergency.copilot.actions.expired");
+
+    public static readonly Counter<long> CopilotActionsExecuted =
+        Meter.CreateCounter<long>("emergency.copilot.actions.executed");
+
+    public static readonly Counter<long> CopilotActionFailures =
+        Meter.CreateCounter<long>("emergency.copilot.actions.failed");
 }

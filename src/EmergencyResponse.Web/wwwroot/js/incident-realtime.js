@@ -199,6 +199,18 @@
         }
     });
 
+    connection.on('CopilotActionUpdated', function (event) {
+        console.log('[SignalR] Copilot action update received:', event);
+        const proposalId = event && (event.proposalId || event.ProposalId);
+        if (!proposalId) return;
+
+        const card = document.querySelector(
+            '[data-copilot-action-id="' + proposalId + '"]');
+        if (card) {
+            setTimeout(function () { location.reload(); }, 250);
+        }
+    });
+
     // ── Dashboard Updaters ──────────────────────────────────────────────────
     function setConnectionStatus(text, cssClass) {
         const element = document.getElementById('dashboardConnectionIndicator');

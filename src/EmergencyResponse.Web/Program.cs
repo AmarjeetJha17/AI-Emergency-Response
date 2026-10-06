@@ -138,6 +138,16 @@ builder.Services
     .AddStandardResilienceHandler();
 
 builder.Services
+    .AddHttpClient<ICopilotApiClient, CopilotApiClient>(
+        client =>
+        {
+            client.BaseAddress = new Uri(
+                builder.Configuration["ApiSettings:BaseUrl"]!);
+        })
+    .AddHttpMessageHandler<BearerTokenHandler>()
+    .AddStandardResilienceHandler();
+
+builder.Services
     .AddHttpClient<INotificationApiClient, NotificationApiClient>(
         client =>
         {

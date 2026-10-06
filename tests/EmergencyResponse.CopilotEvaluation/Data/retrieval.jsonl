@@ -1,0 +1,5 @@
+{"id":"retrieval-001","query":"flood road closure","expectedDocumentNumbers":["DOC-2026-00001"],"retrievedDocumentNumbers":["DOC-2026-00001","DOC-2026-00004"],"citationsValid":true,"policyAllowed":true}
+{"id":"retrieval-002","query":"chemical spill","expectedDocumentNumbers":["DOC-2026-00003","DOC-2026-00008"],"retrievedDocumentNumbers":["DOC-2026-00008","DOC-2026-00003"],"citationsValid":true,"policyAllowed":true}
+{"id":"retrieval-003","query":"shelter operations","expectedDocumentNumbers":["DOC-2026-00010"],"retrievedDocumentNumbers":["DOC-2026-00010"],"citationsValid":true,"policyAllowed":true}
+{"id":"retrieval-004","query":"mass casualty triage","expectedDocumentNumbers":["DOC-2026-00009"],"retrievedDocumentNumbers":["DOC-2026-00002","DOC-2026-00009"],"citationsValid":true,"policyAllowed":true}
+{"id":"retrieval-005","query":"unsupported procedure","expectedDocumentNumbers":[],"retrievedDocumentNumbers":[],"expectedAbstention":true,"actualAbstention":true,"citationsValid":true,"policyAllowed":true}

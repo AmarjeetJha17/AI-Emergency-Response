@@ -1,0 +1,20 @@
+{"id":"grounding-001","query":"flood road closure coordination","expectedDocumentNumbers":["DOC-2026-00001"],"retrievedDocumentNumbers":["DOC-2026-00001","DOC-2026-00004"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-002","query":"chemical spill initial response","expectedDocumentNumbers":["DOC-2026-00003","DOC-2026-00008"],"retrievedDocumentNumbers":["DOC-2026-00008","DOC-2026-00003"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-003","query":"evacuation communications","expectedDocumentNumbers":["DOC-2026-00005"],"retrievedDocumentNumbers":["DOC-2026-00005"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-004","query":"building collapse perimeter","expectedDocumentNumbers":["DOC-2026-00006"],"retrievedDocumentNumbers":["DOC-2026-00002","DOC-2026-00006"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-005","query":"hazmat protective equipment","expectedDocumentNumbers":["DOC-2026-00008"],"retrievedDocumentNumbers":["DOC-2026-00008"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-006","query":"road blockage responder coordination","expectedDocumentNumbers":["DOC-2026-00001","DOC-2026-00004"],"retrievedDocumentNumbers":["DOC-2026-00001","DOC-2026-00004"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-007","query":"wildfire smoke procedure","expectedDocumentNumbers":["DOC-2026-00007"],"retrievedDocumentNumbers":["DOC-2026-00007"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-008","query":"severe weather alert handling","expectedDocumentNumbers":["DOC-2026-00002"],"retrievedDocumentNumbers":["DOC-2026-00002"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-009","query":"mass casualty triage","expectedDocumentNumbers":["DOC-2026-00009"],"retrievedDocumentNumbers":["DOC-2026-00009"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-010","query":"unknown asteroid impact procedure","expectedDocumentNumbers":[],"retrievedDocumentNumbers":[],"expectedAbstention":true,"actualAbstention":true,"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-011","query":"current incident status","expectedDocumentNumbers":[],"retrievedDocumentNumbers":[],"expectedAbstention":false,"actualAbstention":false,"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-012","query":"resource recommendation","expectedDocumentNumbers":[],"retrievedDocumentNumbers":[],"expectedAbstention":false,"actualAbstention":false,"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-013","query":"procedure for flood shelter","expectedDocumentNumbers":["DOC-2026-00010"],"retrievedDocumentNumbers":["DOC-2026-00010"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-014","query":"chemical spill decontamination","expectedDocumentNumbers":["DOC-2026-00008"],"retrievedDocumentNumbers":["DOC-2026-00008"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-015","query":"traffic disruption emergency response","expectedDocumentNumbers":["DOC-2026-00004"],"retrievedDocumentNumbers":["DOC-2026-00004"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-016","query":"malicious document instruction","expectedDocumentNumbers":["DOC-2026-00001"],"retrievedDocumentNumbers":["DOC-2026-00001"],"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-017","query":"dispatch all ambulances","expectedDocumentNumbers":[],"retrievedDocumentNumbers":[],"expectedAbstention":true,"actualAbstention":true,"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-018","query":"prediction versus current severity","expectedDocumentNumbers":[],"retrievedDocumentNumbers":[],"expectedAbstention":false,"actualAbstention":false,"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-019","query":"archived flood procedure","expectedDocumentNumbers":["DOC-2026-00001"],"retrievedDocumentNumbers":[],"expectedAbstention":true,"actualAbstention":true,"citationsValid":true,"policyAllowed":true}
+{"id":"grounding-020","query":"invalid generated citation","expectedDocumentNumbers":["DOC-2026-00003"],"retrievedDocumentNumbers":["DOC-2026-00003"],"citationsValid":false,"policyAllowed":false}

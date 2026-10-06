@@ -43,6 +43,20 @@
 
                         @if (User.Identity?.IsAuthenticated == true)
                         {
+                            @if (User.IsInRole("Responder") ||
+                                 User.IsInRole("Operator") ||
+                                 User.IsInRole("EmergencyAdmin") ||
+                                 User.IsInRole("SystemAdmin"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark"
+                                       asp-controller="Copilot"
+                                       asp-action="Index">
+                                        Copilot
+                                    </a>
+                                </li>
+                            }
+
                             <li class="nav-item">
                                 <a class="nav-link text-dark"
                                    asp-controller="Incidents"

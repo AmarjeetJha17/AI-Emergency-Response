@@ -1,0 +1,5 @@
+{"id":"tool-use-001","query":"What is happening with INC-2026-00142?","expectedDocumentNumbers":[],"retrievedDocumentNumbers":[],"citationsValid":true,"policyAllowed":true}
+{"id":"tool-use-002","query":"What procedures apply to this incident?","expectedDocumentNumbers":["DOC-2026-00001"],"retrievedDocumentNumbers":["DOC-2026-00001"],"citationsValid":true,"policyAllowed":true}
+{"id":"tool-use-003","query":"Which ambulances are currently available?","expectedDocumentNumbers":[],"retrievedDocumentNumbers":[],"citationsValid":true,"policyAllowed":true}
+{"id":"tool-use-004","query":"What is the current situation resource summary?","expectedDocumentNumbers":[],"retrievedDocumentNumbers":[],"citationsValid":true,"policyAllowed":true}
+{"id":"tool-use-005","query":"Show the current incident environmental evidence.","expectedDocumentNumbers":[],"retrievedDocumentNumbers":[],"citationsValid":true,"policyAllowed":true}

@@ -26,6 +26,8 @@ using EmergencyResponse.Api.Services;
 using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Application.Common.Roles;
 using EmergencyResponse.Application.Interfaces;
+using EmergencyResponse.Application.Incidents;
+using EmergencyResponse.Application.Copilot.Actions;
 using EmergencyResponse.Infrastructure.AI;
 using EmergencyResponse.Infrastructure.Identity;
 using EmergencyResponse.Infrastructure.Persistence;
@@ -171,6 +173,14 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IIncidentService,
     IncidentService>();
+
+builder.Services.AddScoped<
+    IIncidentAnnotationService,
+    IncidentAnnotationService>();
+
+builder.Services.AddScoped<
+    ICopilotActionNotificationService,
+    CopilotActionNotificationService>();
 
 builder.Services.AddScoped<
     IDashboardService,

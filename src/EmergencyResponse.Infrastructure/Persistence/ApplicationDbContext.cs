@@ -49,6 +49,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<IncidentRelation> IncidentRelations => Set<IncidentRelation>();
 
+    public DbSet<IncidentNote> IncidentNotes => Set<IncidentNote>();
+
+    public DbSet<IncidentTag> IncidentTags => Set<IncidentTag>();
+
     public DbSet<VisualAnalysis> VisualAnalyses =>
         Set<VisualAnalysis>();
 
@@ -81,6 +85,30 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<EnvironmentalGridSnapshot> EnvironmentalGridSnapshots =>
         Set<EnvironmentalGridSnapshot>();
+
+    public DbSet<KnowledgeDocument> KnowledgeDocuments =>
+        Set<KnowledgeDocument>();
+
+    public DbSet<KnowledgeDocumentChunk> KnowledgeDocumentChunks =>
+        Set<KnowledgeDocumentChunk>();
+
+    public DbSet<CopilotInteraction> CopilotInteractions =>
+        Set<CopilotInteraction>();
+
+    public DbSet<CopilotToolInvocation> CopilotToolInvocations =>
+        Set<CopilotToolInvocation>();
+
+    public DbSet<CopilotConversation> CopilotConversations =>
+        Set<CopilotConversation>();
+
+    public DbSet<CopilotMessage> CopilotMessages =>
+        Set<CopilotMessage>();
+
+    public DbSet<CopilotFeedback> CopilotFeedback =>
+        Set<CopilotFeedback>();
+
+    public DbSet<CopilotActionProposal> CopilotActionProposals =>
+        Set<CopilotActionProposal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

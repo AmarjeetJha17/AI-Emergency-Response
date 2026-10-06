@@ -2,12 +2,17 @@ using Azure.AI.OpenAI;
 using Azure.Identity;
 
 using EmergencyResponse.Application.AI;
+using EmergencyResponse.Application.Copilot;
+using EmergencyResponse.Application.Copilot.Tools;
 using EmergencyResponse.Application.AI.DuplicateDetection;
 using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Application.Decision.Interfaces;
 using EmergencyResponse.Application.ExternalContext;
 using EmergencyResponse.Application.Media;
+using EmergencyResponse.Application.Knowledge;
+using EmergencyResponse.Application.Incidents;
+using EmergencyResponse.Application.Copilot.Actions;
 using EmergencyResponse.Application.Predictive;
 using EmergencyResponse.Application.Predictive.Escalation;
 using EmergencyResponse.Application.Predictive.Forecasting;
@@ -18,6 +23,7 @@ using EmergencyResponse.Application.Predictive.Training;
 using EmergencyResponse.Application.Situations;
 using EmergencyResponse.Infrastructure.Decision;
 using EmergencyResponse.Infrastructure.Media;
+using EmergencyResponse.Infrastructure.Knowledge;
 using EmergencyResponse.Infrastructure.Persistence.Repositories;
 using EmergencyResponse.Infrastructure.Predictive;
 using EmergencyResponse.Infrastructure.Predictive.Forecasting;
@@ -26,6 +32,9 @@ using EmergencyResponse.Infrastructure.Predictive.ResourceDemand;
 using EmergencyResponse.Infrastructure.ExternalContext;
 using EmergencyResponse.Infrastructure.Predictive.Training;
 using EmergencyResponse.Infrastructure.Situations;
+using EmergencyResponse.Infrastructure.Copilot.Tools;
+using EmergencyResponse.Infrastructure.Copilot;
+using EmergencyResponse.Infrastructure.Copilot.Actions;
 
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
@@ -41,6 +50,56 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         services.AddMemoryCache();
+        services.Configure<KnowledgeDocumentOptions>(
+            configuration.GetSection(KnowledgeDocumentOptions.SectionName));
+        services.Configure<KnowledgeSearchOptions>(
+            configuration.GetSection(KnowledgeSearchOptions.SectionName));
+        services.Configure<CopilotMemoryOptions>(
+            configuration.GetSection(CopilotMemoryOptions.SectionName));
+        services.Configure<CopilotActionOptions>(
+            configuration.GetSection(CopilotActionOptions.SectionName));
+        services.AddSingleton<IKnowledgeDocumentStorage,
+            LocalKnowledgeDocumentStorage>();
+        services.AddScoped<IKnowledgeDocumentNumberGenerator,
+            KnowledgeDocumentNumberGenerator>();
+        services.AddSingleton<IKnowledgeDocumentParser,
+            KnowledgeDocumentParser>();
+        services.AddSingleton<IKnowledgeDocumentChunker,
+            KnowledgeDocumentChunker>();
+        services.AddSingleton<KnowledgeSearchIndexBuilder>();
+        services.AddScoped<IKnowledgeSearchService,
+            KnowledgeSearchService>();
+        services.AddScoped<IKnowledgeAccessContextFactory,
+            KnowledgeAccessContextFactory>();
+        services.AddScoped<IKnowledgeDocumentService,
+            KnowledgeDocumentService>();
+        services.AddSingleton<IKnowledgeDocumentQueue,
+            InMemoryKnowledgeDocumentQueue>();
+        services.AddHostedService<KnowledgeDocumentBackgroundWorker>();
+        services.AddScoped<IEmergencyCopilotService,
+            EmergencyCopilotService>();
+        services.AddScoped<ICitationValidator, CitationValidator>();
+        services.AddScoped<ICopilotPolicyValidator, CopilotPolicyValidator>();
+        services.AddScoped<IConversationMemoryService, ConversationMemoryService>();
+        services.AddScoped<ICopilotFeedbackService, CopilotFeedbackService>();
+        services.AddScoped<ICopilotActionPolicy, CopilotActionPolicy>();
+        services.AddScoped<ICopilotActionService, CopilotActionService>();
+        services.AddScoped<ICopilotActionExecutor, CopilotActionExecutor>();
+        services.AddScoped<CopilotExecutionContext>();
+        services.AddScoped<
+            EmergencyResponse.Application.Copilot.Tools.ICopilotExecutionContext>(
+            sp => sp.GetRequiredService<CopilotExecutionContext>());
+        services.AddScoped<CopilotToolAuthorization>();
+        services.AddScoped<CopilotToolInvocationRecorder>();
+        services.AddScoped<IncidentCopilotTools>();
+        services.AddScoped<SituationCopilotTools>();
+        services.AddScoped<ResourceCopilotTools>();
+        services.AddScoped<EscalationCopilotTools>();
+        services.AddScoped<EnvironmentCopilotTools>();
+        services.AddScoped<NotificationCopilotTools>();
+        services.AddScoped<PredictionCopilotTools>();
+        services.AddScoped<KnowledgeCopilotTools>();
+        services.AddScoped<ActionCopilotTools>();
         services.Configure<AzureMapsOptions>(
             configuration.GetSection(AzureMapsOptions.SectionName));
         services.AddHttpClient<IWeatherContextClient, AzureMapsWeatherClient>();

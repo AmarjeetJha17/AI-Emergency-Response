@@ -1,0 +1,111 @@
+@model EmergencyResponse.Web.Controllers.CopilotPageModel
+@using EmergencyResponse.Domain.Knowledge
+
+@{
+    ViewData["Title"] = "Emergency Response Copilot";
+}
+
+<div class="container py-4">
+    <h1>Emergency Response Copilot</h1>
+    <p class="text-muted">
+        Ask about authorized procedures and verify operational decisions with
+        the cited source documents.
+    </p>
+    @if (TempData["CopilotActionMessage"] is string actionMessage)
+    {
+        <div class="alert alert-info">@actionMessage</div>
+    }
+
+    <form method="post" class="card card-body mb-4">
+        @Html.AntiForgeryToken()
+        <input asp-for="IncidentId" type="hidden" />
+        <input asp-for="SituationId" type="hidden" />
+        <label asp-for="Question" class="form-label">Question</label>
+        <textarea asp-for="Question" class="form-control" rows="4"
+                  placeholder="What procedure applies to a chemical spill?"></textarea>
+        <span asp-validation-for="Question" class="text-danger"></span>
+        <button class="btn btn-primary mt-3" type="submit">Ask</button>
+    </form>
+
+    @if (Model.Response is not null)
+    {
+        <section class="card card-body">
+            <h2>Answer</h2>
+            <p class="white-space-pre-line">@Model.Response.Answer</p>
+            <p>
+                <strong>Status:</strong>
+                <span class="badge @(Model.Response.GroundingStatus == GroundingStatus.Grounded ? "bg-success" : "bg-warning text-dark")">
+                    @Model.Response.GroundingStatus
+                </span>
+            </p>
+
+            @if (Model.Response.Citations.Count > 0)
+            {
+                <h3>Sources</h3>
+                <ul>
+                    @foreach (var citation in Model.Response.Citations)
+                    {
+                        <li>
+                            <strong>@citation.DocumentNumber</strong>
+                            · @citation.Title · v@citation.Version
+                            · p.@citation.PageNumber
+                            @if (!string.IsNullOrWhiteSpace(citation.SectionHeading))
+                            {
+                                <span>· @citation.SectionHeading</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (Model.Response.VerificationNotes.Count > 0)
+            {
+                <h3>Verification notes</h3>
+                <ul>
+                    @foreach (var note in Model.Response.VerificationNotes)
+                    {
+                        <li>@note</li>
+                    }
+                </ul>
+            }
+
+            @if (Model.Response.ActionProposals.Count > 0)
+            {
+                <h3 class="mt-4">Actions requiring approval</h3>
+                @foreach (var proposal in Model.Response.ActionProposals)
+                {
+                    <div class="border rounded p-3 mb-3"
+                         data-copilot-action-id="@proposal.ProposalId">
+                        <strong>@proposal.ActionType</strong>
+                        <p class="mb-1">@proposal.Summary</p>
+                        <p class="text-warning">
+                            This proposal does not change operational state until explicitly approved.
+                        </p>
+                        @if (proposal.ExpiresAtUtc is not null)
+                        {
+                            <small class="text-muted">
+                                Expires: @proposal.ExpiresAtUtc.Value.ToUniversalTime().ToString("u")
+                            </small>
+                        }
+                        <div class="mt-2 d-flex gap-2">
+                            <form method="post" asp-action="ApproveAction">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="proposalId" value="@proposal.ProposalId" />
+                                <input type="text" name="comment" class="form-control mb-2"
+                                       placeholder="Approval comment (optional)" />
+                                <button class="btn btn-danger" type="submit">Approve</button>
+                            </form>
+                            <form method="post" asp-action="RejectAction">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="proposalId" value="@proposal.ProposalId" />
+                                <input type="text" name="comment" class="form-control mb-2"
+                                       placeholder="Rejection comment (optional)" />
+                                <button class="btn btn-outline-secondary" type="submit">Reject</button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            }
+        </section>
+    }
+</div>
