@@ -3,12 +3,15 @@ using System.Net.Http.Json;
 
 namespace EmergencyResponse.IntegrationTests.Security;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Security)]
+[Collection("SQL Server integration database")]
 public sealed class SecurityBaselineTests
-    : IClassFixture<ApiWebApplicationFactory>
+    : IClassFixture<EmergencyResponseWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
-    public SecurityBaselineTests(ApiWebApplicationFactory factory)
+    public SecurityBaselineTests(EmergencyResponseWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
     }

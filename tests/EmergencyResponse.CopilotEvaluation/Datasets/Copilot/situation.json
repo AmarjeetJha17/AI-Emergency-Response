@@ -1,0 +1,7 @@
+{
+  "id": "copilot-situation-reason",
+  "input": "Why is situation SIT-4 considered high?",
+  "expectedTools": ["get-situation","get-incident-context"],
+  "expectedArguments": {"situationId":"SIT-4"},
+  "forbiddenTools": ["resolve-situation"]
+}

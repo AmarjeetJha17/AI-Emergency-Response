@@ -7,12 +7,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace EmergencyResponse.IntegrationTests.Predictive;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
+[Collection("SQL Server integration database")]
 public sealed class PredictionSnapshotTests
-    : IClassFixture<ApiWebApplicationFactory>
+    : IClassFixture<EmergencyResponseWebApplicationFactory>
 {
-    private readonly ApiWebApplicationFactory _factory;
+    private readonly EmergencyResponseWebApplicationFactory _factory;
 
-    public PredictionSnapshotTests(ApiWebApplicationFactory factory)
+    public PredictionSnapshotTests(EmergencyResponseWebApplicationFactory factory)
     {
         _factory = factory;
     }

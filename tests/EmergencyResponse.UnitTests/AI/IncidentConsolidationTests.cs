@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EmergencyResponse.UnitTests.AI;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.AI)]
 public sealed class IncidentConsolidationTests
 {
     [Fact]

@@ -4,6 +4,7 @@ using Xunit;
 
 namespace EmergencyResponse.UnitTests.Situations;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public class SituationClusteringEngineTests
 {
     [Fact]
@@ -84,6 +85,35 @@ public class SituationClusteringEngineTests
         Assert.Single(clusters);
         Assert.Equal(3, clusters[0].Count);
         Assert.DoesNotContain(oldInc, clusters[0]);
+    }
+
+    [Fact]
+    public void BuildClusters_IncludesIncidentExactlyAtTimeBoundary()
+    {
+        var start = DateTime.UtcNow;
+        var first = CreateCandidate(19.0760, 72.8777, start);
+        var atBoundary = CreateCandidate(19.0760, 72.8777, start.AddHours(6));
+
+        var clusters = SituationClusteringEngine.BuildClusters(
+            [first, atBoundary], maximumDistanceKm: 1, maximumTimeWindowHours: 6,
+            minimumIncidentCount: 2);
+
+        Assert.Single(clusters);
+        Assert.Equal(2, clusters[0].Count);
+    }
+
+    [Fact]
+    public void BuildClusters_ExcludesIncidentJustOutsideTimeBoundary()
+    {
+        var start = DateTime.UtcNow;
+        var first = CreateCandidate(19.0760, 72.8777, start);
+        var justOutside = CreateCandidate(19.0760, 72.8777, start.AddHours(6).AddTicks(1));
+
+        var clusters = SituationClusteringEngine.BuildClusters(
+            [first, justOutside], maximumDistanceKm: 1, maximumTimeWindowHours: 6,
+            minimumIncidentCount: 2);
+
+        Assert.Empty(clusters);
     }
 
     private static SituationCandidate CreateCandidate(double lat, double lon, DateTime reportedAt)

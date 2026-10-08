@@ -1,0 +1,7 @@
+{
+  "id": "forecast-rolling-origin-template",
+  "splitMethod": "rolling-origin",
+  "horizonHours": 24,
+  "metrics": ["MAE", "RMSE"],
+  "persist": ["ForecastRunId", "ModelVersion", "TrainingEndAtUtc", "ForecastHorizon", "ActualSeries", "PredictedSeries", "MAE", "RMSE"]
+}

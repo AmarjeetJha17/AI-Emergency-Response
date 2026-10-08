@@ -3,12 +3,18 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\EmergencyResponse.Application\EmergencyResponse.Application.csproj" />
     <ProjectReference Include="..\..\src\EmergencyResponse.Domain\EmergencyResponse.Domain.csproj" />
+    <ProjectReference Include="..\..\src\EmergencyResponse.Infrastructure\EmergencyResponse.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.AI.Evaluation" Version="10.10.0" />
     <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Quality" Version="10.10.0" />
     <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Reporting" Version="10.10.0" />
+    <PackageReference Include="Microsoft.Extensions.AI.Evaluation.NLP" Version="10.9.0-preview.1.26411.16" />
+    <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Safety" Version="10.10.0-preview.1.26459.2" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.0" />
+    <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -16,9 +22,17 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- TaskAdherenceEvaluator is experimental in the selected Microsoft.Extensions.AI version. -->
+    <NoWarn>$(NoWarn);AIEVAL001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <None Update="Data\*.jsonl">
+    <None Update="Data\**\*.jsonl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Datasets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="EvaluationThresholds.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

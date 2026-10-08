@@ -13,9 +13,11 @@ using Xunit;
 
 namespace EmergencyResponse.IntegrationTests.Notifications;
 
-public sealed class NotificationApiTests : IClassFixture<ApiWebApplicationFactory>
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
+[Collection("SQL Server integration database")]
+public sealed class NotificationApiTests : IClassFixture<EmergencyResponseWebApplicationFactory>
 {
-    private readonly ApiWebApplicationFactory _factory;
+    private readonly EmergencyResponseWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -23,7 +25,7 @@ public sealed class NotificationApiTests : IClassFixture<ApiWebApplicationFactor
         PropertyNameCaseInsensitive = true
     };
 
-    public NotificationApiTests(ApiWebApplicationFactory factory)
+    public NotificationApiTests(EmergencyResponseWebApplicationFactory factory)
     {
         _factory = factory;
         _client = factory.CreateClient();

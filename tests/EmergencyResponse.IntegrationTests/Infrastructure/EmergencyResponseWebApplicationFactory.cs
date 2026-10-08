@@ -5,37 +5,44 @@ using EmergencyResponse.Application.AI.VisualAnalysis;
 using EmergencyResponse.Application.Media;
 using EmergencyResponse.Application.Situations;
 using EmergencyResponse.Infrastructure.Persistence;
+using EmergencyResponse.IntegrationTests.Infrastructure;
 
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace EmergencyResponse.IntegrationTests;
 
 /// <summary>
-/// WebApplicationFactory that runs the API against a SQLite temp-file database
-/// (the "Test" environment branch in Program.cs) with AI services stubbed.
-/// Each factory instance gets its own unique DB file for test isolation.
+/// WebApplicationFactory using the dedicated SQL Server test database and deterministic AI fakes.
 /// </summary>
-public sealed class ApiWebApplicationFactory
+public sealed class EmergencyResponseWebApplicationFactory
     : WebApplicationFactory<Program>
 {
-    // Each factory instance gets a unique SQLite file so tests are isolated.
-    private readonly string _dbPath =
-        Path.Combine(Path.GetTempPath(),
-            $"er-integration-{Guid.NewGuid():N}.db");
+    public ManualTimeProvider TestTimeProvider { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // "Test" environment causes Program.cs to use SQLite instead of SQL Server.
+        // CI and local test processes should not need permission to write to
+        // the machine-wide Windows Event Log.
+        builder.ConfigureLogging(logging => logging.ClearProviders());
+
         builder.UseEnvironment("Test");
 
-        builder.ConfigureAppConfiguration(config =>
+        builder.ConfigureAppConfiguration((_, config) =>
         {
+            config.AddJsonFile(
+                Path.Combine(AppContext.BaseDirectory, "appsettings.Test.json"),
+                optional: false,
+                reloadOnChange: false);
+            config.AddEnvironmentVariables();
+
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Jwt:Issuer"]            = "IntegrationTests",
@@ -63,13 +70,14 @@ public sealed class ApiWebApplicationFactory
                 ["Security:RateLimits:CopilotPerMinute"] = "1000",
                 ["Security:RateLimits:AdminPerMinute"] = "1000",
 
-                // SQLite temp-file database — persists across connections.
-                ["ConnectionStrings:DefaultConnection"] = $"Data Source={_dbPath}"
             });
         });
 
         builder.ConfigureServices(services =>
         {
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(TestTimeProvider);
+
             // ── Stub AI services at the Application layer ─────────────────
             // These replace the null-object stubs wired by AddTestAI().
             services.RemoveAll<IIncidentAnalysisService>();
@@ -96,16 +104,29 @@ public sealed class ApiWebApplicationFactory
             services.RemoveAll<IIncidentMediaStorage>();
             services.AddSingleton<IIncidentMediaStorage>(
                 new TempDirMediaStorage());
+
+            services.AddAuthentication(options =>
+                {
+                    options.DefaultScheme = IntegrationTestScheme.Selector;
+                    options.DefaultAuthenticateScheme = IntegrationTestScheme.Selector;
+                    options.DefaultChallengeScheme = IntegrationTestScheme.Selector;
+                })
+                .AddPolicyScheme(IntegrationTestScheme.Selector, null, options =>
+                {
+                    options.ForwardDefaultSelector = context =>
+                        context.Request.Headers.ContainsKey("X-Test-UserId")
+                            ? TestAuthenticationHandler.Scheme
+                            : JwtBearerDefaults.AuthenticationScheme;
+                })
+                .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(
+                    TestAuthenticationHandler.Scheme,
+                    _ => { });
         });
     }
 
-    protected override void Dispose(bool disposing)
+    private static class IntegrationTestScheme
     {
-        base.Dispose(disposing);
-        if (disposing && File.Exists(_dbPath))
-        {
-            try { File.Delete(_dbPath); } catch { /* best-effort */ }
-        }
+        public const string Selector = "IntegrationTestSelector";
     }
 
     // ── No-op stubs ───────────────────────────────────────────────────────

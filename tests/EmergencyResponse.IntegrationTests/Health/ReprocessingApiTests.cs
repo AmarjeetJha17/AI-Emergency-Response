@@ -8,7 +8,9 @@ using Xunit;
 
 namespace EmergencyResponse.IntegrationTests.Health;
 
-public sealed class ReprocessingApiTests : IClassFixture<ApiWebApplicationFactory>
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
+[Collection("SQL Server integration database")]
+public sealed class ReprocessingApiTests : IClassFixture<EmergencyResponseWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
@@ -17,7 +19,7 @@ public sealed class ReprocessingApiTests : IClassFixture<ApiWebApplicationFactor
         PropertyNameCaseInsensitive = true
     };
 
-    public ReprocessingApiTests(ApiWebApplicationFactory factory)
+    public ReprocessingApiTests(EmergencyResponseWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
     }

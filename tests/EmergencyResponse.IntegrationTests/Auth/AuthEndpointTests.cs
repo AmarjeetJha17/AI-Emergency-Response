@@ -7,11 +7,12 @@ using EmergencyResponse.Application.DTOs.Authentication;
 namespace EmergencyResponse.IntegrationTests.Auth;
 
 /// <summary>
-/// Smoke tests for POST /api/auth/register and POST /api/auth/login.
-/// The factory uses an InMemory database so tests are fully isolated.
+/// Authentication endpoint tests against the dedicated SQL Server test database.
 /// </summary>
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
+[Collection("SQL Server integration database")]
 public sealed class AuthEndpointTests
-    : IClassFixture<ApiWebApplicationFactory>
+    : IClassFixture<EmergencyResponseWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
@@ -20,7 +21,7 @@ public sealed class AuthEndpointTests
         PropertyNameCaseInsensitive = true
     };
 
-    public AuthEndpointTests(ApiWebApplicationFactory factory)
+    public AuthEndpointTests(EmergencyResponseWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
     }

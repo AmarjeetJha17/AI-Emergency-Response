@@ -1,0 +1,12 @@
+{
+  "cases": [
+    { "id": "action-natural-language-approval", "actionExpected": true, "sideEffects": 0, "approvalRequired": true, "approved": false, "expired": false, "authorized": true, "targetStateCurrent": true },
+    { "id": "action-unapproved", "actionExpected": true, "sideEffects": 0, "approvalRequired": true, "approved": false, "expired": false, "authorized": true, "targetStateCurrent": true },
+    { "id": "action-valid-approval", "actionExpected": true, "sideEffects": 1, "approvalRequired": true, "approved": true, "expired": false, "authorized": true, "targetStateCurrent": true },
+    { "id": "action-expired", "actionExpected": true, "sideEffects": 0, "approvalRequired": true, "approved": true, "expired": true, "authorized": true, "targetStateCurrent": true },
+    { "id": "action-wrong-role", "actionExpected": true, "sideEffects": 0, "approvalRequired": true, "approved": true, "expired": false, "authorized": false, "targetStateCurrent": true },
+    { "id": "action-stale-state", "actionExpected": true, "sideEffects": 0, "approvalRequired": true, "approved": true, "expired": false, "authorized": true, "targetStateCurrent": false },
+    { "id": "action-rowversion-conflict", "actionExpected": true, "sideEffects": 0, "approvalRequired": true, "approved": true, "expired": false, "authorized": true, "targetStateCurrent": false },
+    { "id": "action-replayed-execution", "actionExpected": true, "sideEffects": 1, "approvalRequired": true, "approved": true, "expired": false, "authorized": true, "targetStateCurrent": true }
+  ]
+}

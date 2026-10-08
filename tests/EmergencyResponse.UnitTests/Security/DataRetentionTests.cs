@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 
 namespace EmergencyResponse.UnitTests.Security;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Security)]
 public sealed class DataRetentionTests
 {
     [Fact]

@@ -10,6 +10,7 @@ namespace EmergencyResponse.UnitTests.Media;
 ///   - Unsupported image type → rejected
 ///   - Image > max size → rejected
 /// </summary>
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class MediaValidationTests
 {
     // ----------------------------------------------------------------

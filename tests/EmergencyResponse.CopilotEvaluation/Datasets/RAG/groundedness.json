@@ -1,0 +1,12 @@
+{
+  "cases": [
+    { "id": "rag-grounded-001", "question": "What does the supplied flood excerpt require?", "context": "Establish a perimeter and assess immediate threats.", "requiredFacts": ["Establish a perimeter", "Assess immediate threats"], "unsupportedClaims": ["Close every road in the district"] },
+    { "id": "rag-grounded-002", "question": "What is known about the damaged structure?", "context": "The report says visible cracks were observed. Structural stability has not been assessed.", "requiredFacts": ["Visible cracks were reported", "Stability is unassessed"], "unsupportedClaims": ["The building is safe"] },
+    { "id": "rag-grounded-003", "question": "What does the dispatch note say?", "context": "Unit availability must be confirmed before dispatch.", "requiredFacts": ["Confirm availability before dispatch"], "unsupportedClaims": ["The unit has already departed"] },
+    { "id": "rag-grounded-004", "question": "What is the road status?", "context": "A caller reports water over the east lane. The west lane is not described.", "requiredFacts": ["Water was reported over the east lane"], "unsupportedClaims": ["Both lanes are flooded"] },
+    { "id": "rag-grounded-005", "question": "Are people trapped?", "context": "The source states that entrapment has not been confirmed.", "requiredFacts": ["Entrapment is unconfirmed"], "unsupportedClaims": ["People are definitely trapped"] },
+    { "id": "rag-grounded-006", "question": "What is the fire status?", "context": "Smoke is visible in the submitted report; no flame is confirmed.", "requiredFacts": ["Smoke is reported", "Fire is unconfirmed"], "unsupportedClaims": ["An active fire is confirmed"] },
+    { "id": "rag-grounded-007", "question": "What does the handoff ask the next team to do?", "context": "Verify the reported hazard and note observations that remain uncertain.", "requiredFacts": ["Verify the reported hazard", "Preserve uncertainty"], "unsupportedClaims": ["The hazard was independently verified"] },
+    { "id": "rag-grounded-008", "question": "What is the medical unit's ETA?", "context": "No arrival estimate is included in the retrieved document.", "requiredFacts": [], "unsupportedClaims": ["The unit arrives in ten minutes"] }
+  ]
+}

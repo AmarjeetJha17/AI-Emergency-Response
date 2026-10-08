@@ -1,0 +1,322 @@
+[
+  {
+    "datasetVersion": "2026.10.1",
+    "description": "Synthetic normal case for Flood extraction.",
+    "expected": {
+      "department": "Rescue",
+      "minimumConfidence": 0.0,
+      "peopleTrapped": true,
+      "incidentType": "Flood",
+      "roadBlocked": true,
+      "immediateDanger": true,
+      "maximumConfidence": 1.0,
+      "casualties": 0,
+      "vehiclesAffected": 3,
+      "peopleAffected": 8
+    },
+    "input": {
+      "latitude": 18.5204,
+      "state": "Test State",
+      "longitude": 73.8567,
+      "city": "Test City",
+      "incidentType": "Flood",
+      "district": "Test District",
+      "description": "Witness statement: Flood water covers the east road and three vehicles are trapped with about seven or eight people. No casualties are confirmed. Details were collected at the scene.",
+      "address": "Synthetic test location",
+      "casualties": null,
+      "vehiclesAffected": null,
+      "title": "Flooded east road",
+      "peopleAffected": null
+    },
+    "id": "incident-normal-01",
+    "category": "normal"
+  },
+  {
+    "datasetVersion": "2026.10.1",
+    "description": "Synthetic normal case for Fire extraction.",
+    "expected": {
+      "department": "Fire",
+      "minimumConfidence": 0.0,
+      "peopleTrapped": true,
+      "incidentType": "Fire",
+      "roadBlocked": false,
+      "immediateDanger": true,
+      "maximumConfidence": 1.0,
+      "casualties": 0,
+      "vehiclesAffected": 0,
+      "peopleAffected": 2
+    },
+    "input": {
+      "latitude": 18.5204,
+      "state": "Test State",
+      "longitude": 73.8567,
+      "city": "Test City",
+      "incidentType": "Fire",
+      "district": "Test District",
+      "description": "Witness statement: Smoke and flames are visible from a second-floor apartment. A caller believes two residents may still be inside. Details were collected at the scene.",
+      "address": "Synthetic test location",
+      "casualties": null,
+      "vehiclesAffected": null,
+      "title": "Apartment fire",
+      "peopleAffected": null
+    },
+    "id": "incident-normal-02",
+    "category": "normal"
+  },
+  {
+    "datasetVersion": "2026.10.1",
+    "description": "Synthetic normal case for Road Accident extraction.",
+    "expected": {
+      "department": "Police",
+      "minimumConfidence": 0.0,
+      "peopleTrapped": false,
+      "incidentType": "Road Accident",
+      "roadBlocked": true,
+      "immediateDanger": true,
+      "maximumConfidence": 1.0,
+      "casualties": 1,
+      "vehiclesAffected": 2,
+      "peopleAffected": 4
+    },
+    "input": {
+      "latitude": 18.5204,
+      "state": "Test State",
+      "longitude": 73.8567,
+      "city": "Test City",
+      "incidentType": "Road Accident",
+      "district": "Test District",
+      "description": "Witness statement: Two cars collided at the junction. One person is confirmed injured, four people are involved, and the northbound lane is blocked. Details were collected at the scene.",
+      "address": "Synthetic test location",
+      "casualties": null,
+      "vehiclesAffected": null,
+      "title": "Two-car collision",
+      "peopleAffected": null
+    },
+    "id": "incident-normal-03",
+    "category": "normal"
+  },
+  {
+    "datasetVersion": "2026.10.1",
+    "description": "Synthetic normal case for Building Collapse extraction.",
+    "expected": {
+      "department": "Rescue",
+      "minimumConfidence": 0.0,
+      "peopleTrapped": true,
+      "incidentType": "Building Collapse",
+      "roadBlocked": false,
+      "immediateDanger": true,
+      "maximumConfidence": 1.0,
+      "casualties": 0,
+      "vehiclesAffected": 0,
+      "peopleAffected": 6
+    },
+    "input": {
+      "latitude": 18.5204,
+      "state": "Test State",
+      "longitude": 73.8567,
+      "city": "Test City",
+      "incidentType": "Building Collapse",
+      "district": "Test District",
+      "description": "Witness statement: Part of a warehouse roof collapsed during a storm. Workers report that six people may be inside; injuries are not confirmed. Details were collected at the scene.",
+      "address": "Synthetic test location",
+      "casualties": null,
+      "vehiclesAffected": null,
+      "title": "Warehouse roof collapse",
+      "peopleAffected": null
+    },
+    "id": "incident-normal-04",
+    "category": "normal"
+  },
+  {
+    "datasetVersion": "2026.10.1",
+    "description": "Synthetic normal case for Cyclone extraction.",
+    "expected": {
+      "department": "EmergencyManagement",
+      "minimumConfidence": 0.0,
+      "peopleTrapped": false,
+      "incidentType": "Cyclone",
+      "roadBlocked": true,
+      "immediateDanger": true,
+      "maximumConfidence": 1.0,
+      "casualties": 0,
+      "vehiclesAffected": 0,
+      "peopleAffected": 20
+    },
+    "input": {
+      "latitude": 18.5204,
+      "state": "Test State",
+      "longitude": 73.8567,
+      "city": "Test City",
+      "incidentType": "Cyclone",
+      "district": "Test District",
+      "description": "Witness statement: Cyclone winds damaged power lines and blocked the road to a shelter. About twenty residents are waiting for assistance; no injuries are reported. Details were collected at the scene.",
+      "address": "Synthetic test location",
+      "casualties": null,
+      "vehiclesAffected": null,
+      "title": "Cyclone damage near shelter",
+      "peopleAffected": null
+    },
+    "id": "incident-normal-05",
+    "category": "normal"
+  },
+  {
+    "datasetVersion": "2026.10.1",
+    "description": "Synthetic normal case for Landslide extraction.",
+    "expected": {
+      "department": "Rescue",
+      "minimumConfidence": 0.0,
+      "peopleTrapped": false,
+      "incidentType": "Landslide",
+      "roadBlocked": true,
+      "immediateDanger": true,
+      "maximumConfidence": 1.0,
+      "casualties": 0,
+      "vehiclesAffected": 0,
+      "peopleAffected": 0
+    },
+    "input": {
+      "latitude": 18.5204,
+      "state": "Test State",
+      "longitude": 73.8567,
+      "city": "Test City",
+      "incidentType": "Landslide",
+      "district": "Test District",
+      "description": "Witness statement: A landslide covered the mountain road after heavy rain. No people or vehicles are reported in the slide area. Details were collected at the scene.",
+      "address": "Synthetic test location",
+      "casualties": null,
+      "vehiclesAffected": null,
+      "title": "Landslide blocks mountain road",
+      "peopleAffected": null
+    },
+    "id": "incident-normal-06",
+    "category": "normal"
+  },
+  {
+    "datasetVersion": "2026.10.1",
+    "description": "Synthetic normal case for Medical Emergency extraction.",
+    "expected": {
+      "department": "Medical",
+      "minimumConfidence": 0.0,
+      "peopleTrapped": false,
+      "incidentType": "Medical Emergency",
+      "roadBlocked": false,
+      "immediateDanger": true,
+      "maximumConfidence": 1.0,
+      "casualties": 1,
+      "vehiclesAffected": 0,
+      "peopleAffected": 1
+    },
+    "input": {
+      "latitude": 18.5204,
+      "state": "Test State",
+      "longitude": 73.8567,
+      "city": "Test City",
+      "incidentType": "Medical Emergency",
+      "district": "Test District",
+      "description": "Witness statement: A person collapsed at a public event and is not responding. Bystanders have started first aid; the number of other people affected is unknown. Details were collected at the scene.",
+      "address": "Synthetic test location",
+      "casualties": null,
+      "vehiclesAffected": null,
+      "title": "Unresponsive person",
+      "peopleAffected": null
+    },
+    "id": "incident-normal-07",
+    "category": "normal"
+  },
+  {
+    "datasetVersion": "2026.10.1",
+    "description": "Synthetic normal case for Industrial Incident extraction.",
+    "expected": {
+      "department": "Fire",
+      "minimumConfidence": 0.0,
+      "peopleTrapped": false,
+      "incidentType": "Industrial Incident",
+      "roadBlocked": false,
+      "immediateDanger": true,
+      "maximumConfidence": 1.0,
+      "casualties": 0,
+      "vehiclesAffected": 0,
+      "peopleAffected": 3
+    },
+    "input": {
+      "latitude": 18.5204,
+      "state": "Test State",
+      "longitude": 73.8567,
+      "city": "Test City",
+      "incidentType": "Industrial Incident",
+      "district": "Test District",
+      "description": "Witness statement: Workers report a chemical odor after a pipe leak. Three employees left the area; no exposure symptoms or casualties are confirmed. Details were collected at the scene.",
+      "address": "Synthetic test location",
+      "casualties": null,
+      "vehiclesAffected": null,
+      "title": "Chemical odor at plant",
+      "peopleAffected": null
+    },
+    "id": "incident-normal-08",
+    "category": "normal"
+  },
+  {
+    "datasetVersion": "2026.10.1",
+    "description": "Synthetic normal case for Infrastructure Failure extraction.",
+    "expected": {
+      "department": "EmergencyManagement",
+      "minimumConfidence": 0.0,
+      "peopleTrapped": false,
+      "incidentType": "Infrastructure Failure",
+      "roadBlocked": true,
+      "immediateDanger": true,
+      "maximumConfidence": 1.0,
+      "casualties": 0,
+      "vehiclesAffected": 0,
+      "peopleAffected": 0
+    },
+    "input": {
+      "latitude": 18.5204,
+      "state": "Test State",
+      "longitude": 73.8567,
+      "city": "Test City",
+      "incidentType": "Infrastructure Failure",
+      "district": "Test District",
+      "description": "Witness statement: A section of bridge deck appears damaged and traffic has stopped. No people are reported injured or trapped. Details were collected at the scene.",
+      "address": "Synthetic test location",
+      "casualties": null,
+      "vehiclesAffected": null,
+      "title": "Bridge deck damage",
+      "peopleAffected": null
+    },
+    "id": "incident-normal-09",
+    "category": "normal"
+  },
+  {
+    "datasetVersion": "2026.10.1",
+    "description": "Synthetic normal case for Unknown extraction.",
+    "expected": {
+      "department": "EmergencyManagement",
+      "minimumConfidence": 0.0,
+      "peopleTrapped": false,
+      "incidentType": "Unknown",
+      "roadBlocked": false,
+      "immediateDanger": false,
+      "maximumConfidence": 1.0,
+      "casualties": null,
+      "vehiclesAffected": null,
+      "peopleAffected": null
+    },
+    "input": {
+      "latitude": 18.5204,
+      "state": "Test State",
+      "longitude": 73.8567,
+      "city": "Test City",
+      "incidentType": "Unknown",
+      "district": "Test District",
+      "description": "Witness statement: A caller heard a loud noise several streets away but cannot see smoke, damage, injuries, or blocked roads. Cause is unknown. Details were collected at the scene.",
+      "address": "Synthetic test location",
+      "casualties": null,
+      "vehiclesAffected": null,
+      "title": "Unverified loud noise",
+      "peopleAffected": null
+    },
+    "id": "incident-normal-10",
+    "category": "normal"
+  }
+]

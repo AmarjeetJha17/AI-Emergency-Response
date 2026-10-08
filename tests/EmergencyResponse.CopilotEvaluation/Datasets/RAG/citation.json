@@ -1,0 +1,10 @@
+{
+  "cases": [
+    { "id": "rag-citation-001", "claim": "The flood SOP requires an incident perimeter.", "citedSource": "DOC-FLOOD-SOP", "retrievedSources": ["DOC-FLOOD-SOP"], "existingSources": ["DOC-FLOOD-SOP"], "claimSupported": true, "expectedCorrect": true },
+    { "id": "rag-citation-002", "claim": "The document confirms the building is safe.", "citedSource": "DOC-STRUCTURE-SAFETY", "retrievedSources": ["DOC-STRUCTURE-SAFETY"], "existingSources": ["DOC-STRUCTURE-SAFETY"], "claimSupported": false, "expectedCorrect": false },
+    { "id": "rag-citation-003", "claim": "A unit must be available before dispatch.", "citedSource": "DOC-MEDICAL-DISPATCH", "retrievedSources": [], "existingSources": ["DOC-MEDICAL-DISPATCH"], "claimSupported": true, "expectedCorrect": false },
+    { "id": "rag-citation-004", "claim": "Use the authorized road-closure process.", "citedSource": "DOC-ROAD-CLOSURE", "retrievedSources": ["DOC-ROAD-CLOSURE"], "existingSources": ["DOC-ROAD-CLOSURE"], "claimSupported": true, "expectedCorrect": true },
+    { "id": "rag-citation-005", "claim": "The source confirms a casualty count.", "citedSource": "DOC-UNKNOWN", "retrievedSources": ["DOC-UNKNOWN"], "existingSources": [], "claimSupported": false, "expectedCorrect": false },
+    { "id": "rag-citation-006", "claim": "Conflicting reports should be preserved.", "citedSource": "DOC-INCIDENT-COMMAND", "retrievedSources": ["DOC-INCIDENT-COMMAND"], "existingSources": ["DOC-INCIDENT-COMMAND"], "claimSupported": true, "expectedCorrect": true }
+  ]
+}

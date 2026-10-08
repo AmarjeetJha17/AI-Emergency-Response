@@ -7,6 +7,7 @@ using Xunit;
 
 namespace EmergencyResponse.UnitTests.Notifications;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class NotificationRuleEngineTests
 {
     private readonly NotificationRuleEngine _engine = new();

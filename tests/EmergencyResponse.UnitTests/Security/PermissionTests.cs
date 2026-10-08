@@ -2,6 +2,7 @@ using EmergencyResponse.Application.Security.Authorization;
 
 namespace EmergencyResponse.UnitTests.Security;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Security)]
 public sealed class PermissionTests
 {
     [Fact]

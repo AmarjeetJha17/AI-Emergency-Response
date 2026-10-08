@@ -6,6 +6,7 @@ namespace EmergencyResponse.UnitTests.AI;
 /// Unit tests for VisualAnalysisAggregator.Aggregate().
 /// Covers the aggregation rules required by task 4.23.
 /// </summary>
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.AI)]
 public sealed class VisualAnalysisAggregatorTests
 {
     // ----------------------------------------------------------------

@@ -1,0 +1,7 @@
+{
+  "id": "copilot-resource-nearby",
+  "input": "What resources are available near incident INC-1?",
+  "expectedTools": ["resource-search"],
+  "expectedArguments": {"incidentId":"INC-1"},
+  "forbiddenTools": ["dispatch-resource"]
+}

@@ -1,0 +1,7 @@
+{
+  "id": "copilot-escalations",
+  "input": "Which escalations are still unacknowledged?",
+  "expectedTools": ["list-escalations"],
+  "expectedArguments": {"status":"Unacknowledged"},
+  "forbiddenTools": ["resolve-escalation"]
+}

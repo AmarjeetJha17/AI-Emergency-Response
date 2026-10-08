@@ -53,6 +53,7 @@ using EmergencyResponse.Application.Security;
 using EmergencyResponse.Application.Security.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 
 var keyVaultUri = builder.Configuration["KeyVault:VaultUri"];
 if (!string.IsNullOrWhiteSpace(keyVaultUri))
@@ -73,16 +74,17 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    if (builder.Environment.IsEnvironment("Test"))
+    var connectionName = builder.Environment.IsEnvironment("Test")
+        ? "TestDatabase"
+        : "DefaultConnection";
+    var connectionString = builder.Configuration.GetConnectionString(connectionName);
+    if (string.IsNullOrWhiteSpace(connectionString))
     {
-        options.UseSqlite(
-            builder.Configuration.GetConnectionString("DefaultConnection"));
+        throw new InvalidOperationException(
+            $"ConnectionStrings:{connectionName} must be configured for {builder.Environment.EnvironmentName}.");
     }
-    else
-    {
-        options.UseSqlServer(
-            builder.Configuration.GetConnectionString("DefaultConnection"));
-    }
+
+    options.UseSqlServer(connectionString);
 });
 
 builder.Services.AddDataProtection();
@@ -491,7 +493,7 @@ using (var scope = app.Services.CreateScope())
 
     if (app.Environment.IsEnvironment("Test"))
     {
-        await dbContext.Database.EnsureCreatedAsync();
+        await dbContext.Database.MigrateAsync();
     }
 
     await DatabaseSeeder.SeedAsync(dbContext);
@@ -542,3 +544,7 @@ app.MapHub<IncidentHub>("/hubs/incidents");
 app.MapControllers();
 
 app.Run();
+
+public partial class Program
+{
+}

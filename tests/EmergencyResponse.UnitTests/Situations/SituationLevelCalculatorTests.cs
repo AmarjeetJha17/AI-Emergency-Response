@@ -4,6 +4,7 @@ using Xunit;
 
 namespace EmergencyResponse.UnitTests.Situations;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public class SituationLevelCalculatorTests
 {
     [Theory]

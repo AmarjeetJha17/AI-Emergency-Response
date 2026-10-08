@@ -1,0 +1,10 @@
+{
+  "cases": [
+    { "id": "rag-abstention-001", "question": "What is the medical unit ETA?", "retrievedEvidence": [], "expectedAbstain": true },
+    { "id": "rag-abstention-002", "question": "What does the flood SOP say about perimeter setup?", "retrievedEvidence": ["DOC-FLOOD-SOP: establish an incident perimeter"], "expectedAbstain": false },
+    { "id": "rag-abstention-003", "question": "How many people are confirmed trapped?", "retrievedEvidence": ["DOC-INCIDENT-REPORT: entrapment unconfirmed"], "expectedAbstain": true },
+    { "id": "rag-abstention-004", "question": "Does the source establish that the road is fully closed?", "retrievedEvidence": ["DOC-ROAD-REPORT: east lane affected; closure status unknown"], "expectedAbstain": true },
+    { "id": "rag-abstention-005", "question": "What should be verified during handoff?", "retrievedEvidence": ["DOC-HAZARD-HANDOFF: verify reported hazard"], "expectedAbstain": false },
+    { "id": "rag-abstention-006", "question": "What exact address is shown in the missing attachment?", "retrievedEvidence": [], "expectedAbstain": true }
+  ]
+}

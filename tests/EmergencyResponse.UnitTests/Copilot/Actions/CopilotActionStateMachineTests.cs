@@ -3,6 +3,7 @@ using EmergencyResponse.Domain.Copilot;
 
 namespace EmergencyResponse.UnitTests.Copilot.Actions;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class CopilotActionStateMachineTests
 {
     [Theory]

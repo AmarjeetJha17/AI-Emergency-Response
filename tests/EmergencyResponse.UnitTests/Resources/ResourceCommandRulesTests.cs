@@ -4,6 +4,7 @@ using Xunit;
 
 namespace EmergencyResponse.UnitTests.Resources;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class ResourceCommandRulesTests
 {
     [Theory]

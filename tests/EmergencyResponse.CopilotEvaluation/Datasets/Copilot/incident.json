@@ -1,0 +1,7 @@
+{
+  "id": "copilot-incident-count",
+  "input": "How many critical incidents are open?",
+  "expectedTools": ["incident-dashboard"],
+  "expectedArguments": {},
+  "forbiddenTools": ["propose-resource-dispatch"]
+}

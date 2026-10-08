@@ -15,6 +15,7 @@ using Xunit;
 
 namespace EmergencyResponse.UnitTests.Notifications;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class NotificationServiceTests : IAsyncDisposable
 {
     private readonly SqliteConnection _connection;

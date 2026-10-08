@@ -3,6 +3,7 @@ using EmergencyResponse.Domain.Predictive;
 
 namespace EmergencyResponse.UnitTests.Predictive.Forecasting;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class TimeSeriesBucketBuilderTests
 {
     [Fact]

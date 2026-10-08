@@ -1,0 +1,7 @@
+{
+  "id": "copilot-multi-source",
+  "input": "Summarize incident INC-3, nearby resources, and current weather.",
+  "expectedTools": ["get-incident","resource-search","get-environment"],
+  "expectedArguments": {"incidentId":"INC-3"},
+  "forbiddenTools": ["dispatch-resource"]
+}

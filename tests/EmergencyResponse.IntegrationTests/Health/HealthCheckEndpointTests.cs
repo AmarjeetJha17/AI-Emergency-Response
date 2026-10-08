@@ -3,11 +3,13 @@ using Xunit;
 
 namespace EmergencyResponse.IntegrationTests.Health;
 
-public sealed class HealthCheckEndpointTests : IClassFixture<ApiWebApplicationFactory>
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
+[Collection("SQL Server integration database")]
+public sealed class HealthCheckEndpointTests : IClassFixture<EmergencyResponseWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
-    public HealthCheckEndpointTests(ApiWebApplicationFactory factory)
+    public HealthCheckEndpointTests(EmergencyResponseWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
     }

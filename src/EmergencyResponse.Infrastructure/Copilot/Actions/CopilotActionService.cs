@@ -16,17 +16,20 @@ public sealed class CopilotActionService : ICopilotActionService
     private readonly ICurrentUserService _currentUser;
     private readonly ICopilotActionPolicy _policy;
     private readonly ICopilotActionNotificationService _notifications;
+    private readonly TimeProvider _timeProvider;
 
     public CopilotActionService(
         ApplicationDbContext db,
         ICurrentUserService currentUser,
         ICopilotActionPolicy policy,
-        ICopilotActionNotificationService notifications)
+        ICopilotActionNotificationService notifications,
+        TimeProvider timeProvider)
     {
         _db = db;
         _currentUser = currentUser;
         _policy = policy;
         _notifications = notifications;
+        _timeProvider = timeProvider;
     }
 
     public async Task<CopilotActionProposal> ProposeAsync(
@@ -36,7 +39,7 @@ public sealed class CopilotActionService : ICopilotActionService
     {
         var userId = RequireUser();
         var roles = GetRoles();
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var decision = _policy.Evaluate(request.ActionType, roles, now);
         if (!decision.Allowed)
         {
@@ -125,7 +128,7 @@ public sealed class CopilotActionService : ICopilotActionService
         proposal.Status = CopilotActionStatus.Approved;
         proposal.ApprovalDecision = CopilotApprovalDecision.Approved;
         proposal.ApprovedByUserId = userId;
-        proposal.ApprovedAtUtc = DateTime.UtcNow;
+        proposal.ApprovedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
         proposal.ApprovalComment = comment?.Trim()[..Math.Min(1000, comment.Trim().Length)];
         AddAudit(proposal, "COPILOT_ACTION_APPROVED", userId, proposal.ApprovedAtUtc.Value);
         await _db.SaveChangesAsync(cancellationToken);
@@ -160,7 +163,7 @@ public sealed class CopilotActionService : ICopilotActionService
         proposal.Status = CopilotActionStatus.Rejected;
         proposal.ApprovalDecision = CopilotApprovalDecision.Rejected;
         proposal.ApprovedByUserId = userId;
-        proposal.ApprovedAtUtc = DateTime.UtcNow;
+        proposal.ApprovedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
         proposal.ApprovalComment = comment?.Trim()[..Math.Min(1000, comment.Trim().Length)];
         AddAudit(proposal, "COPILOT_ACTION_REJECTED", userId, proposal.ApprovedAtUtc.Value);
         await _db.SaveChangesAsync(cancellationToken);
@@ -191,7 +194,7 @@ public sealed class CopilotActionService : ICopilotActionService
         if (!_policy.Evaluate(
                 CopilotActionType.CreateIncidentNote,
                 roles,
-                DateTime.UtcNow).Allowed)
+                _timeProvider.GetUtcNow().UtcDateTime).Allowed)
         {
             return [];
         }
@@ -199,7 +202,7 @@ public sealed class CopilotActionService : ICopilotActionService
         return await _db.CopilotActionProposals
             .AsNoTracking()
             .Where(x => x.Status == CopilotActionStatus.AwaitingApproval &&
-                        x.ExpiresAtUtc > DateTime.UtcNow)
+                        x.ExpiresAtUtc > _timeProvider.GetUtcNow().UtcDateTime)
             .OrderBy(x => x.ExpiresAtUtc)
             .Take(100)
             .ToListAsync(cancellationToken);
@@ -237,7 +240,7 @@ public sealed class CopilotActionService : ICopilotActionService
         CancellationToken cancellationToken)
     {
         if (proposal.ExpiresAtUtc is { } expiresAt &&
-            expiresAt <= DateTime.UtcNow)
+            expiresAt <= _timeProvider.GetUtcNow().UtcDateTime)
         {
             if (proposal.Status == CopilotActionStatus.AwaitingApproval)
             {
@@ -247,7 +250,7 @@ public sealed class CopilotActionService : ICopilotActionService
                     proposal,
                     "COPILOT_ACTION_EXPIRED",
                     RequireUser(),
-                    DateTime.UtcNow);
+                    _timeProvider.GetUtcNow().UtcDateTime);
                 await _db.SaveChangesAsync(cancellationToken);
                 EmergencyResponseTelemetry.CopilotActionsExpired.Add(
                     1,
@@ -263,7 +266,7 @@ public sealed class CopilotActionService : ICopilotActionService
         var decision = _policy.Evaluate(
             actionType,
             GetRoles(),
-            DateTime.UtcNow);
+            _timeProvider.GetUtcNow().UtcDateTime);
         if (!decision.Allowed)
         {
             throw new UnauthorizedAccessException(

@@ -1,0 +1,54 @@
+name: Live AI Evaluation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    env:
+      AI_EVAL_CANDIDATE_ENDPOINT: ${{ secrets.AI_EVAL_CANDIDATE_ENDPOINT }}
+      AI_EVAL_CANDIDATE_DEPLOYMENT: ${{ secrets.AI_EVAL_CANDIDATE_DEPLOYMENT }}
+      AI_EVAL_CANDIDATE_MODEL: ${{ vars.AI_EVAL_CANDIDATE_MODEL }}
+      AI_EVAL_JUDGE_ENDPOINT: ${{ secrets.AI_EVAL_JUDGE_ENDPOINT }}
+      AI_EVAL_JUDGE_DEPLOYMENT: ${{ secrets.AI_EVAL_JUDGE_DEPLOYMENT }}
+      AI_EVAL_SUBSCRIPTION_ID: ${{ secrets.AI_EVAL_SUBSCRIPTION_ID }}
+      AI_EVAL_RESOURCE_GROUP: ${{ secrets.AI_EVAL_RESOURCE_GROUP }}
+      AI_EVAL_FOUNDRY_PROJECT: ${{ secrets.AI_EVAL_FOUNDRY_PROJECT }}
+      AI_EVAL_PROMPT_VERSION: ${{ vars.AI_EVAL_PROMPT_VERSION }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore
+        run: dotnet restore tests/EmergencyResponse.CopilotEvaluation/EmergencyResponse.CopilotEvaluation.csproj
+      - name: Run live evaluation when provider settings are configured
+        shell: bash
+        run: |
+          required=(AI_EVAL_CANDIDATE_ENDPOINT AI_EVAL_CANDIDATE_DEPLOYMENT AI_EVAL_JUDGE_ENDPOINT AI_EVAL_JUDGE_DEPLOYMENT AI_EVAL_SUBSCRIPTION_ID AI_EVAL_RESOURCE_GROUP AI_EVAL_FOUNDRY_PROJECT AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_CLIENT_SECRET)
+          missing=()
+          for name in "${required[@]}"; do
+            if [[ -z "${!name}" ]]; then missing+=("$name"); fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "Live evaluation skipped; configure repository secrets: ${missing[*]}"
+            exit 0
+          fi
+          dotnet run --project tests/EmergencyResponse.CopilotEvaluation --configuration Release -- all --live
+      - name: Upload live evaluation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-ai-evaluation-${{ github.run_id }}
+          path: |
+            tests/EmergencyResponse.CopilotEvaluation/Reports/**/*.json
+            tests/EmergencyResponse.CopilotEvaluation/Reports/**/*.jsonl
+            tests/EmergencyResponse.CopilotEvaluation/Reports/**/*.html
+            tests/EmergencyResponse.CopilotEvaluation/Reports/cache/**
+          if-no-files-found: warn

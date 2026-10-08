@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace EmergencyResponse.UnitTests.Copilot.Actions;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class CopilotActionPolicyTests
 {
     private readonly ICopilotActionPolicy _policy =

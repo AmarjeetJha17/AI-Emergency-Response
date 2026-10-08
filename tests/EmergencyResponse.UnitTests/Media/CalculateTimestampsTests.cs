@@ -6,6 +6,7 @@ namespace EmergencyResponse.UnitTests.Media;
 /// Tests for FfmpegVideoFrameExtractor.CalculateTimestamps (internal static).
 /// Covers the four cases required by task 4.23.
 /// </summary>
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class CalculateTimestampsTests
 {
     // ----------------------------------------------------------------

@@ -9,7 +9,9 @@ using EmergencyResponse.Application.Map;
 
 namespace EmergencyResponse.IntegrationTests.Map;
 
-public sealed class MapControllerIntegrationTests : IClassFixture<ApiWebApplicationFactory>
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
+[Collection("SQL Server integration database")]
+public sealed class MapControllerIntegrationTests : IClassFixture<EmergencyResponseWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
@@ -18,7 +20,7 @@ public sealed class MapControllerIntegrationTests : IClassFixture<ApiWebApplicat
         PropertyNameCaseInsensitive = true
     };
 
-    public MapControllerIntegrationTests(ApiWebApplicationFactory factory)
+    public MapControllerIntegrationTests(EmergencyResponseWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
     }

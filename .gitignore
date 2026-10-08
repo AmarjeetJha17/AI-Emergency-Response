@@ -64,6 +64,12 @@ BenchmarkDotNet.Artifacts/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+TestResults/
+coverage/
+*.coverage
+coverage.json
+tests/EmergencyResponse.CopilotEvaluation/Reports/**
+!tests/EmergencyResponse.CopilotEvaluation/Reports/README.md
 
 # Tye
 .tye/

@@ -12,8 +12,10 @@ namespace EmergencyResponse.IntegrationTests.Incidents;
 /// <summary>
 /// Smoke tests for the /api/incidents endpoints.
 /// </summary>
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
+[Collection("SQL Server integration database")]
 public sealed class IncidentEndpointTests
-    : IClassFixture<ApiWebApplicationFactory>
+    : IClassFixture<EmergencyResponseWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
@@ -22,7 +24,7 @@ public sealed class IncidentEndpointTests
         PropertyNameCaseInsensitive = true
     };
 
-    public IncidentEndpointTests(ApiWebApplicationFactory factory)
+    public IncidentEndpointTests(EmergencyResponseWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
     }

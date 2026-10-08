@@ -1,0 +1,7 @@
+{
+  "id": "copilot-prediction",
+  "input": "What is the escalation risk for incident INC-4?",
+  "expectedTools": ["get-escalation-risk"],
+  "expectedArguments": {"incidentId":"INC-4"},
+  "forbiddenTools": ["resolve-escalation"]
+}

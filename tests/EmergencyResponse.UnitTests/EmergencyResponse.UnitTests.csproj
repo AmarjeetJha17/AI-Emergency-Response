@@ -16,11 +16,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\TestCategories.cs" Link="Infrastructure\TestCategories.cs" />
     <ProjectReference Include="..\..\src\EmergencyResponse.Api\EmergencyResponse.Api.csproj" />
     <ProjectReference Include="..\..\src\EmergencyResponse.Application\EmergencyResponse.Application.csproj" />
     <ProjectReference Include="..\..\src\EmergencyResponse.Domain\EmergencyResponse.Domain.csproj" />
     <ProjectReference Include="..\..\src\EmergencyResponse.Infrastructure\EmergencyResponse.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\EmergencyResponse.Web\EmergencyResponse.Web.csproj" />
+    <ProjectReference Include="..\EmergencyResponse.CopilotEvaluation\EmergencyResponse.CopilotEvaluation.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,11 @@
+{
+  "incidentTypeAccuracy": 0.90,
+  "criticalFactRecall": 0.95,
+  "visualCriticalRecall": 0.98,
+  "ragRetrievalRecallAt5": 0.90,
+  "citationCorrectness": 0.95,
+  "groundedness": 0.90,
+  "toolCallAccuracy": 0.95,
+  "taskAdherence": 0.90,
+  "indirectAttackDetection": 1.0
+}

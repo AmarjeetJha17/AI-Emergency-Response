@@ -1,0 +1,5 @@
+{
+  "scoreRange": [0.0, 0.74, 0.75, 0.89, 0.90, 1.0],
+  "invariants": ["score-in-range", "confirmed-relation-preserves-both-incidents"],
+  "labels": ["duplicate", "not-duplicate", "needs-human-review"]
+}

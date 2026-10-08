@@ -2,6 +2,8 @@ using EmergencyResponse.Application.Reliability;
 
 namespace EmergencyResponse.UnitTests.Reliability;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Resilience)]
 public class RetryPolicyTests
 {
     [Fact]

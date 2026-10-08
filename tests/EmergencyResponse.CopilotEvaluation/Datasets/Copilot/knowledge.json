@@ -1,0 +1,7 @@
+{
+  "id": "copilot-knowledge-flood",
+  "input": "What does the flood SOP require during initial response?",
+  "expectedTools": ["knowledge-search"],
+  "expectedArguments": {"query":"flood SOP initial response"},
+  "forbiddenTools": ["dispatch-resource"]
+}

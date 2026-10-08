@@ -3,6 +3,7 @@ using EmergencyResponse.Application.Predictive.Training;
 
 namespace EmergencyResponse.UnitTests.Predictive;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class ModelManifestTests
 {
     [Fact]

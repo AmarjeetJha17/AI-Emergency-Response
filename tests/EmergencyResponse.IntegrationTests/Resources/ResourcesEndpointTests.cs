@@ -10,7 +10,9 @@ using EmergencyResponse.Domain.Enums;
 
 namespace EmergencyResponse.IntegrationTests.Resources;
 
-public sealed class ResourcesEndpointTests : IClassFixture<ApiWebApplicationFactory>
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
+[Collection("SQL Server integration database")]
+public sealed class ResourcesEndpointTests : IClassFixture<EmergencyResponseWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
@@ -19,7 +21,7 @@ public sealed class ResourcesEndpointTests : IClassFixture<ApiWebApplicationFact
         PropertyNameCaseInsensitive = true
     };
 
-    public ResourcesEndpointTests(ApiWebApplicationFactory factory)
+    public ResourcesEndpointTests(EmergencyResponseWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
     }

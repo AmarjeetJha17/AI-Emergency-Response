@@ -2,6 +2,7 @@ using EmergencyResponse.Application.Knowledge;
 
 namespace EmergencyResponse.UnitTests.Knowledge;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class KnowledgeDocumentValidationTests
 {
     [Theory]

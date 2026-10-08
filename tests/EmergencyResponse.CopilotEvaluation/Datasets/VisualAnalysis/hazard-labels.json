@@ -1,0 +1,4 @@
+{
+  "labels": ["flood", "fire", "smoke", "structural-damage", "blocked-road", "people-trapped", "vehicles", "no-emergency", "ambiguous"],
+  "metrics": ["hazard-precision", "hazard-recall", "people-trapped-recall", "structural-damage-recall", "blocked-road-recall", "immediate-danger-recall", "confidence-calibration"]
+}

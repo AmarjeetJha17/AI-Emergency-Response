@@ -16,17 +16,20 @@ public sealed class CopilotActionExecutor : ICopilotActionExecutor
     private readonly ICurrentUserService _currentUser;
     private readonly IIncidentAnnotationService _annotations;
     private readonly ICopilotActionNotificationService _notifications;
+    private readonly TimeProvider _timeProvider;
 
     public CopilotActionExecutor(
         ApplicationDbContext db,
         ICurrentUserService currentUser,
         IIncidentAnnotationService annotations,
-        ICopilotActionNotificationService notifications)
+        ICopilotActionNotificationService notifications,
+        TimeProvider timeProvider)
     {
         _db = db;
         _currentUser = currentUser;
         _annotations = annotations;
         _notifications = notifications;
+        _timeProvider = timeProvider;
     }
 
     public async Task<CopilotActionExecutionResult> ExecuteAsync(
@@ -34,7 +37,7 @@ public sealed class CopilotActionExecutor : ICopilotActionExecutor
         CancellationToken cancellationToken = default)
     {
         var proposal = await ClaimAsync(proposalId, cancellationToken);
-        var executedAt = DateTime.UtcNow;
+        var executedAt = _timeProvider.GetUtcNow().UtcDateTime;
 
         try
         {
@@ -142,12 +145,12 @@ public sealed class CopilotActionExecutor : ICopilotActionExecutor
             ?? throw new KeyNotFoundException("The action proposal was not found.");
 
         if (proposal.ExpiresAtUtc is { } expiresAt &&
-            expiresAt <= DateTime.UtcNow)
+            expiresAt <= _timeProvider.GetUtcNow().UtcDateTime)
         {
             proposal.Status = CopilotActionStatus.Expired;
             proposal.ApprovalDecision = CopilotApprovalDecision.Expired;
             proposal.FailureReason = "The action proposal expired before execution.";
-            AddAudit(proposal, "COPILOT_ACTION_EXPIRED", DateTime.UtcNow);
+            AddAudit(proposal, "COPILOT_ACTION_EXPIRED", _timeProvider.GetUtcNow().UtcDateTime);
             await _db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             throw new InvalidOperationException("The action proposal has expired.");
@@ -170,7 +173,7 @@ public sealed class CopilotActionExecutor : ICopilotActionExecutor
             proposal.Status,
             CopilotActionStatus.Executing);
         proposal.Status = CopilotActionStatus.Executing;
-        AddAudit(proposal, "COPILOT_ACTION_EXECUTING", DateTime.UtcNow);
+        AddAudit(proposal, "COPILOT_ACTION_EXECUTING", _timeProvider.GetUtcNow().UtcDateTime);
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return proposal;

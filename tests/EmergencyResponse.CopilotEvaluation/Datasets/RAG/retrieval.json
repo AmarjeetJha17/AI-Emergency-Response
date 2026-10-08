@@ -1,0 +1,14 @@
+{
+  "cases": [
+    { "id": "rag-retrieval-001", "question": "What are the first actions for a flood response?", "expectedSources": ["DOC-FLOOD-SOP"], "expectedSections": ["Initial Response"], "requiredFacts": ["Establish incident perimeter", "Assess immediate threats"] },
+    { "id": "rag-retrieval-002", "question": "When should responders isolate a damaged building?", "expectedSources": ["DOC-STRUCTURE-SAFETY"], "expectedSections": ["Building assessment"], "requiredFacts": ["Keep personnel outside unsafe structures"] },
+    { "id": "rag-retrieval-003", "question": "How do operators request a medical unit?", "expectedSources": ["DOC-MEDICAL-DISPATCH"], "expectedSections": ["Dispatch"], "requiredFacts": ["Record the incident identifier", "Confirm unit availability"] },
+    { "id": "rag-retrieval-004", "question": "What information belongs in a hazard handoff?", "expectedSources": ["DOC-HAZARD-HANDOFF"], "expectedSections": ["Handoff"], "requiredFacts": ["State observed hazards", "Identify unknowns"] },
+    { "id": "rag-retrieval-005", "question": "What is the procedure for a blocked road?", "expectedSources": ["DOC-ROAD-CLOSURE"], "expectedSections": ["Road closure"], "requiredFacts": ["Report the location", "Use authorized closure procedures"] },
+    { "id": "rag-retrieval-006", "question": "What should be checked before dispatching a rescue team?", "expectedSources": ["DOC-RESCUE-DISPATCH"], "expectedSections": ["Pre-dispatch checks"], "requiredFacts": ["Confirm team capability", "Share known hazards"] },
+    { "id": "rag-retrieval-007", "question": "How should an incident commander handle conflicting reports?", "expectedSources": ["DOC-INCIDENT-COMMAND"], "expectedSections": ["Information validation"], "requiredFacts": ["Preserve conflicting observations", "Seek corroboration"] },
+    { "id": "rag-retrieval-008", "question": "What are the initial actions for a wildfire report?", "expectedSources": ["DOC-FIRE-SOP"], "expectedSections": ["Initial actions"], "requiredFacts": ["Assess immediate danger", "Notify the appropriate response team"] },
+    { "id": "rag-retrieval-009", "question": "How do I report an unavailable response resource?", "expectedSources": ["DOC-RESOURCE-STATUS"], "expectedSections": ["Status updates"], "requiredFacts": ["Update availability", "Record the status change"] },
+    { "id": "rag-retrieval-010", "question": "What should be captured when an evacuation is considered?", "expectedSources": ["DOC-EVACUATION"], "expectedSections": ["Decision support"], "requiredFacts": ["Record supporting observations", "Escalate to authorized decision makers"] }
+  ]
+}

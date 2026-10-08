@@ -2,6 +2,7 @@ using EmergencyResponse.Application.Reliability;
 
 namespace EmergencyResponse.UnitTests.Reliability;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class ReliabilityFailureClassifierTests
 {
     [Theory]

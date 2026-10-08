@@ -4,6 +4,7 @@ using EmergencyResponse.Infrastructure.Decision;
 
 namespace EmergencyResponse.UnitTests.Decision;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public class SeverityEngineTests
 {
     [Fact]
@@ -58,5 +59,59 @@ public class SeverityEngineTests
             result.Severity);
 
         Assert.True(result.Score >= 75);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(24)]
+    [InlineData(25)]
+    [InlineData(49)]
+    [InlineData(50)]
+    [InlineData(74)]
+    [InlineData(75)]
+    [InlineData(100)]
+    [InlineData(130)]
+    public void Score_IsAlwaysWithinZeroAndOneHundred(int casualties)
+    {
+        var result = new SeverityEngine().Evaluate(new SeverityEvaluationInput
+        {
+            Casualties = casualties
+        });
+
+        Assert.InRange(result.Score, 0, 100);
+    }
+
+    [Fact]
+    public void IncreasingCasualties_DoesNotReduceSeverityScore()
+    {
+        var engine = new SeverityEngine();
+        var scores = Enumerable.Range(0, 20)
+            .Select(casualties => engine.Evaluate(new SeverityEvaluationInput
+            {
+                Casualties = casualties
+            }).Score)
+            .ToArray();
+
+        Assert.Equal(scores.Order(), scores);
+    }
+
+    [Fact]
+    public void ImmediateDanger_DoesNotReduceSeverityScore()
+    {
+        var engine = new SeverityEngine();
+        var withoutDanger = engine.Evaluate(new SeverityEvaluationInput
+        {
+            PeopleAffected = 10,
+            VehiclesAffected = 2
+        });
+        var withDanger = engine.Evaluate(new SeverityEvaluationInput
+        {
+            PeopleAffected = 10,
+            VehiclesAffected = 2,
+            ImmediateDanger = true
+        });
+
+        Assert.True(withDanger.Score >= withoutDanger.Score);
     }
 }

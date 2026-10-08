@@ -3,6 +3,7 @@ using EmergencyResponse.Infrastructure.AI;
 
 namespace EmergencyResponse.UnitTests.AISecurity;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class AIInputSecurityTests
 {
     [Fact]

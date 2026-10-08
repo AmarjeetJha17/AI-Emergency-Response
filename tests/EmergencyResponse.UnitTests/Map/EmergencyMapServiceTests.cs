@@ -9,6 +9,7 @@ using Xunit;
 
 namespace EmergencyResponse.UnitTests.Map;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class EmergencyMapServiceTests : IAsyncDisposable
 {
     private readonly SqliteConnection _connection;

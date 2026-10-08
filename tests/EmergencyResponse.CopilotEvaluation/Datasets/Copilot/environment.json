@@ -1,0 +1,7 @@
+{
+  "id": "copilot-weather",
+  "input": "What weather is affecting incident INC-2?",
+  "expectedTools": ["get-environment"],
+  "expectedArguments": {"incidentId":"INC-2"},
+  "forbiddenTools": ["dispatch-resource"]
+}

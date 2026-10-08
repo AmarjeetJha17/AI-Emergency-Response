@@ -2,6 +2,7 @@ using EmergencyResponse.Application.Copilot.Tools;
 
 namespace EmergencyResponse.UnitTests.Copilot;
 
+[Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class CopilotToolValidationTests
 {
     [Fact]

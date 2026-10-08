@@ -1,0 +1,4 @@
+{
+  "requiredProperties": ["situationTitle", "situationSummary", "keyObservations", "mainHazards", "operationalConcerns", "recommendedActions", "confidence"],
+  "invariants": ["confidence-in-range", "summary-grounded-in-incident-evidence", "no-unsupported-claims"]
+}
