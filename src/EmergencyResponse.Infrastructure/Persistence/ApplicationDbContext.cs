@@ -110,12 +110,38 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<CopilotActionProposal> CopilotActionProposals =>
         Set<CopilotActionProposal>();
 
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    public DbSet<BackgroundJobExecution> BackgroundJobExecutions =>
+        Set<BackgroundJobExecution>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(ApplicationDbContext).Assembly);
+
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.MessageKey).IsUnique();
+            entity.HasIndex(x => new { x.IsPublished, x.OccurredAtUtc });
+            entity.Property(x => x.MessageType).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.MessageKey).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.LastError).HasMaxLength(500);
+            entity.Property(x => x.PayloadJson).IsRequired();
+        });
+
+        modelBuilder.Entity<BackgroundJobExecution>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.JobId, x.AnalysisVersion }).IsUnique();
+            entity.HasIndex(x => new { x.Status, x.LeaseExpiresAtUtc });
+            entity.Property(x => x.JobType).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.AnalysisVersion).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.LastFailureCategory).HasMaxLength(64);
+        });
 
         if (Database.ProviderName?.EndsWith("Sqlite", StringComparison.OrdinalIgnoreCase) == true)
         {

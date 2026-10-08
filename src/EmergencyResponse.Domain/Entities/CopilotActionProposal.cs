@@ -5,6 +5,7 @@ namespace EmergencyResponse.Domain.Entities;
 
 public sealed class CopilotActionProposal : BaseEntity
 {
+    public EmergencyResponse.Domain.Enums.DataClassification DataClassification { get; set; } = EmergencyResponse.Domain.Enums.DataClassification.Confidential;
     public Guid CopilotInteractionId { get; set; }
 
     public CopilotActionType ActionType { get; set; }

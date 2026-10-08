@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using EmergencyResponse.Application.Knowledge;
+using EmergencyResponse.Application.AISecurity;
+using EmergencyResponse.Application.Security.FileSecurity;
 using EmergencyResponse.Domain.Entities;
 using EmergencyResponse.Domain.Knowledge;
 using EmergencyResponse.Infrastructure.Persistence;
@@ -22,6 +24,8 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
     private readonly IKnowledgeSearchService _search;
     private readonly KnowledgeDocumentOptions _options;
     private readonly ILogger<KnowledgeDocumentService> _logger;
+    private readonly IFileSecurityService _fileSecurity;
+    private readonly IPromptShieldClient _promptShield;
 
     public KnowledgeDocumentService(
         ApplicationDbContext db,
@@ -32,7 +36,9 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
         IEmbeddingGenerator<string, Embedding<float>> embeddings,
         IKnowledgeSearchService search,
         IOptions<KnowledgeDocumentOptions> options,
-        ILogger<KnowledgeDocumentService> logger)
+        ILogger<KnowledgeDocumentService> logger,
+        IFileSecurityService fileSecurity,
+        IPromptShieldClient promptShield)
     {
         _db = db;
         _storage = storage;
@@ -43,6 +49,8 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
         _search = search;
         _options = options.Value;
         _logger = logger;
+        _fileSecurity = fileSecurity;
+        _promptShield = promptShield;
     }
 
     public async Task<KnowledgeDocument> UploadAsync(
@@ -67,6 +75,19 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
             contentType,
             length,
             _options.MaxFileSizeBytes);
+
+        var fileValidation = await _fileSecurity.ValidateAsync(
+            content,
+            fileName,
+            contentType,
+            length,
+            cancellationToken);
+
+        if (!fileValidation.IsValid)
+        {
+            throw new InvalidOperationException(
+                fileValidation.FailureReason);
+        }
 
         if (string.IsNullOrWhiteSpace(title) ||
             string.IsNullOrWhiteSpace(version))
@@ -96,6 +117,7 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
             Title = title.Trim(),
             DocumentType = documentType,
             Status = KnowledgeDocumentStatus.Draft,
+            SecurityScanStatus = SecurityScanStatus.Pending,
             Version = version.Trim(),
             FileName = Path.GetFileName(fileName),
             ContentType = contentType,
@@ -127,7 +149,10 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
                 $"Knowledge document '{documentId}' was not found.");
 
         document.Status = KnowledgeDocumentStatus.Processing;
+        document.SecurityScanStatus = SecurityScanStatus.Processing;
         document.FailureReason = null;
+        document.SecurityRiskReason = null;
+        document.SecuritySignalsJson = null;
         await _db.SaveChangesAsync(cancellationToken);
 
         try
@@ -139,6 +164,30 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
                 content,
                 document.FileName,
                 cancellationToken);
+            var extractedContent = string.Join(
+                Environment.NewLine,
+                pages.Select(page => page.Text));
+            var securityScan = await _promptShield.AnalyzeAsync(
+                string.Empty,
+                [extractedContent],
+                cancellationToken);
+            if (securityScan.AttackDetected)
+            {
+                document.SecurityScanStatus = SecurityScanStatus.Blocked;
+                document.SecurityScanCompletedAtUtc = DateTime.UtcNow;
+                document.SecurityRiskReason =
+                    "Prompt-injection signals were detected in the document.";
+                document.SecuritySignalsJson =
+                    JsonSerializer.Serialize(securityScan.Signals);
+                await _db.SaveChangesAsync(cancellationToken);
+                throw new InvalidOperationException(
+                    "The knowledge document failed AI security scanning.");
+            }
+
+            document.SecurityScanStatus = SecurityScanStatus.Passed;
+            document.SecurityScanCompletedAtUtc = DateTime.UtcNow;
+            document.SecuritySignalsJson =
+                JsonSerializer.Serialize(securityScan.Signals);
             var chunks = _chunker.Chunk(pages);
 
             var existing = await _db.KnowledgeDocumentChunks
@@ -209,6 +258,10 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
         }
         catch (Exception ex)
         {
+            if (document.SecurityScanStatus != SecurityScanStatus.Blocked)
+            {
+                document.SecurityScanStatus = SecurityScanStatus.Failed;
+            }
             document.Status = KnowledgeDocumentStatus.Failed;
             document.FailureReason = ex.Message[..Math.Min(
                 ex.Message.Length,
@@ -236,6 +289,11 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
         {
             throw new InvalidOperationException(
                 "A knowledge document must be processed before publishing.");
+        }
+        if (document.SecurityScanStatus != SecurityScanStatus.Passed)
+        {
+            throw new InvalidOperationException(
+                "A knowledge document must pass AI security scanning before publishing.");
         }
 
         document.Status = KnowledgeDocumentStatus.Active;

@@ -2,6 +2,7 @@ using Azure.AI.OpenAI;
 using Azure.Identity;
 
 using EmergencyResponse.Application.AI;
+using EmergencyResponse.Application.AISecurity;
 using EmergencyResponse.Application.Copilot;
 using EmergencyResponse.Application.Copilot.Tools;
 using EmergencyResponse.Application.AI.DuplicateDetection;
@@ -12,6 +13,7 @@ using EmergencyResponse.Application.ExternalContext;
 using EmergencyResponse.Application.Media;
 using EmergencyResponse.Application.Knowledge;
 using EmergencyResponse.Application.Incidents;
+using EmergencyResponse.Application.Security.FileSecurity;
 using EmergencyResponse.Application.Copilot.Actions;
 using EmergencyResponse.Application.Predictive;
 using EmergencyResponse.Application.Predictive.Escalation;
@@ -35,6 +37,7 @@ using EmergencyResponse.Infrastructure.Situations;
 using EmergencyResponse.Infrastructure.Copilot.Tools;
 using EmergencyResponse.Infrastructure.Copilot;
 using EmergencyResponse.Infrastructure.Copilot.Actions;
+using EmergencyResponse.Infrastructure.Security.FileSecurity;
 
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
@@ -50,6 +53,13 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         services.AddMemoryCache();
+        services.AddSingleton<IAISecurityPolicy, AISecurityPolicy>();
+        services.AddSingleton<IPromptShieldClient, DeterministicPromptShieldClient>();
+        services.AddScoped<IAIInputSecurityService, AIInputSecurityService>();
+        services.AddSingleton<ISensitiveDataDetector, SensitiveDataDetector>();
+        services.AddScoped<IAIOutputSecurityService, AIOutputSecurityService>();
+        services.AddSingleton<IMalwareScanner, UnavailableMalwareScanner>();
+        services.AddScoped<IFileSecurityService, FileSecurityService>();
         services.Configure<KnowledgeDocumentOptions>(
             configuration.GetSection(KnowledgeDocumentOptions.SectionName));
         services.Configure<KnowledgeSearchOptions>(
@@ -294,6 +304,11 @@ public static class DependencyInjectionTest
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddSingleton<IAISecurityPolicy, AISecurityPolicy>();
+        services.AddSingleton<IPromptShieldClient, DeterministicPromptShieldClient>();
+        services.AddScoped<IAIInputSecurityService, AIInputSecurityService>();
+        services.AddSingleton<ISensitiveDataDetector, SensitiveDataDetector>();
+        services.AddScoped<IAIOutputSecurityService, AIOutputSecurityService>();
         services.Configure<AIOptions>(
             configuration.GetSection(AIOptions.SectionName));
 

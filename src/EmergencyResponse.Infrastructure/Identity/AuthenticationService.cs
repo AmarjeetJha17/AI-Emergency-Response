@@ -2,8 +2,11 @@
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Application.Exceptions;
 using EmergencyResponse.Application.Common.Roles;
+using EmergencyResponse.Application.Security.SecurityAudit;
+using EmergencyResponse.Infrastructure.Persistence;
 
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http;
 
 namespace EmergencyResponse.Infrastructure.Identity;
 
@@ -13,15 +16,21 @@ public sealed class AuthenticationService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IJwtTokenService _jwtTokenService;
+    private readonly ApplicationDbContext _db;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public AuthenticationService(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
-        IJwtTokenService jwtTokenService)
+        IJwtTokenService jwtTokenService,
+        ApplicationDbContext db,
+        IHttpContextAccessor httpContextAccessor)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _jwtTokenService = jwtTokenService;
+        _db = db;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<UserResponse> RegisterAsync(
@@ -94,6 +103,10 @@ public sealed class AuthenticationService
 
         if (user is null || !user.IsActive)
         {
+            await RecordAuditAsync(
+                SecurityEventTypes.LoginFailed,
+                null,
+                cancellationToken);
             throw new UnauthorizedException(
                 "Invalid email or password.");
         }
@@ -105,6 +118,10 @@ public sealed class AuthenticationService
 
         if (!result.Succeeded)
         {
+            await RecordAuditAsync(
+                SecurityEventTypes.LoginFailed,
+                user.Id,
+                cancellationToken);
             throw new UnauthorizedException(
                 "Invalid email or password.");
         }
@@ -126,6 +143,10 @@ public sealed class AuthenticationService
         user.LastLoginAtUtc = DateTime.UtcNow;
 
         await _userManager.UpdateAsync(user);
+        await RecordAuditAsync(
+            SecurityEventTypes.LoginSucceeded,
+            user.Id,
+            cancellationToken);
 
         return new AuthenticationResponse
         {
@@ -144,5 +165,24 @@ public sealed class AuthenticationService
                 IsActive = user.IsActive
             }
         };
+    }
+
+    private async Task RecordAuditAsync(
+        string action,
+        string? userId,
+        CancellationToken cancellationToken)
+    {
+        _db.AuditLogs.Add(new Domain.Entities.AuditLog
+        {
+            UserId = userId,
+            Action = action,
+            EntityName = "Authentication",
+            EntityId = "login",
+            IpAddress = _httpContextAccessor.HttpContext?
+                .Connection.RemoteIpAddress?.ToString(),
+            OccurredAtUtc = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync(cancellationToken);
     }
 }

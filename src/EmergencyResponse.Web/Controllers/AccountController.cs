@@ -6,6 +6,7 @@ using EmergencyResponse.Application.Common.Authentication;
 
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EmergencyResponse.Web.Controllers;
@@ -139,6 +140,22 @@ public class AccountController : Controller
     public IActionResult AccessDenied()
     {
         return View();
+    }
+
+    [Authorize]
+    [HttpGet]
+    public IActionResult SignalRToken()
+    {
+        var token = User.FindFirst(
+            AuthenticationConstants.AccessTokenClaim)?.Value;
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return Unauthorized();
+        }
+
+        Response.Headers.CacheControl = "no-store";
+        return Json(new { accessToken = token });
     }
 
     [HttpPost]

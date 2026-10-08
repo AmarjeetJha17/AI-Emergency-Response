@@ -33,18 +33,34 @@ using EmergencyResponse.Infrastructure.Identity;
 using EmergencyResponse.Infrastructure.Persistence;
 using EmergencyResponse.Infrastructure.Persistence.Seed;
 using EmergencyResponse.Infrastructure.Services;
+using EmergencyResponse.Infrastructure.BackgroundJobs;
+using EmergencyResponse.Application.Reliability;
+using Azure.Messaging.ServiceBus;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
+using Azure.Identity;
 
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using EmergencyResponse.Application.Validators.Authentication;
+using EmergencyResponse.Application.Security;
+using EmergencyResponse.Application.Security.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var keyVaultUri = builder.Configuration["KeyVault:VaultUri"];
+if (!string.IsNullOrWhiteSpace(keyVaultUri))
+{
+    builder.Configuration.AddAzureKeyVault(
+        new Uri(keyVaultUri),
+        new DefaultAzureCredential());
+}
 
 
 // Add services to the container.
@@ -70,6 +86,18 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 });
 
 builder.Services.AddDataProtection();
+builder.Services.AddOptions<EmergencyResponse.Application.Common.Configuration.RetentionOptions>()
+    .Bind(builder.Configuration.GetSection(
+        EmergencyResponse.Application.Common.Configuration.RetentionOptions.SectionName))
+    .Validate(options => options.CopilotConversationDays > 0 &&
+                         options.NotificationDays > 0 &&
+                         options.ApplicationLogDays > 0 &&
+                         options.FailedProcessingArtifactDays > 0 &&
+                         options.CleanupIntervalHours > 0,
+        "Retention values must be positive engineering defaults.")
+    .ValidateOnStart();
+builder.Services.AddHostedService<
+    EmergencyResponse.Infrastructure.BackgroundJobs.DataRetentionBackgroundWorker>();
 
 builder.Services
     .AddIdentityCore<ApplicationUser>(options =>
@@ -106,6 +134,10 @@ builder.Services.Configure<ResourceRecommendationOptions>(
 builder.Services.Configure<SituationDetectionOptions>(
     builder.Configuration.GetSection(
         SituationDetectionOptions.SectionName));
+
+builder.Services.Configure<SecurityOptions>(
+    builder.Configuration.GetSection(
+        SecurityOptions.SectionName));
 
 builder.Services.AddScoped<
     IJwtTokenService,
@@ -262,7 +294,112 @@ builder.Services.AddAuthorization(options =>
         });
 });
 
+builder.Services.AddSingleton<
+        Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider,
+        PermissionPolicyProvider>();
+builder.Services.AddSingleton<
+        Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+        PermissionAuthorizationHandler>();
+
+var securityOptions = builder.Configuration
+        .GetSection(SecurityOptions.SectionName)
+        .Get<SecurityOptions>()
+        ?? new SecurityOptions();
+
+if (builder.Environment.IsEnvironment("Test"))
+{
+        securityOptions.RateLimits.AuthenticationPerMinute = 10_000;
+        securityOptions.RateLimits.IncidentCreatePerMinute = 10_000;
+        securityOptions.RateLimits.MediaUploadPerMinute = 10_000;
+        securityOptions.RateLimits.CopilotPerMinute = 10_000;
+        securityOptions.RateLimits.AdminPerMinute = 10_000;
+}
+
+builder.Services.AddRateLimiter(options =>
+{
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.OnRejected = async (context, cancellationToken) =>
+        {
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Security");
+            logger.LogWarning(
+                "SEC_RATE_LIMIT_EXCEEDED Path={Path} TraceId={TraceId}",
+                context.HttpContext.Request.Path,
+                context.HttpContext.TraceIdentifier);
+
+            await ValueTask.CompletedTask;
+        };
+
+        options.AddFixedWindowLimiter(
+            "authentication",
+            limiter =>
+            {
+                limiter.PermitLimit =
+                    securityOptions.RateLimits.AuthenticationPerMinute;
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueLimit = 0;
+            });
+
+        options.AddFixedWindowLimiter(
+            "incident-create",
+            limiter =>
+            {
+                limiter.PermitLimit =
+                    securityOptions.RateLimits.IncidentCreatePerMinute;
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueLimit = 0;
+            });
+
+        options.AddFixedWindowLimiter(
+            "media-upload",
+            limiter =>
+            {
+                limiter.PermitLimit =
+                    securityOptions.RateLimits.MediaUploadPerMinute;
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueLimit = 0;
+            });
+
+        options.AddFixedWindowLimiter(
+            "copilot",
+            limiter =>
+            {
+                limiter.PermitLimit =
+                    securityOptions.RateLimits.CopilotPerMinute;
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueLimit = 0;
+            });
+
+        options.AddFixedWindowLimiter(
+            "admin-api",
+            limiter =>
+            {
+                limiter.PermitLimit =
+                    securityOptions.RateLimits.AdminPerMinute;
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueLimit = 0;
+            });
+});
+
 builder.Services.AddAI(builder.Configuration);
+
+builder.Services.AddScoped<IBackgroundJobScheduler, OutboxBackgroundJobScheduler>();
+if (builder.Environment.IsProduction())
+{
+    var serviceBusNamespace = builder.Configuration["Messaging:ServiceBus:FullyQualifiedNamespace"];
+    if (string.IsNullOrWhiteSpace(serviceBusNamespace))
+        throw new InvalidOperationException("Production requires Messaging:ServiceBus:FullyQualifiedNamespace.");
+    builder.Services.AddSingleton(_ => new ServiceBusClient(serviceBusNamespace, new DefaultAzureCredential()));
+    builder.Services.AddSingleton<IApplicationMessageBus, AzureServiceBusMessageBus>();
+    builder.Services.AddHostedService<AzureServiceBusConsumerBackgroundWorker>();
+}
+else
+{
+    builder.Services.AddSingleton<IApplicationMessageBus, InMemoryApplicationMessageBus>();
+}
+builder.Services.AddHostedService<OutboxPublisherBackgroundWorker>();
+builder.Services.Configure<ReliableMessagingOptions>(builder.Configuration.GetSection(ReliableMessagingOptions.SectionName));
 
 builder.Services.Configure<AIOptions>(
     builder.Configuration.GetSection(
@@ -329,14 +466,15 @@ builder.Services.AddSingleton<IWorkerHealthState, WorkerHealthState>();
 
 builder.Services.AddHealthChecks()
     .AddCheck<SqlServerHealthCheck>("sqlserver", tags: ["ready"])
-    .AddCheck<BackgroundWorkerHealthCheck>("workers", tags: ["ready"])
-    .AddCheck<AIProviderHealthCheck>("ai", tags: ["ready"])
+    .AddCheck<BackgroundWorkerHealthCheck>("workers")
+    .AddCheck<AIProviderHealthCheck>("ai")
     .AddCheck<PredictiveModelHealthCheck>("predictive-model");
 
 
 var app = builder.Build();
 
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<SecurityHeadersMiddleware>();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -392,6 +530,8 @@ app.UseExceptionHandler();
 app.UseHttpsRedirection();
 
 app.UseCors("WebClient");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 

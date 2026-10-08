@@ -1,14 +1,18 @@
 (function () {
     const apiBase = document.currentScript?.dataset.apiBase ?? '';
 
-    function getToken() {
-        const meta = document.querySelector('meta[name="signalr-token"]');
-        return meta ? meta.content : '';
-    }
+    async function getToken() {
+        const response = await fetch('/Account/SignalRToken', {
+            credentials: 'same-origin',
+            cache: 'no-store'
+        });
 
-    const token = getToken();
-    if (!token) {
-        return;
+        if (!response.ok) {
+            return '';
+        }
+
+        const payload = await response.json();
+        return payload.accessToken ?? '';
     }
 
     const isDashboard = document.getElementById('emergencyDashboard') !== null;

@@ -1,14 +1,14 @@
-using EmergencyResponse.Application.Common.Roles;
 using EmergencyResponse.Application.Copilot;
+using EmergencyResponse.Application.Security.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EmergencyResponse.Api.Controllers;
 
 [ApiController]
 [Route("api/copilot")]
-[Authorize(Roles =
-    $"{ApplicationRoles.Responder},{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+[Authorize(Policy = Permissions.CopilotUse)]
 public sealed class CopilotController : ControllerBase
 {
     private readonly IEmergencyCopilotService _copilot;
@@ -19,6 +19,7 @@ public sealed class CopilotController : ControllerBase
     }
 
     [HttpPost("query")]
+    [EnableRateLimiting("copilot")]
     public async Task<ActionResult<CopilotResponse>> Query(
         CopilotQuery query,
         CancellationToken cancellationToken)

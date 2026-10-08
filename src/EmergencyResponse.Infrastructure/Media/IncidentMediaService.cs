@@ -1,4 +1,5 @@
 using EmergencyResponse.Application.Media;
+using EmergencyResponse.Application.Security.FileSecurity;
 using EmergencyResponse.Domain.Entities;
 using EmergencyResponse.Domain.Enums;
 using EmergencyResponse.Infrastructure.Persistence;
@@ -11,13 +12,16 @@ public sealed class IncidentMediaService : IIncidentMediaService
 {
     private readonly ApplicationDbContext _db;
     private readonly IIncidentMediaStorage _storage;
+    private readonly IFileSecurityService _fileSecurity;
 
     public IncidentMediaService(
         ApplicationDbContext db,
-        IIncidentMediaStorage storage)
+        IIncidentMediaStorage storage,
+        IFileSecurityService fileSecurity)
     {
         _db = db;
         _storage = storage;
+        _fileSecurity = fileSecurity;
     }
 
     public async Task<Guid> SaveImageAsync(
@@ -28,20 +32,22 @@ public sealed class IncidentMediaService : IIncidentMediaService
         long length,
         CancellationToken cancellationToken = default)
     {
-        IncidentMediaValidation.ValidateImage(length, contentType);
+        var validation = await _fileSecurity.ValidateAsync(
+            content,
+            fileName,
+            contentType,
+            length,
+            cancellationToken);
 
-        var extension = Path.GetExtension(fileName);
-
-        if (string.IsNullOrWhiteSpace(extension))
+        if (!validation.IsValid)
         {
-            throw new InvalidOperationException(
-                "The uploaded image has no extension.");
+            throw new InvalidOperationException(validation.FailureReason);
         }
 
         return await SaveMediaAsync(
             incidentId,
             content,
-            extension,
+            validation.SafeExtension!,
             contentType,
             length,
             IncidentMediaType.Image,
@@ -56,20 +62,22 @@ public sealed class IncidentMediaService : IIncidentMediaService
         long length,
         CancellationToken cancellationToken = default)
     {
-        IncidentVideoValidation.Validate(length, contentType);
+        var validation = await _fileSecurity.ValidateAsync(
+            content,
+            fileName,
+            contentType,
+            length,
+            cancellationToken);
 
-        var extension = Path.GetExtension(fileName);
-
-        if (string.IsNullOrWhiteSpace(extension))
+        if (!validation.IsValid)
         {
-            throw new InvalidOperationException(
-                "The uploaded video has no extension.");
+            throw new InvalidOperationException(validation.FailureReason);
         }
 
         return await SaveMediaAsync(
             incidentId,
             content,
-            extension,
+            validation.SafeExtension!,
             contentType,
             length,
             IncidentMediaType.Video,

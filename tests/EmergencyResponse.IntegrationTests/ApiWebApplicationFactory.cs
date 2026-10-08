@@ -57,6 +57,12 @@ public sealed class ApiWebApplicationFactory
                 ["IncidentMediaStorage:RootPath"] =
                     Path.Combine(Path.GetTempPath(), "ErIntegrationTests"),
 
+                ["Security:RateLimits:AuthenticationPerMinute"] = "1000",
+                ["Security:RateLimits:IncidentCreatePerMinute"] = "1000",
+                ["Security:RateLimits:MediaUploadPerMinute"] = "1000",
+                ["Security:RateLimits:CopilotPerMinute"] = "1000",
+                ["Security:RateLimits:AdminPerMinute"] = "1000",
+
                 // SQLite temp-file database — persists across connections.
                 ["ConnectionStrings:DefaultConnection"] = $"Data Source={_dbPath}"
             });

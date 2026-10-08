@@ -2,6 +2,7 @@
 using EmergencyResponse.Application.Interfaces;
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EmergencyResponse.Api.Controllers;
 
@@ -18,6 +19,7 @@ public class AuthenticationController : ControllerBase
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting("authentication")]
     public async Task<ActionResult<UserResponse>> Register(
         RegisterRequest request,
         CancellationToken cancellationToken)
@@ -32,6 +34,7 @@ public class AuthenticationController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("authentication")]
     public async Task<ActionResult<AuthenticationResponse>> Login(
         LoginRequest request,
         CancellationToken cancellationToken)

@@ -5,6 +5,7 @@ namespace EmergencyResponse.Domain.Entities;
 
 public sealed class KnowledgeDocument : BaseEntity
 {
+    public EmergencyResponse.Domain.Enums.DataClassification DataClassification { get; set; } = EmergencyResponse.Domain.Enums.DataClassification.Internal;
     public string DocumentNumber { get; set; } = string.Empty;
 
     public string Title { get; set; } = string.Empty;
@@ -12,6 +13,15 @@ public sealed class KnowledgeDocument : BaseEntity
     public KnowledgeDocumentType DocumentType { get; set; }
 
     public KnowledgeDocumentStatus Status { get; set; }
+
+    public SecurityScanStatus SecurityScanStatus { get; set; } =
+        SecurityScanStatus.Pending;
+
+    public DateTime? SecurityScanCompletedAtUtc { get; set; }
+
+    public string? SecurityRiskReason { get; set; }
+
+    public string? SecuritySignalsJson { get; set; }
 
     public string Version { get; set; } = string.Empty;
 

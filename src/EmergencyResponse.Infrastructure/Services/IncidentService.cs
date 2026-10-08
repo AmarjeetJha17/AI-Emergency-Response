@@ -1,10 +1,8 @@
-using EmergencyResponse.Application.AI.Interfaces;
-using EmergencyResponse.Application.AI.Jobs;
 using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.DTOs.Incidents;
 using EmergencyResponse.Application.Escalation.DTOs;
 using EmergencyResponse.Application.Interfaces;
-using EmergencyResponse.Application.ExternalContext;
+using EmergencyResponse.Application.Reliability;
 using EmergencyResponse.Domain.Entities;
 using EmergencyResponse.Domain.Enums;
 using EmergencyResponse.Infrastructure.Persistence;
@@ -20,21 +18,18 @@ public sealed class IncidentService : IIncidentService
     private readonly ApplicationDbContext _dbContext;
     private readonly IIncidentNumberGenerator _numberGenerator;
     private readonly ICurrentUserService _currentUserService;
-    private readonly IAIAnalysisQueue _aiQueue;
-    private readonly IExternalContextQueue _externalContextQueue;
+    private readonly IBackgroundJobScheduler _jobScheduler;
 
     public IncidentService(
         ApplicationDbContext dbContext,
         IIncidentNumberGenerator numberGenerator,
         ICurrentUserService currentUserService,
-        IAIAnalysisQueue aiQueue,
-        IExternalContextQueue externalContextQueue)
+        IBackgroundJobScheduler jobScheduler)
     {
         _dbContext = dbContext;
         _numberGenerator = numberGenerator;
         _currentUserService = currentUserService;
-        _aiQueue = aiQueue;
-        _externalContextQueue = externalContextQueue;
+        _jobScheduler = jobScheduler;
     }
 
     public async Task<IncidentResponse> CreateAsync(
@@ -105,20 +100,10 @@ public sealed class IncidentService : IIncidentService
             });
 
         _dbContext.Incidents.Add(incident);
-
+        _jobScheduler.ScheduleIncidentAI(incident.Id);
+        _jobScheduler.ScheduleDuplicateDetection(incident.Id);
+        _jobScheduler.ScheduleExternalContext(incident.Id);
         await _dbContext.SaveChangesAsync(
-            cancellationToken);
-
-
-        await _aiQueue.EnqueueAsync(
-            new IncidentAIJob(incident.Id),
-            cancellationToken);
-
-        await _externalContextQueue.EnqueueAsync(
-            new ExternalContextJob(
-                incident.Id,
-                (double)request.Latitude,
-                (double)request.Longitude),
             cancellationToken);
 
         return new IncidentResponse

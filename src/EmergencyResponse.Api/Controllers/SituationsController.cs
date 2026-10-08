@@ -1,6 +1,7 @@
 using EmergencyResponse.Api.Common;
 using EmergencyResponse.Application.Common.Roles;
 using EmergencyResponse.Application.Situations;
+using EmergencyResponse.Application.Security.Authorization;
 using EmergencyResponse.Application.Situations.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -88,6 +89,7 @@ public sealed class SituationsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/acknowledge")]
+    [Authorize(Policy = Permissions.SituationsAcknowledge)]
     [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
     public async Task<IActionResult> Acknowledge(
         Guid id,
@@ -110,6 +112,7 @@ public sealed class SituationsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/resolve")]
+    [Authorize(Policy = Permissions.SituationsResolve)]
     [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
     public async Task<IActionResult> Resolve(
         Guid id,

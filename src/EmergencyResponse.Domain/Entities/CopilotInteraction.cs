@@ -5,6 +5,7 @@ namespace EmergencyResponse.Domain.Entities;
 
 public sealed class CopilotInteraction : BaseEntity
 {
+    public EmergencyResponse.Domain.Enums.DataClassification DataClassification { get; set; } = EmergencyResponse.Domain.Enums.DataClassification.Confidential;
     public string UserId { get; set; } = string.Empty;
 
     public string Question { get; set; } = string.Empty;

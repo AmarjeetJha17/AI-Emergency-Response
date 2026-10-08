@@ -1,4 +1,5 @@
 using EmergencyResponse.Application.Resources;
+using EmergencyResponse.Application.Security.Authorization;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -65,6 +66,7 @@ public sealed class ResourcesController : ControllerBase
     }
 
     [HttpPost("{resourceId:guid}/assign")]
+    [Authorize(Policy = Permissions.ResourcesAssign)]
     public async Task<ActionResult<ResourceAssignmentResult>> Assign(
         Guid resourceId,
         AssignResourceRequest request,
@@ -143,6 +145,7 @@ public sealed class ResourcesController : ControllerBase
     }
 
     [HttpPost("{resourceId:guid}/command")]
+    [Authorize(Policy = Permissions.ResourcesDispatch)]
     public async Task<ActionResult<ResourceCommandResult>> ExecuteCommand(
         Guid resourceId,
         ResourceCommandRequest request,

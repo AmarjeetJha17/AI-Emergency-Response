@@ -1,13 +1,24 @@
 using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Web.Services;
 using EmergencyResponse.Web.Services.Api;
+using EmergencyResponse.Web.Middleware;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Azure.Identity;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var keyVaultUri = builder.Configuration["KeyVault:VaultUri"];
+if (!string.IsNullOrWhiteSpace(keyVaultUri))
+{
+    builder.Configuration.AddAzureKeyVault(
+        new Uri(keyVaultUri),
+        new DefaultAzureCredential());
+}
 
 // OpenTelemetry Configuration
 builder.Services.AddOpenTelemetry()
@@ -31,6 +42,25 @@ builder.Services.AddOpenTelemetry()
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+var dataProtectionBlobUri = builder.Configuration["DataProtection:BlobUri"];
+var dataProtectionKeyIdentifier = builder.Configuration["DataProtection:KeyIdentifier"];
+if (!string.IsNullOrWhiteSpace(dataProtectionBlobUri) ||
+    !string.IsNullOrWhiteSpace(dataProtectionKeyIdentifier))
+{
+    if (string.IsNullOrWhiteSpace(dataProtectionBlobUri) ||
+        string.IsNullOrWhiteSpace(dataProtectionKeyIdentifier))
+    {
+        throw new InvalidOperationException(
+            "Both DataProtection:BlobUri and DataProtection:KeyIdentifier must be configured together.");
+    }
+
+    var credential = new DefaultAzureCredential();
+    builder.Services.AddDataProtection()
+        .SetApplicationName("EmergencyResponse.Web")
+        .PersistKeysToAzureBlobStorage(new Uri(dataProtectionBlobUri), credential)
+        .ProtectKeysWithAzureKeyVault(new Uri(dataProtectionKeyIdentifier), credential);
+}
 
 builder.Services.AddAntiforgery(options =>
 {
@@ -180,6 +210,8 @@ Syncfusion.Licensing.SyncfusionLicenseProvider
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");

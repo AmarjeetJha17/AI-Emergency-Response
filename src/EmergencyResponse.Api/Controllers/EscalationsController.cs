@@ -1,4 +1,5 @@
 using EmergencyResponse.Application.Escalation;
+using EmergencyResponse.Application.Security.Authorization;
 using EmergencyResponse.Application.Escalation.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -44,6 +45,7 @@ public sealed class EscalationsController : ControllerBase
     }
 
     [HttpPost("{escalationId:guid}/acknowledge")]
+    [Authorize(Policy = Permissions.EscalationsAcknowledge)]
     public async Task<IActionResult> Acknowledge(
         Guid escalationId,
         [FromBody] EscalationActionRequest request,
@@ -69,6 +71,7 @@ public sealed class EscalationsController : ControllerBase
     }
 
     [HttpPost("{escalationId:guid}/resolve")]
+    [Authorize(Policy = Permissions.EscalationsResolve)]
     public async Task<IActionResult> Resolve(
         Guid escalationId,
         [FromBody] EscalationActionRequest request,

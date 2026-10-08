@@ -7,6 +7,7 @@ namespace EmergencyResponse.Domain.Entities;
 
 public class Incident : BaseEntity
 {
+    public DataClassification DataClassification { get; set; } = DataClassification.Confidential;
     public string IncidentNumber { get; set; } = null!;
 
     public string? ReporterUserId { get; set; }

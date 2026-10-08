@@ -19,11 +19,14 @@ using EmergencyResponse.Application.Intelligence;
 
 using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.Media;
+using EmergencyResponse.Application.Security.Authorization;
+using EmergencyResponse.Application.Security.SecurityAudit;
 using EmergencyResponse.Domain.Entities;
 using EmergencyResponse.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EmergencyResponse.Api.Controllers;
 
@@ -75,6 +78,8 @@ public class IncidentsController : ControllerBase
 
     [Authorize]
     [HttpPost]
+    [Authorize(Policy = Permissions.IncidentsCreate)]
+    [EnableRateLimiting("incident-create")]
     public async Task<ActionResult<IncidentResponse>> Create(
         CreateIncidentRequest request,
         CancellationToken cancellationToken)
@@ -497,6 +502,17 @@ public class IncidentsController : ControllerBase
             return Forbid();
         }
 
+        _dbContext.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            UserId = _currentUserService.UserId,
+            Action = SecurityEventTypes.MediaAccess,
+            EntityName = nameof(IncidentMedia),
+            EntityId = media.Id.ToString(),
+            OccurredAtUtc = DateTime.UtcNow
+        });
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
         var stream = await _mediaStorage.OpenReadAsync(
             media.StorageKey,
             cancellationToken);
@@ -578,6 +594,7 @@ public class IncidentsController : ControllerBase
 
     [Authorize]
     [HttpPost("{incidentId:guid}/media")]
+    [EnableRateLimiting("media-upload")]
     [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<IActionResult> UploadMedia(
         Guid incidentId,
@@ -614,6 +631,7 @@ public class IncidentsController : ControllerBase
 
     [Authorize]
     [HttpPost("{incidentId:guid}/media/video")]
+    [EnableRateLimiting("media-upload")]
     [RequestSizeLimit(100 * 1024 * 1024)]
     public async Task<IActionResult> UploadVideo(
         Guid incidentId,

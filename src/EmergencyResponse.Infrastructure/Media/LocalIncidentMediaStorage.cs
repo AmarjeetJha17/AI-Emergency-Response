@@ -52,12 +52,7 @@ public sealed class LocalIncidentMediaStorage : IIncidentMediaStorage
         Stream content,
         CancellationToken cancellationToken = default)
     {
-        // Keys may contain subdirectory separators (e.g. "frames/abc/0.jpg").
-        // Normalise to the OS path separator and ensure the subdirectory exists.
-        var relativePath = key.Replace('/', Path.DirectorySeparatorChar)
-                              .Replace('\\', Path.DirectorySeparatorChar);
-
-        var fullPath = Path.Combine(_rootPath, relativePath);
+        var fullPath = ResolveSafePath(key);
 
         Directory.CreateDirectory(
             Path.GetDirectoryName(fullPath)!);
@@ -78,8 +73,7 @@ public sealed class LocalIncidentMediaStorage : IIncidentMediaStorage
         string storageKey,
         CancellationToken cancellationToken = default)
     {
-        var fullPath =
-            Path.Combine(_rootPath, storageKey);
+        var fullPath = ResolveSafePath(storageKey);
 
         if (!File.Exists(fullPath))
         {
@@ -104,8 +98,7 @@ public sealed class LocalIncidentMediaStorage : IIncidentMediaStorage
         string storageKey,
         CancellationToken cancellationToken = default)
     {
-        var fullPath =
-            Path.Combine(_rootPath, storageKey);
+        var fullPath = ResolveSafePath(storageKey);
 
         if (File.Exists(fullPath))
         {
@@ -113,5 +106,33 @@ public sealed class LocalIncidentMediaStorage : IIncidentMediaStorage
         }
 
         return Task.CompletedTask;
+    }
+
+    private string ResolveSafePath(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new InvalidOperationException(
+                "A storage key is required.");
+        }
+
+        var root = Path.GetFullPath(_rootPath)
+            .TrimEnd(Path.DirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        var candidate = Path.GetFullPath(
+            Path.Combine(
+                _rootPath,
+                key.Replace('/', Path.DirectorySeparatorChar)
+                   .Replace('\\', Path.DirectorySeparatorChar)));
+
+        if (!candidate.StartsWith(
+                root,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "The storage key resolves outside private media storage.");
+        }
+
+        return candidate;
     }
 }

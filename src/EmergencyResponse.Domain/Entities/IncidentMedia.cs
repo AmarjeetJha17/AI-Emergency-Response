@@ -5,6 +5,7 @@ namespace EmergencyResponse.Domain.Entities;
 
 public class IncidentMedia : BaseEntity
 {
+    public DataClassification DataClassification { get; set; } = DataClassification.Confidential;
     public Guid IncidentId { get; set; }
 
     public Incident Incident { get; set; } = null!;

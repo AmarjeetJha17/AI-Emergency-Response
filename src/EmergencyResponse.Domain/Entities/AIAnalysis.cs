@@ -5,6 +5,7 @@ namespace EmergencyResponse.Domain.Entities;
 
 public class AIAnalysis : BaseEntity
 {
+    public DataClassification DataClassification { get; set; } = DataClassification.Confidential;
     public Guid IncidentId { get; set; }
 
     public Incident Incident { get; set; } = null!;

@@ -78,6 +78,7 @@ public sealed class NotificationsController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkRead(
         Guid id,
         CancellationToken cancellationToken)
@@ -95,6 +96,7 @@ public sealed class NotificationsController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkAllRead(CancellationToken cancellationToken)
     {
         try

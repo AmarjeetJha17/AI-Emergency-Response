@@ -1,16 +1,16 @@
-using EmergencyResponse.Application.Common.Roles;
 using EmergencyResponse.Application.Copilot.Actions;
 using EmergencyResponse.Application.Interfaces;
+using EmergencyResponse.Application.Security.Authorization;
 using EmergencyResponse.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EmergencyResponse.Api.Controllers;
 
 [ApiController]
 [Route("api/copilot/actions")]
-[Authorize(Roles =
-    $"{ApplicationRoles.Responder},{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+[Authorize(Policy = Permissions.CopilotActionsPropose)]
 public sealed class CopilotActionsController : ControllerBase
 {
     private readonly ICopilotActionService _actions;
@@ -44,6 +44,8 @@ public sealed class CopilotActionsController : ControllerBase
             .ToList());
 
     [HttpPost("{id:guid}/approve")]
+    [Authorize(Policy = Permissions.CopilotActionsApprove)]
+    [EnableRateLimiting("copilot")]
     public async Task<ActionResult<CopilotActionExecutionResult>> Approve(
         Guid id,
         ApproveCopilotActionRequest request,
@@ -69,6 +71,7 @@ public sealed class CopilotActionsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/reject")]
+    [EnableRateLimiting("copilot")]
     public async Task<ActionResult<CopilotActionProposalView>> Reject(
         Guid id,
         RejectCopilotActionRequest request,

@@ -23,8 +23,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         var traceId = httpContext.TraceIdentifier;
 
         _logger.LogError(
-            exception,
-            "Unhandled exception. TraceId: {TraceId}",
+            "Unhandled exception category {ExceptionType}. TraceId: {TraceId}",
+            exception.GetType().Name,
             traceId);
 
         var statusCode = StatusCodes.Status500InternalServerError;
@@ -37,12 +37,20 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         {
             statusCode = StatusCodes.Status409Conflict;
         }
+        else if (HasDatabaseTransportFailure(exception))
+        {
+            statusCode = StatusCodes.Status503ServiceUnavailable;
+        }
 
         var problem = new ProblemDetails
         {
             Status = statusCode,
-            Title = "An error occurred.",
-            Detail = exception.Message,
+            Title = statusCode == StatusCodes.Status503ServiceUnavailable
+                ? "A required service is temporarily unavailable."
+                : "An error occurred.",
+            Detail = statusCode == StatusCodes.Status503ServiceUnavailable
+                ? "The request could not be persisted. Please retry after service recovery."
+                : exception.Message,
             Instance = httpContext.Request.Path
         };
 
@@ -55,5 +63,15 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             cancellationToken);
 
         return true;
+    }
+
+    private static bool HasDatabaseTransportFailure(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException!)
+        {
+            if (current is System.Data.Common.DbException or TimeoutException)
+                return true;
+        }
+        return false;
     }
 }

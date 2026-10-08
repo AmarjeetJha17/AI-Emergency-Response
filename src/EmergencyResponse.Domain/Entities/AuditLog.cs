@@ -4,6 +4,7 @@ namespace EmergencyResponse.Domain.Entities;
 
 public class AuditLog : BaseEntity
 {
+    public EmergencyResponse.Domain.Enums.DataClassification DataClassification { get; set; } = EmergencyResponse.Domain.Enums.DataClassification.Restricted;
     public string? UserId { get; set; }
 
     public string Action { get; set; } = null!;

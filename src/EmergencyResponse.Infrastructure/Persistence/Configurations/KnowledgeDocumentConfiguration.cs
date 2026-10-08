@@ -20,8 +20,16 @@ public sealed class KnowledgeDocumentConfiguration
         builder.Property(x => x.Description).HasMaxLength(2000);
         builder.Property(x => x.IndexName).HasMaxLength(200);
         builder.Property(x => x.FailureReason).HasMaxLength(2000);
+        builder.Property(x => x.SecurityRiskReason).HasMaxLength(2000);
+        builder.Property(x => x.SecuritySignalsJson).HasMaxLength(4000);
         builder.HasIndex(x => x.DocumentNumber).IsUnique();
-        builder.HasIndex(x => new { x.Status, x.DepartmentId, x.IsGlobal });
+        builder.HasIndex(x => new
+        {
+            x.Status,
+            x.SecurityScanStatus,
+            x.DepartmentId,
+            x.IsGlobal
+        });
         builder.HasIndex(x => new { x.ContentHash, x.Version });
     }
 }

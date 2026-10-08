@@ -23,6 +23,46 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<int>("AttemptCount").HasColumnType("int");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("datetime2");
+                    b.Property<bool>("IsPublished").HasColumnType("bit");
+                    b.Property<DateTimeOffset?>("LastAttemptAtUtc").HasColumnType("datetimeoffset");
+                    b.Property<string>("LastError").HasMaxLength(500).HasColumnType("nvarchar(500)");
+                    b.Property<string>("MessageKey").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
+                    b.Property<string>("MessageType").IsRequired().HasMaxLength(160).HasColumnType("nvarchar(160)");
+                    b.Property<DateTimeOffset>("OccurredAtUtc").HasColumnType("datetimeoffset");
+                    b.Property<string>("PayloadJson").IsRequired().HasColumnType("nvarchar(max)");
+                    b.Property<DateTimeOffset?>("PublishedAtUtc").HasColumnType("datetimeoffset");
+                    b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("datetime2");
+                    b.HasKey("Id");
+                    b.HasIndex("IsPublished", "OccurredAtUtc");
+                    b.HasIndex("MessageKey").IsUnique();
+                    b.ToTable("OutboxMessages");
+                });
+
+            modelBuilder.Entity("EmergencyResponse.Domain.Entities.BackgroundJobExecution", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<int>("AttemptCount").HasColumnType("int");
+                    b.Property<DateTimeOffset?>("CompletedAtUtc").HasColumnType("datetimeoffset");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("AnalysisVersion").IsRequired().HasMaxLength(80).HasColumnType("nvarchar(80)");
+                    b.Property<Guid>("JobId").HasColumnType("uniqueidentifier");
+                    b.Property<string>("JobType").IsRequired().HasMaxLength(160).HasColumnType("nvarchar(160)");
+                    b.Property<string>("LastFailureCategory").HasMaxLength(64).HasColumnType("nvarchar(64)");
+                    b.Property<DateTimeOffset?>("LeaseExpiresAtUtc").HasColumnType("datetimeoffset");
+                    b.Property<int>("Status").HasColumnType("int");
+                    b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("datetime2");
+                    b.Property<Guid>("WorkItemId").HasColumnType("uniqueidentifier");
+                    b.HasKey("Id");
+                    b.HasIndex("JobId", "AnalysisVersion").IsUnique();
+                    b.HasIndex("Status", "LeaseExpiresAtUtc");
+                    b.ToTable("BackgroundJobExecutions");
+                });
+
             modelBuilder.Entity("EmergencyResponse.Domain.Entities.AIAnalysis", b =>
                 {
                     b.Property<Guid>("Id")
@@ -40,6 +80,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
 
                     b.Property<long>("ExecutionTimeMs")
                         .HasColumnType("bigint");
@@ -137,6 +180,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
+
                     b.Property<string>("EntityId")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -215,6 +261,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -304,6 +353,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
+
                     b.Property<Guid?>("IncidentId")
                         .HasColumnType("uniqueidentifier");
 
@@ -392,6 +444,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
+
                     b.Property<int>("GroundingStatus")
                         .HasColumnType("int");
 
@@ -459,6 +514,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
 
                     b.Property<string>("GroundingStatus")
                         .HasMaxLength(100)
@@ -688,6 +746,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
 
                     b.Property<Guid?>("DepartmentId")
                         .HasColumnType("uniqueidentifier");
@@ -927,6 +988,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
+
                     b.Property<bool>("HasSevereWeatherAlert")
                         .HasColumnType("bit");
 
@@ -1146,6 +1210,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
 
                     b.Property<string>("FileName")
                         .IsRequired()
@@ -1486,6 +1553,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
+
                     b.Property<Guid?>("DepartmentId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1532,6 +1602,20 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                     b.Property<bool>("RequiresOperatorRole")
                         .HasColumnType("bit");
 
+                    b.Property<string>("SecurityRiskReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("SecurityScanCompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("SecurityScanStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SecuritySignalsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
 
@@ -1563,7 +1647,7 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ContentHash", "Version");
 
-                    b.HasIndex("Status", "DepartmentId", "IsGlobal");
+                    b.HasIndex("Status", "SecurityScanStatus", "DepartmentId", "IsGlobal");
 
                     b.ToTable("KnowledgeDocuments");
                 });
@@ -1634,6 +1718,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
 
                     b.Property<string>("DeduplicationKey")
                         .HasMaxLength(200)
@@ -2324,6 +2411,9 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("DataClassification")
+                        .HasColumnType("int");
 
                     b.Property<Guid?>("DepartmentId")
                         .HasColumnType("uniqueidentifier");

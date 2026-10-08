@@ -1,8 +1,14 @@
 using EmergencyResponse.Application.Common.Roles;
+using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Application.Knowledge;
+using EmergencyResponse.Application.Security.SecurityAudit;
+using EmergencyResponse.Domain.Entities;
 using EmergencyResponse.Domain.Knowledge;
+using EmergencyResponse.Application.Security.Authorization;
+using EmergencyResponse.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EmergencyResponse.Api.Controllers;
 
@@ -15,21 +21,29 @@ public sealed class KnowledgeController : ControllerBase
     private readonly IKnowledgeSearchService _search;
     private readonly IKnowledgeAccessContextFactory _access;
     private readonly IKnowledgeDocumentQueue _queue;
+    private readonly ApplicationDbContext _db;
+    private readonly ICurrentUserService _currentUser;
 
     public KnowledgeController(
         IKnowledgeDocumentService documents,
         IKnowledgeSearchService search,
         IKnowledgeAccessContextFactory access,
-        IKnowledgeDocumentQueue queue)
+        IKnowledgeDocumentQueue queue,
+        ApplicationDbContext db,
+        ICurrentUserService currentUser)
     {
         _documents = documents;
         _search = search;
         _access = access;
         _queue = queue;
+        _db = db;
+        _currentUser = currentUser;
     }
 
     [HttpPost("documents")]
     [Authorize(Roles = $"{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+    [Authorize(Policy = Permissions.KnowledgeManage)]
+    [EnableRateLimiting("admin-api")]
     [RequestSizeLimit(25 * 1024 * 1024)]
     public async Task<ActionResult<object>> Upload(
         IFormFile file,
@@ -82,6 +96,8 @@ public sealed class KnowledgeController : ControllerBase
 
     [HttpPost("documents/{id:guid}/publish")]
     [Authorize(Roles = $"{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+    [Authorize(Policy = Permissions.KnowledgeManage)]
+    [EnableRateLimiting("admin-api")]
     public async Task<IActionResult> Publish(
         Guid id,
         CancellationToken cancellationToken)
@@ -92,6 +108,8 @@ public sealed class KnowledgeController : ControllerBase
 
     [HttpPost("documents/{id:guid}/archive")]
     [Authorize(Roles = $"{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+    [Authorize(Policy = Permissions.KnowledgeManage)]
+    [EnableRateLimiting("admin-api")]
     public async Task<IActionResult> Archive(
         Guid id,
         CancellationToken cancellationToken)
@@ -103,6 +121,7 @@ public sealed class KnowledgeController : ControllerBase
     [HttpGet("search")]
     [Authorize(Roles =
         $"{ApplicationRoles.Responder},{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+    [Authorize(Policy = Permissions.KnowledgeRead)]
     public async Task<ActionResult<IReadOnlyList<KnowledgeSearchResult>>> Search(
         [FromQuery] string question,
         CancellationToken cancellationToken)
@@ -112,6 +131,29 @@ public sealed class KnowledgeController : ControllerBase
             question,
             access,
             cancellationToken);
+
+        if (results.Count > 0)
+        {
+            _db.AuditLogs.Add(new AuditLog
+            {
+                Id = Guid.NewGuid(),
+                UserId = _currentUser.UserId,
+                Action = SecurityEventTypes.KnowledgeDocumentAccess,
+                EntityName = nameof(KnowledgeDocument),
+                EntityId = "search",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    documentNumbers = results
+                        .Select(result => result.DocumentNumber)
+                        .Distinct(StringComparer.Ordinal)
+                        .ToArray(),
+                    resultCount = results.Count
+                }),
+                OccurredAtUtc = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
         return Ok(results);
     }
 }

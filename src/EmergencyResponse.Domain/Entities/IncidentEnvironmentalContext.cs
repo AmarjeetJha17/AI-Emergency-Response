@@ -4,6 +4,7 @@ namespace EmergencyResponse.Domain.Entities;
 
 public sealed class IncidentEnvironmentalContext : BaseEntity
 {
+    public EmergencyResponse.Domain.Enums.DataClassification DataClassification { get; set; } = EmergencyResponse.Domain.Enums.DataClassification.Confidential;
     public Guid IncidentId { get; set; }
 
     public DateTime ObservedAtUtc { get; set; }
