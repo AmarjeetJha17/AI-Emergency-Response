@@ -7,6 +7,21 @@ namespace EmergencyResponse.UnitTests.Resources;
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Unit)]
 public sealed class ResourceStatusTransitionTests
 {
+    public static TheoryData<ResourceStatus, bool> UnavailableStateTransitions
+    {
+        get
+        {
+            var cases = new TheoryData<ResourceStatus, bool>();
+            foreach (var next in Enum.GetValues<ResourceStatus>())
+            {
+                cases.Add(next, next == ResourceStatus.Available);
+            }
+
+            cases.Add((ResourceStatus)999, false);
+            return cases;
+        }
+    }
+
     [Theory]
     [InlineData(ResourceStatus.Available, ResourceStatus.Assigned, true)]
     [InlineData(ResourceStatus.Available, ResourceStatus.Unavailable, true)]
@@ -49,12 +64,66 @@ public sealed class ResourceStatusTransitionTests
     [InlineData(ResourceStatus.OnScene, ResourceStatus.Maintenance)]
     [InlineData(ResourceStatus.Returning, ResourceStatus.OnScene)]
     [InlineData(ResourceStatus.Returning, ResourceStatus.Dispatched)]
+    [InlineData(ResourceStatus.Unavailable, ResourceStatus.Assigned)]
     public void InvalidTransition_IsRejected(
         ResourceStatus current,
         ResourceStatus next)
     {
         Assert.False(
             ResourceStatusTransitionRules.IsAllowed(current, next));
+    }
+
+    [Theory]
+    [InlineData((ResourceStatus)999, ResourceStatus.Available)]
+    [InlineData((ResourceStatus)999, (ResourceStatus)999)]
+    public void Unknown_current_status_is_rejected(
+        ResourceStatus current,
+        ResourceStatus next)
+    {
+        Assert.False(ResourceStatusTransitionRules.IsAllowed(current, next));
+    }
+
+    [Theory]
+    [MemberData(nameof(UnavailableStateTransitions))]
+    public void Unavailable_resource_can_only_return_to_available(
+        ResourceStatus next,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            ResourceStatusTransitionRules.IsAllowed(ResourceStatus.Unavailable, next));
+    }
+
+    [Fact]
+    public void Every_declared_status_pair_matches_the_transition_table()
+    {
+        var allowedTransitions = new Dictionary<ResourceStatus, HashSet<ResourceStatus>>
+        {
+            [ResourceStatus.Available] =
+            [ResourceStatus.Assigned, ResourceStatus.Unavailable, ResourceStatus.Maintenance],
+            [ResourceStatus.Assigned] =
+            [ResourceStatus.Available, ResourceStatus.Dispatched, ResourceStatus.Unavailable],
+            [ResourceStatus.Dispatched] =
+            [ResourceStatus.EnRoute, ResourceStatus.Available],
+            [ResourceStatus.EnRoute] =
+            [ResourceStatus.OnScene, ResourceStatus.Available],
+            [ResourceStatus.OnScene] = [ResourceStatus.Returning],
+            [ResourceStatus.Returning] =
+            [ResourceStatus.Available, ResourceStatus.Maintenance],
+            [ResourceStatus.Unavailable] = [ResourceStatus.Available],
+            [ResourceStatus.Maintenance] =
+            [ResourceStatus.Available, ResourceStatus.Unavailable]
+        };
+
+        foreach (var current in Enum.GetValues<ResourceStatus>())
+        {
+            foreach (var next in Enum.GetValues<ResourceStatus>())
+            {
+                Assert.Equal(
+                    allowedTransitions[current].Contains(next),
+                    ResourceStatusTransitionRules.IsAllowed(current, next));
+            }
+        }
     }
 
     [Fact]

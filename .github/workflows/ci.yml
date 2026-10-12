@@ -1,69 +1,169 @@
-name: Quality Gate
+name: CI
 
 on:
-  pull_request:
   push:
-    branches: [main]
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
+    name: Build and Test
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
+      ASPNETCORE_ENVIRONMENT: Test
       ConnectionStrings__TestDatabase: >-
-        Server=127.0.0.1,1433;Database=EmergencyResponse_IntegrationTests;User Id=sa;Password=Testing_Password!2026;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True
+        Server=127.0.0.1,1433;Database=EmergencyResponse_IntegrationTests;User Id=sa;Password=CITest!Only2026_A;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True
       ConnectionStrings__LoadTestDatabase: >-
-        Server=127.0.0.1,1433;Database=EmergencyResponse_LoadTests;User Id=sa;Password=Testing_Password!2026;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True
+        Server=127.0.0.1,1433;Database=EmergencyResponse_LoadTests;User Id=sa;Password=CITest!Only2026_A;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True
+
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2025-latest
         env:
           ACCEPT_EULA: Y
-          MSSQL_SA_PASSWORD: Testing_Password!2026
+          MSSQL_SA_PASSWORD: CITest!Only2026_A
         ports:
           - 1433:1433
         options: >-
           --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"
           --health-interval 10s --health-timeout 5s --health-retries 20 --health-start-period 30s
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
-      - name: Restore
-        run: dotnet restore AI-Emergency-Response.slnx
-      - name: Build
+
+      - name: Restore solution and local tools
+        run: |
+          dotnet restore AI-Emergency-Response.slnx
+          dotnet tool restore
+
+      - name: Build solution
         run: dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore
-      - name: Performance smoke (report latency, gate errors)
+
+      - name: Verify EF model has no uncommitted migration changes
+        run: >-
+          dotnet ef migrations has-pending-model-changes
+          --project src/EmergencyResponse.Infrastructure/EmergencyResponse.Infrastructure.csproj
+          --startup-project src/EmergencyResponse.Api/EmergencyResponse.Api.csproj
+          --context ApplicationDbContext
+          --configuration Release
+
+      - name: Unit tests with coverage
+        run: >-
+          dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=unit-tests.trx"
+          --results-directory TestResults/Unit
+          --collect "XPlat Code Coverage"
+
+      - name: SQL Server integration tests with coverage
+        run: >-
+          dotnet test tests/EmergencyResponse.IntegrationTests/EmergencyResponse.IntegrationTests.csproj
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=integration-tests.trx"
+          --results-directory TestResults/Integration
+          --collect "XPlat Code Coverage"
+
+      - name: Offline AI safety and quality evaluation
+        run: dotnet run --project tests/EmergencyResponse.CopilotEvaluation/EmergencyResponse.CopilotEvaluation.csproj --configuration Release --no-build
+
+      - name: Performance smoke
         env:
           LOAD_TEST_PROFILE: Smoke
           LOAD_TEST_SCENARIO: mixed
           LOAD_TEST_MAX_ERROR_RATE: '0.01'
           BUILD_VERSION: ${{ github.sha }}
-        run: dotnet run --project tests/EmergencyResponse.LoadTests/EmergencyResponse.LoadTests.csproj --configuration Release --no-build
-      - name: Unit tests
-        run: dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build --filter "Category=Unit" --logger "trx;LogFileName=unit.trx" --collect:"XPlat Code Coverage"
-      - name: Security tests
-        run: dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build --filter "Category=Security" --logger "trx;LogFileName=security.trx"
-      - name: AI and resilience unit checks
+        run: dotnet run --project tests/EmergencyResponse.LoadTests/EmergencyResponse.LoadTests.csproj --configuration Release --no-build --no-restore
+
+      - name: Install ReportGenerator
         run: |
-          dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build --filter "Category=AI" --logger "trx;LogFileName=ai.trx"
-          dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build --filter "Category=Resilience" --logger "trx;LogFileName=resilience.trx"
-      - name: Integration and smoke tests
-        run: dotnet test tests/EmergencyResponse.IntegrationTests/EmergencyResponse.IntegrationTests.csproj --configuration Release --no-build --filter "Category=Integration" --logger "trx;LogFileName=integration.trx" --collect:"XPlat Code Coverage"
-      - name: Smoke tests
-        run: dotnet test tests/EmergencyResponse.IntegrationTests/EmergencyResponse.IntegrationTests.csproj --configuration Release --no-build --filter "Category=Smoke"
-      - name: Offline AI evaluation
-        run: dotnet run --project tests/EmergencyResponse.CopilotEvaluation/EmergencyResponse.CopilotEvaluation.csproj --configuration Release
-      - name: Upload test and coverage reports
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Merge application and domain coverage
+        run: >-
+          reportgenerator
+          "-reports:TestResults/**/coverage.cobertura.xml"
+          "-targetdir:TestResults/CoverageMerged"
+          "-reporttypes:Cobertura"
+          "-assemblyfilters:+EmergencyResponse.Domain;+EmergencyResponse.Application"
+
+      - name: Enforce 70 percent line coverage
+        shell: pwsh
+        run: ./scripts/check-coverage.ps1 -ReportPath "TestResults/CoverageMerged/Cobertura.xml" -MinimumLineCoverage 70
+
+      - name: Upload test, coverage, AI evaluation, and performance reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: quality-reports
+          name: quality-reports-${{ github.run_number }}
           path: |
-            **/TestResults/**/*.trx
-            **/TestResults/**/coverage.cobertura.xml
+            TestResults/**/*.trx
+            TestResults/**/*.xml
+            TestResults/loadtests/**
             tests/EmergencyResponse.CopilotEvaluation/Reports/**/*.json
             tests/EmergencyResponse.CopilotEvaluation/Reports/**/*.jsonl
             tests/EmergencyResponse.CopilotEvaluation/Reports/**/*.html
-            TestResults/loadtests/**
           if-no-files-found: warn
+          retention-days: 14
+
+  publish:
+    name: Publish Release Artifacts
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore solution
+        run: dotnet restore AI-Emergency-Response.slnx
+
+      - name: Publish API
+        run: dotnet publish src/EmergencyResponse.Api/EmergencyResponse.Api.csproj --configuration Release --no-restore --output artifacts/api
+
+      - name: Publish Web
+        run: dotnet publish src/EmergencyResponse.Web/EmergencyResponse.Web.csproj --configuration Release --no-restore --output artifacts/web
+
+      - name: Upload API artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: emergency-response-api-${{ github.ref_name }}
+          path: artifacts/api/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Web artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: emergency-response-web-${{ github.ref_name }}
+          path: artifacts/web/
+          if-no-files-found: error
+          retention-days: 30

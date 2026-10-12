@@ -1,0 +1,45 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze C#
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: csharp
+          queries: security-extended
+
+      - name: Restore solution
+        run: dotnet restore AI-Emergency-Response.slnx
+
+      - name: Build solution
+        run: dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4

@@ -35,9 +35,9 @@ public sealed class LoadTestHostFactory : WebApplicationFactory<global::Program>
     public LoadTestHostFactory(LoadTestOptions options)
     {
         _options = options;
-        _connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__LoadTestDatabase")
+        _connectionString = options.LoadTestDatabaseConnectionString
             ?? throw new InvalidOperationException(
-                "Set ConnectionStrings__LoadTestDatabase to a dedicated, disposable SQL Server database before using LocalTestHost mode.");
+                "Configure ConnectionStrings:LoadTestDatabase in appsettings.json or set ConnectionStrings__LoadTestDatabase to a dedicated, disposable SQL Server database before using LocalTestHost mode.");
 
         var databaseName = new SqlConnectionStringBuilder(_connectionString).InitialCatalog;
         if (!databaseName.Contains("LoadTest", StringComparison.OrdinalIgnoreCase) ||

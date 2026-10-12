@@ -6,6 +6,7 @@ namespace EmergencyResponse.LoadTests.Infrastructure;
 public sealed record LoadTestOptions
 {
     public string HostMode { get; init; } = "LocalTestHost";
+    public string? LoadTestDatabaseConnectionString { get; init; }
     public string Profile { get; init; } = "Smoke";
     public string Scenario { get; init; } = "mixed";
     public string Dataset { get; init; } = "Small";
@@ -46,6 +47,11 @@ public sealed record LoadTestOptions
         var options = document.RootElement.GetProperty("LoadTest").Deserialize<LoadTestOptions>(
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Load-test configuration could not be read.");
+        var configuredDatabaseConnectionString =
+            document.RootElement.TryGetProperty("ConnectionStrings", out var connectionStrings) &&
+            connectionStrings.TryGetProperty("LoadTestDatabase", out var loadTestDatabase)
+                ? loadTestDatabase.GetString()
+                : null;
 
         var values = ParseArguments(args);
         string EnvOrArg(string key, string env, string fallback) =>
@@ -64,6 +70,9 @@ public sealed record LoadTestOptions
 
         return options with
         {
+            LoadTestDatabaseConnectionString =
+                Environment.GetEnvironmentVariable("ConnectionStrings__LoadTestDatabase") ??
+                configuredDatabaseConnectionString,
             HostMode = hostMode,
             Profile = EnvOrArg("profile", "LOAD_TEST_PROFILE", options.Profile),
             Scenario = EnvOrArg("scenario", "LOAD_TEST_SCENARIO", options.Scenario),

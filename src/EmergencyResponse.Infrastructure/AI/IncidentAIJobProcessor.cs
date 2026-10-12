@@ -13,6 +13,7 @@ using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Application.Observability;
 using EmergencyResponse.Application.Predictive.Interfaces;
 using EmergencyResponse.Application.Predictive.Jobs;
+using EmergencyResponse.Application.Reliability;
 using EmergencyResponse.Application.Realtime;
 using EmergencyResponse.Application.Situations.Jobs;
 using EmergencyResponse.Domain.Entities;
@@ -396,6 +397,11 @@ public sealed class IncidentAIJobProcessor
 
     private static string CategorizeFailure(Exception ex)
     {
+        if (ex is AIServiceCircuitOpenException)
+        {
+            return ReliabilityFailureClassifier.Categorize(ex);
+        }
+
         if (ex is TaskCanceledException or OperationCanceledException or TimeoutException)
         {
             return "Timeout";
