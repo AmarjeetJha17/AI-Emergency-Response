@@ -45,6 +45,7 @@ public sealed class EmergencyResponseWebApplicationFactory
 
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["Test:RelaxRateLimits"] = "true",
                 ["Jwt:Issuer"]            = "IntegrationTests",
                 ["Jwt:Audience"]          = "IntegrationTests",
                 ["Jwt:SecretKey"]         = "integration-test-secret-key-minimum-32-chars!",

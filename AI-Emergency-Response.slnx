@@ -12,6 +12,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/EmergencyResponse.CopilotEvaluation/EmergencyResponse.CopilotEvaluation.csproj" />
     <Project Path="tests/EmergencyResponse.IntegrationTests/EmergencyResponse.IntegrationTests.csproj" />
+    <Project Path="tests/EmergencyResponse.LoadTests/EmergencyResponse.LoadTests.csproj" />
     <Project Path="tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj" />
   </Folder>
 </Solution>

@@ -11,6 +11,8 @@ jobs:
     env:
       ConnectionStrings__TestDatabase: >-
         Server=127.0.0.1,1433;Database=EmergencyResponse_IntegrationTests;User Id=sa;Password=Testing_Password!2026;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True
+      ConnectionStrings__LoadTestDatabase: >-
+        Server=127.0.0.1,1433;Database=EmergencyResponse_LoadTests;User Id=sa;Password=Testing_Password!2026;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2025-latest
@@ -31,6 +33,13 @@ jobs:
         run: dotnet restore AI-Emergency-Response.slnx
       - name: Build
         run: dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore
+      - name: Performance smoke (report latency, gate errors)
+        env:
+          LOAD_TEST_PROFILE: Smoke
+          LOAD_TEST_SCENARIO: mixed
+          LOAD_TEST_MAX_ERROR_RATE: '0.01'
+          BUILD_VERSION: ${{ github.sha }}
+        run: dotnet run --project tests/EmergencyResponse.LoadTests/EmergencyResponse.LoadTests.csproj --configuration Release --no-build
       - name: Unit tests
         run: dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build --filter "Category=Unit" --logger "trx;LogFileName=unit.trx" --collect:"XPlat Code Coverage"
       - name: Security tests
@@ -56,4 +65,5 @@ jobs:
             tests/EmergencyResponse.CopilotEvaluation/Reports/**/*.json
             tests/EmergencyResponse.CopilotEvaluation/Reports/**/*.jsonl
             tests/EmergencyResponse.CopilotEvaluation/Reports/**/*.html
+            TestResults/loadtests/**
           if-no-files-found: warn

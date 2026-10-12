@@ -18,7 +18,7 @@ export default function () {
   const incidents = http.get(`${baseUrl}/api/incidents?page=1&pageSize=20`, { headers });
   check(incidents, { 'incident retrieval responds successfully': (r) => r.status === 200 });
 
-  const dashboard = http.get(`${baseUrl}/api/dashboard`, { headers });
-  check(dashboard, { 'dashboard request responds': (r) => r.status < 500 });
+  const dashboard = http.get(`${baseUrl}/api/dashboard/summary`, { headers });
+  check(dashboard, { 'dashboard summary responds successfully': (r) => r.status === 200 });
   sleep(1);
 }

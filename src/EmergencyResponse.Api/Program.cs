@@ -308,7 +308,8 @@ var securityOptions = builder.Configuration
         .Get<SecurityOptions>()
         ?? new SecurityOptions();
 
-if (builder.Environment.IsEnvironment("Test"))
+if (builder.Environment.IsEnvironment("Test") &&
+    builder.Configuration.GetValue<bool>("Test:RelaxRateLimits"))
 {
         securityOptions.RateLimits.AuthenticationPerMinute = 10_000;
         securityOptions.RateLimits.IncidentCreatePerMinute = 10_000;
@@ -451,8 +452,11 @@ builder.Services.AddOpenTelemetry()
             .AddSource(EmergencyResponseTelemetry.ActivitySourceName)
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
-            .AddSqlClientInstrumentation()
-            .AddConsoleExporter();
+            .AddSqlClientInstrumentation();
+        if (!builder.Environment.IsEnvironment("Test"))
+        {
+            tracing.AddConsoleExporter();
+        }
     })
     .WithMetrics(metrics =>
     {
@@ -460,8 +464,11 @@ builder.Services.AddOpenTelemetry()
             .AddMeter(EmergencyResponseTelemetry.MeterName)
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
-            .AddRuntimeInstrumentation()
-            .AddConsoleExporter();
+            .AddRuntimeInstrumentation();
+        if (!builder.Environment.IsEnvironment("Test"))
+        {
+            metrics.AddConsoleExporter();
+        }
     });
 
 builder.Services.AddSingleton<IWorkerHealthState, WorkerHealthState>();

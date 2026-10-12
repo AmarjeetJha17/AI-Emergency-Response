@@ -8,4 +8,4 @@ $env:BEARER_TOKEN = "<short-lived test token>"
 k6 run tests/performance/k6/incident-api.js
 ```
 
-PR smoke defaults to 10 VUs for two minutes. Scheduled baseline: `VUS=50 DURATION=10m`. The initial profile measures incident reads and dashboard reads; expand it as stable auth fixtures and media/search API contracts are added. Never use a production token or send real citizen data in load tests.
+The manual k6 profile defaults to 10 VUs for two minutes. A scheduled baseline can use `VUS=50 DURATION=10m`. The initial profile measures incident reads and dashboard reads; expand it as stable auth fixtures and media/search API contracts are added. This profile is not currently wired into CI. Never use a production token or send real citizen data in load tests.
