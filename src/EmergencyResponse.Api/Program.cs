@@ -303,23 +303,28 @@ builder.Services.AddSingleton<
         Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
         PermissionAuthorizationHandler>();
 
-var securityOptions = builder.Configuration
-        .GetSection(SecurityOptions.SectionName)
-        .Get<SecurityOptions>()
-        ?? new SecurityOptions();
-
-if (builder.Environment.IsEnvironment("Test") &&
-    builder.Configuration.GetValue<bool>("Test:RelaxRateLimits"))
-{
-        securityOptions.RateLimits.AuthenticationPerMinute = 10_000;
-        securityOptions.RateLimits.IncidentCreatePerMinute = 10_000;
-        securityOptions.RateLimits.MediaUploadPerMinute = 10_000;
-        securityOptions.RateLimits.CopilotPerMinute = 10_000;
-        securityOptions.RateLimits.AdminPerMinute = 10_000;
-}
-
 builder.Services.AddRateLimiter(options =>
 {
+        // Read configuration when the rate-limiter options are built. A
+        // WebApplicationFactory adds its test configuration through the host
+        // builder, after Program has started executing, so eagerly binding
+        // here would capture the production defaults before test overrides
+        // are available.
+        var securityOptions = builder.Configuration
+            .GetSection(SecurityOptions.SectionName)
+            .Get<SecurityOptions>()
+            ?? new SecurityOptions();
+
+        if (builder.Environment.IsEnvironment("Test") &&
+            builder.Configuration.GetValue<bool>("Test:RelaxRateLimits"))
+        {
+            securityOptions.RateLimits.AuthenticationPerMinute = 10_000;
+            securityOptions.RateLimits.IncidentCreatePerMinute = 10_000;
+            securityOptions.RateLimits.MediaUploadPerMinute = 10_000;
+            securityOptions.RateLimits.CopilotPerMinute = 10_000;
+            securityOptions.RateLimits.AdminPerMinute = 10_000;
+        }
+
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
         options.OnRejected = async (context, cancellationToken) =>
         {

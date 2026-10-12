@@ -12,7 +12,7 @@ namespace EmergencyResponse.IntegrationTests.Auth;
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
 public sealed class AuthEndpointTests
-    : IClassFixture<EmergencyResponseWebApplicationFactory>
+
 {
     private readonly HttpClient _client;
 
@@ -21,9 +21,9 @@ public sealed class AuthEndpointTests
         PropertyNameCaseInsensitive = true
     };
 
-    public AuthEndpointTests(EmergencyResponseWebApplicationFactory factory)
+    public AuthEndpointTests(IntegrationTestFixture fixture)
     {
-        _client = factory.CreateClient();
+        _client = fixture.Factory.CreateClient();
     }
 
     // ── Register ─────────────────────────────────────────────────────────

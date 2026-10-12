@@ -12,10 +12,8 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
+        await SqlServerReadiness.WaitForSqlServerAsync();
         using var client = Factory.CreateClient();
-        await TestDatabase.InitializeAsync(Factory.Services);
-        await TestDatabase.ResetAsync(Factory.Services);
-        await TestDataSeeder.SeedAsync(Factory.Services);
     }
 
     public Task DisposeAsync()

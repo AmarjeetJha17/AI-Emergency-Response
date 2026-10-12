@@ -7,13 +7,13 @@ namespace EmergencyResponse.IntegrationTests.Security;
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Security)]
 [Collection("SQL Server integration database")]
 public sealed class SecurityBaselineTests
-    : IClassFixture<EmergencyResponseWebApplicationFactory>
+
 {
     private readonly HttpClient _client;
 
-    public SecurityBaselineTests(EmergencyResponseWebApplicationFactory factory)
+    public SecurityBaselineTests(IntegrationTestFixture fixture)
     {
-        _client = factory.CreateClient();
+        _client = fixture.Factory.CreateClient();
     }
 
     [Fact]

@@ -10,13 +10,13 @@ namespace EmergencyResponse.IntegrationTests.Predictive;
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
 public sealed class PredictionSnapshotTests
-    : IClassFixture<EmergencyResponseWebApplicationFactory>
+
 {
     private readonly EmergencyResponseWebApplicationFactory _factory;
 
-    public PredictionSnapshotTests(EmergencyResponseWebApplicationFactory factory)
+    public PredictionSnapshotTests(IntegrationTestFixture fixture)
     {
-        _factory = factory;
+        _factory = fixture.Factory;
     }
 
     [Fact]

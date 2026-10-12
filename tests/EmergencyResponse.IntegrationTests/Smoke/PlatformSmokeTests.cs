@@ -5,11 +5,11 @@ namespace EmergencyResponse.IntegrationTests.Smoke;
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Smoke)]
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
-public sealed class PlatformSmokeTests : IClassFixture<EmergencyResponseWebApplicationFactory>
+public sealed class PlatformSmokeTests
 {
     private readonly HttpClient _client;
 
-    public PlatformSmokeTests(EmergencyResponseWebApplicationFactory factory) => _client = factory.CreateClient();
+    public PlatformSmokeTests(IntegrationTestFixture fixture) => _client = fixture.Factory.CreateClient();
 
     [Fact]
     public async Task LivenessAndIncidentApiContract_AreAvailable()

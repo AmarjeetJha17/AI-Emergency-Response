@@ -15,7 +15,7 @@ namespace EmergencyResponse.IntegrationTests.Escalations;
 
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
-public sealed class EscalationEndpointTests : IClassFixture<EmergencyResponseWebApplicationFactory>
+public sealed class EscalationEndpointTests
 {
     private readonly EmergencyResponseWebApplicationFactory _factory;
     private readonly HttpClient _client;
@@ -25,10 +25,10 @@ public sealed class EscalationEndpointTests : IClassFixture<EmergencyResponseWeb
         PropertyNameCaseInsensitive = true
     };
 
-    public EscalationEndpointTests(EmergencyResponseWebApplicationFactory factory)
+    public EscalationEndpointTests(IntegrationTestFixture fixture)
     {
-        _factory = factory;
-        _client = factory.CreateClient();
+        _factory = fixture.Factory;
+        _client = fixture.Factory.CreateClient();
     }
 
     private async Task<string> LoginAdminAsync()
@@ -39,7 +39,7 @@ public sealed class EscalationEndpointTests : IClassFixture<EmergencyResponseWeb
                 Email = "admin@test.local",
                 Password = "Admin@Test1!"
             });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -58,11 +58,11 @@ public sealed class EscalationEndpointTests : IClassFixture<EmergencyResponseWeb
                 Email = email,
                 Password = password
             });
-        registerResp.EnsureSuccessStatusCode();
+        await registerResp.EnsureSuccessWithBodyAsync();
 
         var loginResp = await _client.PostAsJsonAsync("/api/auth/login",
             new LoginRequest { Email = email, Password = password });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -72,7 +72,7 @@ public sealed class EscalationEndpointTests : IClassFixture<EmergencyResponseWeb
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var resp = await _client.GetAsync("/api/incident-types");
-        resp.EnsureSuccessStatusCode();
+        await resp.EnsureSuccessWithBodyAsync();
 
         var types = await resp.Content.ReadFromJsonAsync<List<JsonElement>>(JsonOptions);
         return Guid.Parse(types![0].GetProperty("id").GetString()!);
@@ -117,7 +117,7 @@ public sealed class EscalationEndpointTests : IClassFixture<EmergencyResponseWeb
             Address = "123 High Street",
             City = "London"
         });
-        createResp.EnsureSuccessStatusCode();
+        await createResp.EnsureSuccessWithBodyAsync();
         var incident = await createResp.Content.ReadFromJsonAsync<IncidentResponse>(JsonOptions);
         Assert.NotNull(incident);
 
@@ -145,7 +145,7 @@ public sealed class EscalationEndpointTests : IClassFixture<EmergencyResponseWeb
 
         // 3. Fetch open escalations for incident
         var listResp = await _client.GetAsync($"/api/escalations/incident/{incident.Id}");
-        listResp.EnsureSuccessStatusCode();
+        await listResp.EnsureSuccessWithBodyAsync();
         var escalations = await listResp.Content.ReadFromJsonAsync<List<IncidentEscalationResponse>>(JsonOptions);
         Assert.NotNull(escalations);
         var openEsc = Assert.Single(escalations, e => e.Id == escalationId);
@@ -159,7 +159,7 @@ public sealed class EscalationEndpointTests : IClassFixture<EmergencyResponseWeb
 
         // Fetch to verify acknowledged state
         var afterAckResp = await _client.GetAsync($"/api/escalations/incident/{incident.Id}");
-        afterAckResp.EnsureSuccessStatusCode();
+        await afterAckResp.EnsureSuccessWithBodyAsync();
         var afterAckList = await afterAckResp.Content.ReadFromJsonAsync<List<IncidentEscalationResponse>>(JsonOptions);
         var ackEsc = Assert.Single(afterAckList!, e => e.Id == openEsc.Id);
         Assert.Equal(EscalationStatus.Acknowledged, ackEsc.Status);
@@ -172,7 +172,7 @@ public sealed class EscalationEndpointTests : IClassFixture<EmergencyResponseWeb
 
         // Fetch to verify resolved state
         var afterResolveResp = await _client.GetAsync($"/api/escalations/incident/{incident.Id}");
-        afterResolveResp.EnsureSuccessStatusCode();
+        await afterResolveResp.EnsureSuccessWithBodyAsync();
         var afterResolveList = await afterResolveResp.Content.ReadFromJsonAsync<List<IncidentEscalationResponse>>(JsonOptions);
         var resolvedEsc = Assert.Single(afterResolveList!, e => e.Id == openEsc.Id);
         Assert.Equal(EscalationStatus.Resolved, resolvedEsc.Status);
@@ -203,7 +203,7 @@ public sealed class EscalationEndpointTests : IClassFixture<EmergencyResponseWeb
             Address = "Station Square",
             City = "London"
         });
-        createResp.EnsureSuccessStatusCode();
+        await createResp.EnsureSuccessWithBodyAsync();
         var incident = await createResp.Content.ReadFromJsonAsync<IncidentResponse>(JsonOptions);
         Assert.NotNull(incident);
 
@@ -229,11 +229,11 @@ public sealed class EscalationEndpointTests : IClassFixture<EmergencyResponseWeb
 
         // 3. Trigger evaluation endpoint
         var evalResp = await _client.PostAsync($"/api/escalations/evaluate/{incident.Id}", null);
-        evalResp.EnsureSuccessStatusCode();
+        await evalResp.EnsureSuccessWithBodyAsync();
 
         // 4. Verify that deduplication kept only 1 open escalation of this type
         var listResp = await _client.GetAsync($"/api/escalations/incident/{incident.Id}");
-        listResp.EnsureSuccessStatusCode();
+        await listResp.EnsureSuccessWithBodyAsync();
         var escalations = await listResp.Content.ReadFromJsonAsync<List<IncidentEscalationResponse>>(JsonOptions);
         Assert.NotNull(escalations);
 

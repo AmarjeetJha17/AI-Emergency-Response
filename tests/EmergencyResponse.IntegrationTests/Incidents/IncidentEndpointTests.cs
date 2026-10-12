@@ -15,7 +15,7 @@ namespace EmergencyResponse.IntegrationTests.Incidents;
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
 public sealed class IncidentEndpointTests
-    : IClassFixture<EmergencyResponseWebApplicationFactory>
+
 {
     private readonly HttpClient _client;
 
@@ -24,9 +24,9 @@ public sealed class IncidentEndpointTests
         PropertyNameCaseInsensitive = true
     };
 
-    public IncidentEndpointTests(EmergencyResponseWebApplicationFactory factory)
+    public IncidentEndpointTests(IntegrationTestFixture fixture)
     {
-        _client = factory.CreateClient();
+        _client = fixture.Factory.CreateClient();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ public sealed class IncidentEndpointTests
             new AuthenticationHeaderValue("Bearer", token);
 
         var resp = await _client.GetAsync("/api/incident-types");
-        resp.EnsureSuccessStatusCode();
+        await resp.EnsureSuccessWithBodyAsync();
 
         var types = await resp.Content
             .ReadFromJsonAsync<List<JsonElement>>(JsonOptions);

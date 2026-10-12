@@ -12,7 +12,7 @@ namespace EmergencyResponse.IntegrationTests.Resources;
 
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
-public sealed class ResourcesEndpointTests : IClassFixture<EmergencyResponseWebApplicationFactory>
+public sealed class ResourcesEndpointTests
 {
     private readonly HttpClient _client;
 
@@ -21,9 +21,9 @@ public sealed class ResourcesEndpointTests : IClassFixture<EmergencyResponseWebA
         PropertyNameCaseInsensitive = true
     };
 
-    public ResourcesEndpointTests(EmergencyResponseWebApplicationFactory factory)
+    public ResourcesEndpointTests(IntegrationTestFixture fixture)
     {
-        _client = factory.CreateClient();
+        _client = fixture.Factory.CreateClient();
     }
 
     private async Task<string> RegisterAndLoginCitizenAsync()
@@ -39,11 +39,11 @@ public sealed class ResourcesEndpointTests : IClassFixture<EmergencyResponseWebA
                 Email = email,
                 Password = password
             });
-        registerResp.EnsureSuccessStatusCode();
+        await registerResp.EnsureSuccessWithBodyAsync();
 
         var loginResp = await _client.PostAsJsonAsync("/api/auth/login",
             new LoginRequest { Email = email, Password = password });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -57,7 +57,7 @@ public sealed class ResourcesEndpointTests : IClassFixture<EmergencyResponseWebA
                 Email = "admin@test.local",
                 Password = "Admin@Test1!"
             });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -106,7 +106,7 @@ public sealed class ResourcesEndpointTests : IClassFixture<EmergencyResponseWebA
 
         // 1. Get incident types to create an incident
         var typesResp = await _client.GetAsync("/api/incident-types");
-        typesResp.EnsureSuccessStatusCode();
+        await typesResp.EnsureSuccessWithBodyAsync();
         var types = await typesResp.Content.ReadFromJsonAsync<List<JsonElement>>(JsonOptions);
         var typeId = Guid.Parse(types![0].GetProperty("id").GetString()!);
 
@@ -122,13 +122,13 @@ public sealed class ResourcesEndpointTests : IClassFixture<EmergencyResponseWebA
             City = "Pune"
         };
         var incidentResp = await _client.PostAsJsonAsync("/api/incidents", createIncidentReq);
-        incidentResp.EnsureSuccessStatusCode();
+        await incidentResp.EnsureSuccessWithBodyAsync();
         var incidentDoc = await incidentResp.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var incidentId = Guid.Parse(incidentDoc.GetProperty("id").GetString()!);
 
         // 3. Find an available resource or query existing
         var resListResp = await _client.GetAsync("/api/resources");
-        resListResp.EnsureSuccessStatusCode();
+        await resListResp.EnsureSuccessWithBodyAsync();
         var resources = await resListResp.Content.ReadFromJsonAsync<List<ResourceDetailsResponse>>(JsonOptions);
         var availableResource = resources?.FirstOrDefault(r => r.Status == ResourceStatus.Available);
 
@@ -279,7 +279,7 @@ public sealed class ResourcesEndpointTests : IClassFixture<EmergencyResponseWebA
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
 
         var incidentsResp = await _client.GetAsync("/api/resources/assignable-incidents");
-        incidentsResp.EnsureSuccessStatusCode();
+        await incidentsResp.EnsureSuccessWithBodyAsync();
         var incidents = await incidentsResp.Content.ReadFromJsonAsync<List<AssignableIncidentItem>>(JsonOptions);
 
         if (incidents != null && incidents.Count > 0)
@@ -326,7 +326,7 @@ public sealed class ResourcesEndpointTests : IClassFixture<EmergencyResponseWebA
 
         // 1. Get incident types
         var typesResp = await _client.GetAsync("/api/incident-types");
-        typesResp.EnsureSuccessStatusCode();
+        await typesResp.EnsureSuccessWithBodyAsync();
         var types = await typesResp.Content.ReadFromJsonAsync<List<JsonElement>>(JsonOptions);
         var typeId = Guid.Parse(types![0].GetProperty("id").GetString()!);
 
@@ -342,13 +342,13 @@ public sealed class ResourcesEndpointTests : IClassFixture<EmergencyResponseWebA
             City = "Pune"
         };
         var incidentResp = await _client.PostAsJsonAsync("/api/incidents", createIncidentReq);
-        incidentResp.EnsureSuccessStatusCode();
+        await incidentResp.EnsureSuccessWithBodyAsync();
         var incidentDoc = await incidentResp.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var incidentId = Guid.Parse(incidentDoc.GetProperty("id").GetString()!);
 
         // 3. Find an available resource
         var resListResp = await _client.GetAsync("/api/resources");
-        resListResp.EnsureSuccessStatusCode();
+        await resListResp.EnsureSuccessWithBodyAsync();
         var resources = await resListResp.Content.ReadFromJsonAsync<List<ResourceDetailsResponse>>(JsonOptions);
         var availableResource = resources?.FirstOrDefault(r => r.Status == ResourceStatus.Available);
 
@@ -438,7 +438,7 @@ public sealed class ResourcesEndpointTests : IClassFixture<EmergencyResponseWebA
 
         // Find available resource
         var resListResp = await _client.GetAsync("/api/resources");
-        resListResp.EnsureSuccessStatusCode();
+        await resListResp.EnsureSuccessWithBodyAsync();
         var resources = await resListResp.Content.ReadFromJsonAsync<List<ResourceDetailsResponse>>(JsonOptions);
         var availableResource = resources?.FirstOrDefault(r => r.Status == ResourceStatus.Available);
 

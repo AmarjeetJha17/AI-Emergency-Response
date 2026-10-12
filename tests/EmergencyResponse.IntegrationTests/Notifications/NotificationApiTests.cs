@@ -15,7 +15,7 @@ namespace EmergencyResponse.IntegrationTests.Notifications;
 
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
-public sealed class NotificationApiTests : IClassFixture<EmergencyResponseWebApplicationFactory>
+public sealed class NotificationApiTests
 {
     private readonly EmergencyResponseWebApplicationFactory _factory;
     private readonly HttpClient _client;
@@ -25,10 +25,10 @@ public sealed class NotificationApiTests : IClassFixture<EmergencyResponseWebApp
         PropertyNameCaseInsensitive = true
     };
 
-    public NotificationApiTests(EmergencyResponseWebApplicationFactory factory)
+    public NotificationApiTests(IntegrationTestFixture fixture)
     {
-        _factory = factory;
-        _client = factory.CreateClient();
+        _factory = fixture.Factory;
+        _client = fixture.Factory.CreateClient();
     }
 
     private async Task<string> LoginAdminAsync()
@@ -39,7 +39,7 @@ public sealed class NotificationApiTests : IClassFixture<EmergencyResponseWebApp
                 Email = "admin@test.local",
                 Password = "Admin@Test1!"
             });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -58,11 +58,11 @@ public sealed class NotificationApiTests : IClassFixture<EmergencyResponseWebApp
                 Email = email,
                 Password = password
             });
-        registerResp.EnsureSuccessStatusCode();
+        await registerResp.EnsureSuccessWithBodyAsync();
 
         var loginResp = await _client.PostAsJsonAsync("/api/auth/login",
             new LoginRequest { Email = email, Password = password });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;

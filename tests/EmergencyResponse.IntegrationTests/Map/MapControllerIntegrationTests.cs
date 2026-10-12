@@ -11,7 +11,7 @@ namespace EmergencyResponse.IntegrationTests.Map;
 
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
-public sealed class MapControllerIntegrationTests : IClassFixture<EmergencyResponseWebApplicationFactory>
+public sealed class MapControllerIntegrationTests
 {
     private readonly HttpClient _client;
 
@@ -20,9 +20,9 @@ public sealed class MapControllerIntegrationTests : IClassFixture<EmergencyRespo
         PropertyNameCaseInsensitive = true
     };
 
-    public MapControllerIntegrationTests(EmergencyResponseWebApplicationFactory factory)
+    public MapControllerIntegrationTests(IntegrationTestFixture fixture)
     {
-        _client = factory.CreateClient();
+        _client = fixture.Factory.CreateClient();
     }
 
     private async Task<string> RegisterAndLoginCitizenAsync()
@@ -38,11 +38,11 @@ public sealed class MapControllerIntegrationTests : IClassFixture<EmergencyRespo
                 Email = email,
                 Password = password
             });
-        registerResp.EnsureSuccessStatusCode();
+        await registerResp.EnsureSuccessWithBodyAsync();
 
         var loginResp = await _client.PostAsJsonAsync("/api/auth/login",
             new LoginRequest { Email = email, Password = password });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -56,7 +56,7 @@ public sealed class MapControllerIntegrationTests : IClassFixture<EmergencyRespo
                 Email = "admin@test.local",
                 Password = "Admin@Test1!"
             });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -92,7 +92,7 @@ public sealed class MapControllerIntegrationTests : IClassFixture<EmergencyRespo
 
         // 2. Get first incident type
         var typesResp = await _client.GetAsync("/api/incident-types");
-        typesResp.EnsureSuccessStatusCode();
+        await typesResp.EnsureSuccessWithBodyAsync();
         var types = await typesResp.Content.ReadFromJsonAsync<List<JsonElement>>(JsonOptions);
         var typeId = Guid.Parse(types![0].GetProperty("id").GetString()!);
 
@@ -109,7 +109,7 @@ public sealed class MapControllerIntegrationTests : IClassFixture<EmergencyRespo
         };
 
         var createResp = await _client.PostAsJsonAsync("/api/incidents", createRequest);
-        createResp.EnsureSuccessStatusCode();
+        await createResp.EnsureSuccessWithBodyAsync();
 
         // 4. Request map incidents endpoint
         var mapResp = await _client.GetAsync("/api/map/incidents");

@@ -130,7 +130,7 @@ public sealed class SituationEvaluationJobIntegrationTests : IntegrationTestBase
         var incident = TestDataFactory.CreateIncident(
             incidentTypeId,
             title: $"Situation evaluation job incident {Guid.NewGuid():N}",
-            incidentNumber: $"JOB-{Guid.NewGuid():N}");
+            incidentNumber: $"JOB-{Guid.NewGuid():N}"[..30]);
 
         incident.CreatedAtUtc = DateTime.UtcNow;
         incident.ReportedAtUtc = incident.CreatedAtUtc;

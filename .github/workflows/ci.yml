@@ -22,6 +22,7 @@ jobs:
     timeout-minutes: 45
     env:
       ASPNETCORE_ENVIRONMENT: Test
+      Test__RelaxRateLimits: "true"
       ConnectionStrings__TestDatabase: >-
         Server=127.0.0.1,1433;Database=EmergencyResponse_IntegrationTests;User Id=sa;Password=CITest!Only2026_A;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True
       ConnectionStrings__LoadTestDatabase: >-

@@ -10,7 +10,7 @@ namespace EmergencyResponse.IntegrationTests.Health;
 
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
-public sealed class ReprocessingApiTests : IClassFixture<EmergencyResponseWebApplicationFactory>
+public sealed class ReprocessingApiTests
 {
     private readonly HttpClient _client;
 
@@ -19,9 +19,9 @@ public sealed class ReprocessingApiTests : IClassFixture<EmergencyResponseWebApp
         PropertyNameCaseInsensitive = true
     };
 
-    public ReprocessingApiTests(EmergencyResponseWebApplicationFactory factory)
+    public ReprocessingApiTests(IntegrationTestFixture fixture)
     {
-        _client = factory.CreateClient();
+        _client = fixture.Factory.CreateClient();
     }
 
     private async Task<string> LoginAdminAsync()
@@ -32,7 +32,7 @@ public sealed class ReprocessingApiTests : IClassFixture<EmergencyResponseWebApp
                 Email = "admin@test.local",
                 Password = "Admin@Test1!"
             });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -51,11 +51,11 @@ public sealed class ReprocessingApiTests : IClassFixture<EmergencyResponseWebApp
                 Email = email,
                 Password = password
             });
-        registerResp.EnsureSuccessStatusCode();
+        await registerResp.EnsureSuccessWithBodyAsync();
 
         var loginResp = await _client.PostAsJsonAsync("/api/auth/login",
             new LoginRequest { Email = email, Password = password });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -65,7 +65,7 @@ public sealed class ReprocessingApiTests : IClassFixture<EmergencyResponseWebApp
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var typesResp = await _client.GetAsync("/api/incident-types");
-        typesResp.EnsureSuccessStatusCode();
+        await typesResp.EnsureSuccessWithBodyAsync();
         var types = await typesResp.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var typeId = types[0].GetProperty("id").GetGuid();
 
@@ -77,7 +77,7 @@ public sealed class ReprocessingApiTests : IClassFixture<EmergencyResponseWebApp
             Latitude = 12.9716M,
             Longitude = 77.5946M
         });
-        resp.EnsureSuccessStatusCode();
+        await resp.EnsureSuccessWithBodyAsync();
 
         var created = await resp.Content.ReadFromJsonAsync<IncidentResponse>(JsonOptions);
         return created!.Id;

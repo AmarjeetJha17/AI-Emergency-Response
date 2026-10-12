@@ -18,6 +18,11 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="EmergencyResponse.IntegrationTests.Infrastructure" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

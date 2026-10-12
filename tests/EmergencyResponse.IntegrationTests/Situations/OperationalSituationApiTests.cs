@@ -16,7 +16,7 @@ namespace EmergencyResponse.IntegrationTests.Situations;
 
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
-public sealed class OperationalSituationApiTests : IClassFixture<EmergencyResponseWebApplicationFactory>
+public sealed class OperationalSituationApiTests
 {
     private readonly EmergencyResponseWebApplicationFactory _factory;
     private readonly HttpClient _client;
@@ -26,10 +26,10 @@ public sealed class OperationalSituationApiTests : IClassFixture<EmergencyRespon
         PropertyNameCaseInsensitive = true
     };
 
-    public OperationalSituationApiTests(EmergencyResponseWebApplicationFactory factory)
+    public OperationalSituationApiTests(IntegrationTestFixture fixture)
     {
-        _factory = factory;
-        _client = factory.CreateClient();
+        _factory = fixture.Factory;
+        _client = fixture.Factory.CreateClient();
     }
 
     private async Task<string> LoginAdminAsync()
@@ -40,7 +40,7 @@ public sealed class OperationalSituationApiTests : IClassFixture<EmergencyRespon
                 Email = "admin@test.local",
                 Password = "Admin@Test1!"
             });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -59,11 +59,11 @@ public sealed class OperationalSituationApiTests : IClassFixture<EmergencyRespon
                 Email = email,
                 Password = password
             });
-        registerResp.EnsureSuccessStatusCode();
+        await registerResp.EnsureSuccessWithBodyAsync();
 
         var loginResp = await _client.PostAsJsonAsync("/api/auth/login",
             new LoginRequest { Email = email, Password = password });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -73,7 +73,7 @@ public sealed class OperationalSituationApiTests : IClassFixture<EmergencyRespon
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var resp = await _client.GetAsync("/api/incident-types");
-        resp.EnsureSuccessStatusCode();
+        await resp.EnsureSuccessWithBodyAsync();
 
         var types = await resp.Content.ReadFromJsonAsync<List<JsonElement>>(JsonOptions);
         return Guid.Parse(types![0].GetProperty("id").GetString()!);
@@ -148,7 +148,7 @@ public sealed class OperationalSituationApiTests : IClassFixture<EmergencyRespon
                 Address = $"Junction {i + 1}",
                 City = "New Delhi"
             });
-            createResp.EnsureSuccessStatusCode();
+            await createResp.EnsureSuccessWithBodyAsync();
             var inc = await createResp.Content.ReadFromJsonAsync<IncidentResponse>(JsonOptions);
             Assert.NotNull(inc);
             createdIncidents.Add(inc);
@@ -156,11 +156,11 @@ public sealed class OperationalSituationApiTests : IClassFixture<EmergencyRespon
 
         // 2. Evaluate situations
         var evalResp = await _client.PostAsync("/api/situations/evaluate", null);
-        evalResp.EnsureSuccessStatusCode();
+        await evalResp.EnsureSuccessWithBodyAsync();
 
         // 3. Query Command Center items
         var ccResp = await _client.GetAsync("/api/situations/command-center");
-        ccResp.EnsureSuccessStatusCode();
+        await ccResp.EnsureSuccessWithBodyAsync();
         var ccItems = await ccResp.Content.ReadFromJsonAsync<List<SituationCommandCenterItem>>(JsonOptions);
         Assert.NotNull(ccItems);
         Assert.NotEmpty(ccItems);
@@ -172,7 +172,7 @@ public sealed class OperationalSituationApiTests : IClassFixture<EmergencyRespon
 
         // 4. Query Map items
         var mapResp = await _client.GetAsync("/api/situations/open/map");
-        mapResp.EnsureSuccessStatusCode();
+        await mapResp.EnsureSuccessWithBodyAsync();
         var mapItems = await mapResp.Content.ReadFromJsonAsync<List<SituationMapItem>>(JsonOptions);
         Assert.NotNull(mapItems);
         Assert.NotEmpty(mapItems);
@@ -194,7 +194,7 @@ public sealed class OperationalSituationApiTests : IClassFixture<EmergencyRespon
 
         // Verify status changed to Acknowledged
         var getByIdResp = await _client.GetAsync($"/api/situations/{targetItem.Id}");
-        getByIdResp.EnsureSuccessStatusCode();
+        await getByIdResp.EnsureSuccessWithBodyAsync();
         var detail = await getByIdResp.Content.ReadFromJsonAsync<OperationalSituationResponse>(JsonOptions);
         Assert.NotNull(detail);
         Assert.Equal(EscalationStatus.Acknowledged, detail.Status);

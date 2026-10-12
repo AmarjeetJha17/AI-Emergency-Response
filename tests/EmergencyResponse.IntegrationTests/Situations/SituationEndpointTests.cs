@@ -16,7 +16,7 @@ namespace EmergencyResponse.IntegrationTests.Situations;
 
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
-public sealed class SituationEndpointTests : IClassFixture<EmergencyResponseWebApplicationFactory>
+public sealed class SituationEndpointTests
 {
     private readonly EmergencyResponseWebApplicationFactory _factory;
     private readonly HttpClient _client;
@@ -26,10 +26,10 @@ public sealed class SituationEndpointTests : IClassFixture<EmergencyResponseWebA
         PropertyNameCaseInsensitive = true
     };
 
-    public SituationEndpointTests(EmergencyResponseWebApplicationFactory factory)
+    public SituationEndpointTests(IntegrationTestFixture fixture)
     {
-        _factory = factory;
-        _client = factory.CreateClient();
+        _factory = fixture.Factory;
+        _client = fixture.Factory.CreateClient();
     }
 
     private async Task<string> LoginAdminAsync()
@@ -40,7 +40,7 @@ public sealed class SituationEndpointTests : IClassFixture<EmergencyResponseWebA
                 Email = "admin@test.local",
                 Password = "Admin@Test1!"
             });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -59,11 +59,11 @@ public sealed class SituationEndpointTests : IClassFixture<EmergencyResponseWebA
                 Email = email,
                 Password = password
             });
-        registerResp.EnsureSuccessStatusCode();
+        await registerResp.EnsureSuccessWithBodyAsync();
 
         var loginResp = await _client.PostAsJsonAsync("/api/auth/login",
             new LoginRequest { Email = email, Password = password });
-        loginResp.EnsureSuccessStatusCode();
+        await loginResp.EnsureSuccessWithBodyAsync();
 
         var auth = await loginResp.Content.ReadFromJsonAsync<AuthenticationResponse>(JsonOptions);
         return auth!.AccessToken;
@@ -73,7 +73,7 @@ public sealed class SituationEndpointTests : IClassFixture<EmergencyResponseWebA
     {
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var resp = await _client.GetAsync("/api/incident-types");
-        resp.EnsureSuccessStatusCode();
+        await resp.EnsureSuccessWithBodyAsync();
 
         var types = await resp.Content.ReadFromJsonAsync<List<JsonElement>>(JsonOptions);
         return Guid.Parse(types![0].GetProperty("id").GetString()!);
@@ -123,7 +123,7 @@ public sealed class SituationEndpointTests : IClassFixture<EmergencyResponseWebA
                 Address = $"Sector {i + 1}",
                 City = "Mumbai"
             });
-            createResp.EnsureSuccessStatusCode();
+            await createResp.EnsureSuccessWithBodyAsync();
             var inc = await createResp.Content.ReadFromJsonAsync<IncidentResponse>(JsonOptions);
             Assert.NotNull(inc);
             createdIncidents.Add(inc);
@@ -131,11 +131,11 @@ public sealed class SituationEndpointTests : IClassFixture<EmergencyResponseWebA
 
         // 2. Trigger evaluate
         var evalResp = await _client.PostAsync("/api/situations/evaluate", null);
-        evalResp.EnsureSuccessStatusCode();
+        await evalResp.EnsureSuccessWithBodyAsync();
 
         // 3. Query open situations
         var openResp = await _client.GetAsync("/api/situations/open");
-        openResp.EnsureSuccessStatusCode();
+        await openResp.EnsureSuccessWithBodyAsync();
         var situations = await openResp.Content.ReadFromJsonAsync<List<OperationalSituationResponse>>(JsonOptions);
         Assert.NotNull(situations);
         Assert.NotEmpty(situations);
@@ -147,7 +147,7 @@ public sealed class SituationEndpointTests : IClassFixture<EmergencyResponseWebA
 
         // 4. Query by ID
         var getByIdResp = await _client.GetAsync($"/api/situations/{targetSituation.Id}");
-        getByIdResp.EnsureSuccessStatusCode();
+        await getByIdResp.EnsureSuccessWithBodyAsync();
         var detail = await getByIdResp.Content.ReadFromJsonAsync<OperationalSituationResponse>(JsonOptions);
         Assert.NotNull(detail);
         Assert.Equal(targetSituation.Id, detail.Id);

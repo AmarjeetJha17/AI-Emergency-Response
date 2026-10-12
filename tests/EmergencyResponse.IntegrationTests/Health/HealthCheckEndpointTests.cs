@@ -5,13 +5,13 @@ namespace EmergencyResponse.IntegrationTests.Health;
 
 [Trait(EmergencyResponse.Testing.TestCategories.TraitName, EmergencyResponse.Testing.TestCategories.Integration)]
 [Collection("SQL Server integration database")]
-public sealed class HealthCheckEndpointTests : IClassFixture<EmergencyResponseWebApplicationFactory>
+public sealed class HealthCheckEndpointTests
 {
     private readonly HttpClient _client;
 
-    public HealthCheckEndpointTests(EmergencyResponseWebApplicationFactory factory)
+    public HealthCheckEndpointTests(IntegrationTestFixture fixture)
     {
-        _client = factory.CreateClient();
+        _client = fixture.Factory.CreateClient();
     }
 
     [Fact]
