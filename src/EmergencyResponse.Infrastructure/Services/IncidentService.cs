@@ -1,3 +1,4 @@
+using EmergencyResponse.Application.Common.Roles;
 using EmergencyResponse.Application.DTOs.Common;
 using EmergencyResponse.Application.DTOs.Incidents;
 using EmergencyResponse.Application.Escalation.DTOs;
@@ -150,16 +151,29 @@ public sealed class IncidentService : IIncidentService
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var incident =
-            await _dbContext.Incidents
-                .AsNoTracking()
-                .Include(x => x.IncidentType)
-                .Include(x => x.Locations)
-                .Include(x => x.CanonicalIncident)
-                .Include(x => x.StatusHistory)
-                .FirstOrDefaultAsync(
-                    x => x.Id == id,
-                    cancellationToken);
+        var incidents = _dbContext.Incidents
+            .AsNoTracking();
+
+        if (_currentUserService.IsInRole(ApplicationRoles.Citizen))
+        {
+            var userId = _currentUserService.UserId;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return null;
+            }
+
+            incidents = incidents.Where(
+                x => x.ReporterUserId == userId);
+        }
+
+        var incident = await incidents
+            .Include(x => x.IncidentType)
+            .Include(x => x.Locations)
+            .Include(x => x.CanonicalIncident)
+            .Include(x => x.StatusHistory)
+            .FirstOrDefaultAsync(
+                x => x.Id == id,
+                cancellationToken);
 
         if (incident is null)
         {

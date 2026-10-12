@@ -1926,8 +1926,7 @@ namespace EmergencyResponse.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.Property<double?>("SituationScore")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("float(5)");
+                        .HasColumnType("float");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");

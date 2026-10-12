@@ -30,7 +30,7 @@ public sealed class OperationalSituationConfiguration
             .IsRequired();
 
         builder.Property(x => x.SituationScore)
-            .HasPrecision(5, 2);
+            .HasColumnType("float");
 
         builder.HasIndex(x => x.SituationNumber)
             .IsUnique();
