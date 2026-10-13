@@ -4,6 +4,8 @@ This checklist is for an authorized, limited pilot. A checked architecture item 
 
 Use this with the [release checklist](release-checklist.md), [recovery objectives](recovery-objectives.md), [disaster-recovery runbook](disaster-recovery-runbook.md), and [failure matrix](failure-matrix.md).
 
+The proposed bounded synthetic rehearsal is defined in [pilot scope](pilot-scope.md), with its [operator guide](operator-guide.md), [runbooks](runbooks/incident-triage.md), [tabletop exercise](tabletop-exercise.md), [success metrics](pilot-success-metrics.md), [monitoring requirements](monitoring-and-alerts.md), and [go/no-go evidence and stop authority](pilot-go-no-go.md). Current decision: **NO-GO**; actual staging/recovery/exercise evidence and named approvals are pending. A documented rehearsal exclusion does not satisfy or waive the full deployment requirements below. Record any approved bounded rehearsal exception explicitly in the decision record without waiving authorization, persistence, audit or recovery of required state.
+
 ## Architecture and environments
 
 - [ ] Web, API, and dedicated Worker responsibilities and scale boundaries are documented and implemented without duplicate hosted workers in API replicas.

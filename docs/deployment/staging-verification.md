@@ -2,13 +2,13 @@
 
 ## Release Identity
 
-- Git commit: Not assigned; the staging source changes are uncommitted.
+- Git commit: `83f4817` is the committed local staging-preparation checkpoint; no Azure release has been verified.
 - Web image tag: Local smoke image `emergencyresponse-web:phase17-staging-check`; not pushed to ACR. This is a local check tag, not a release tag.
 - API image tag: Local build image `emergencyresponse-api:phase17-staging-check`; not pushed to ACR. This is a local check tag, not a release tag.
 - Worker image tag: Not applicable; Worker deployment is deferred.
 - Migration version: Linux self-contained EF bundle generated locally at `artifacts/staging/efbundle`; not applied to Azure SQL.
 - Search index provisioner: Linux self-contained tool generated locally at `artifacts/staging/search-index-provisioner/`; not run against Azure AI Search.
-- Source commit: No immutable release SHA assigned because deployment changes are still uncommitted.
+- Source commit: The preparation source is committed; published image digests and deployed revisions have not been recorded.
 
 ## Infrastructure
 
