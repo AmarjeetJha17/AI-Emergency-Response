@@ -12,8 +12,14 @@ if (-not (Test-Path -LiteralPath $ReportPath -PathType Leaf)) {
     throw "Coverage report was not found: $ReportPath"
 }
 
-[xml] $coverage = Get-Content -LiteralPath $ReportPath -Raw
-$lineRateText = $coverage.coverage.GetAttribute("line-rate")
+[xml] $coverageDocument = Get-Content -LiteralPath $ReportPath -Raw
+$coverageRoot = $coverageDocument.DocumentElement
+
+if ($null -eq $coverageRoot -or $coverageRoot.LocalName -ne "coverage") {
+    throw "Coverage report does not have a Cobertura <coverage> root element."
+}
+
+$lineRateText = $coverageRoot.GetAttribute("line-rate")
 $lineRate = 0.0
 
 if ([string]::IsNullOrWhiteSpace($lineRateText) -or
@@ -22,7 +28,7 @@ if ([string]::IsNullOrWhiteSpace($lineRateText) -or
         [System.Globalization.NumberStyles]::Float,
         [System.Globalization.CultureInfo]::InvariantCulture,
         [ref] $lineRate)) {
-    throw "Coverage report does not contain a valid line-rate attribute."
+    throw "Coverage report does not contain a valid root line-rate attribute."
 }
 
 $percentage = $lineRate * 100
