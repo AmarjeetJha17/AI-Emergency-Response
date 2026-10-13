@@ -28,9 +28,7 @@ public sealed class AzureMapsWeatherClient : IWeatherContextClient
         _httpClient = httpClient;
         _cache = cache;
         _options = options.Value;
-        _credential = new ChainedTokenCredential(
-            new ManagedIdentityCredential(),
-            new AzureCliCredential());
+        _credential = new DefaultAzureCredential();
         _logger = logger;
     }
 

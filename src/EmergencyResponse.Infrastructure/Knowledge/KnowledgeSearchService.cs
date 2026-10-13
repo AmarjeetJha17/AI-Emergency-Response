@@ -32,7 +32,7 @@ public sealed class KnowledgeSearchService : IKnowledgeSearchService
 
         if (Uri.TryCreate(_options.Endpoint, UriKind.Absolute, out var endpoint))
         {
-            var credential = new AzureCliCredential();
+            var credential = new DefaultAzureCredential();
             _indexClient = new SearchIndexClient(endpoint, credential);
             _searchClient = new SearchClient(
                 endpoint,
@@ -56,10 +56,13 @@ public sealed class KnowledgeSearchService : IKnowledgeSearchService
         var vector = await _embeddings.GenerateAsync(
             question,
             cancellationToken: cancellationToken);
-        await _indexBuilder.EnsureCreatedAsync(
-            _indexClient,
-            vector.Vector.Length,
-            cancellationToken);
+        if (_options.CreateIndexIfMissing)
+        {
+            await _indexBuilder.EnsureCreatedAsync(
+                _indexClient,
+                vector.Vector.Length,
+                cancellationToken);
+        }
 
         var options = new SearchOptions
         {
@@ -113,10 +116,13 @@ public sealed class KnowledgeSearchService : IKnowledgeSearchService
             return;
         }
 
-        await _indexBuilder.EnsureCreatedAsync(
-            _indexClient,
-            request.Embedding.Length,
-            cancellationToken);
+        if (_options.CreateIndexIfMissing)
+        {
+            await _indexBuilder.EnsureCreatedAsync(
+                _indexClient,
+                request.Embedding.Length,
+                cancellationToken);
+        }
 
         await _searchClient.MergeOrUploadDocumentsAsync(
             [

@@ -9,6 +9,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Azure.Identity;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +43,19 @@ builder.Services.AddOpenTelemetry()
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                               ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    if (!builder.Environment.IsDevelopment() &&
+        !builder.Environment.IsEnvironment("Test"))
+    {
+        // Azure Container Apps ingress is the only network path to this container.
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    }
+});
 
 var dataProtectionBlobUri = builder.Configuration["DataProtection:BlobUri"];
 var dataProtectionKeyIdentifier = builder.Configuration["DataProtection:KeyIdentifier"];
@@ -210,6 +224,7 @@ Syncfusion.Licensing.SyncfusionLicenseProvider
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseForwardedHeaders();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
 if (!app.Environment.IsDevelopment())
@@ -219,7 +234,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/health"),
+    redirect => redirect.UseHttpsRedirection());
 app.UseStaticFiles();
 app.UseRouting();
 

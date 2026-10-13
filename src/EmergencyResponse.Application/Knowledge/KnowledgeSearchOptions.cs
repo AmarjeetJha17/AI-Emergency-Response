@@ -13,4 +13,7 @@ public sealed class KnowledgeSearchOptions
     public double MinimumRetrievalScore { get; init; } = 0.55;
 
     public int MaximumContextChunks { get; init; } = 6;
+
+    /// <summary>Allows local development to bootstrap an index. Cloud deployments should provision it separately.</summary>
+    public bool CreateIndexIfMissing { get; set; } = true;
 }

@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/tools/">
+    <Project Path="tools/EmergencyResponse.SearchIndexProvisioner/EmergencyResponse.SearchIndexProvisioner.csproj" />
+  </Folder>
   <Folder Name="/ml/">
     <Project Path="ml/EmergencyResponse.PredictiveTraining/EmergencyResponse.PredictiveTraining.csproj" />
   </Folder>

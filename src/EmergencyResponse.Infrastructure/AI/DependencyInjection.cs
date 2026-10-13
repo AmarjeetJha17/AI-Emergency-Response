@@ -68,8 +68,33 @@ public static class DependencyInjection
             configuration.GetSection(CopilotMemoryOptions.SectionName));
         services.Configure<CopilotActionOptions>(
             configuration.GetSection(CopilotActionOptions.SectionName));
-        services.AddSingleton<IKnowledgeDocumentStorage,
-            LocalKnowledgeDocumentStorage>();
+        var blobServiceUri = configuration["Storage:BlobServiceUri"];
+        var mediaContainer = configuration["Storage:IncidentMediaContainer"];
+        var knowledgeContainer = configuration["Storage:KnowledgeContainer"];
+        if (!string.IsNullOrWhiteSpace(blobServiceUri))
+        {
+            if (string.IsNullOrWhiteSpace(mediaContainer) ||
+                string.IsNullOrWhiteSpace(knowledgeContainer))
+            {
+                throw new InvalidOperationException(
+                    "Storage:IncidentMediaContainer and Storage:KnowledgeContainer are required when Storage:BlobServiceUri is configured.");
+            }
+
+            var credential = new DefaultAzureCredential();
+            services.AddSingleton<IIncidentMediaStorage>(_ =>
+                new AzureBlobIncidentMediaStorage(
+                    new Uri(blobServiceUri), mediaContainer, credential));
+            services.AddSingleton<IKnowledgeDocumentStorage>(_ =>
+                new AzureBlobKnowledgeDocumentStorage(
+                    new Uri(blobServiceUri), knowledgeContainer, credential));
+        }
+        else
+        {
+            services.AddSingleton<IKnowledgeDocumentStorage,
+                LocalKnowledgeDocumentStorage>();
+            services.AddSingleton<IIncidentMediaStorage,
+                LocalIncidentMediaStorage>();
+        }
         services.AddScoped<IKnowledgeDocumentNumberGenerator,
             KnowledgeDocumentNumberGenerator>();
         services.AddSingleton<IKnowledgeDocumentParser,
@@ -143,7 +168,7 @@ public static class DependencyInjection
                 new System.ClientModel.ApiKeyCredential(options.ApiKey))
             : new AzureOpenAIClient(
                 new Uri(options.Endpoint),
-                new AzureCliCredential());
+                new DefaultAzureCredential());
 
         services.AddSingleton(azureClient);
 
@@ -210,9 +235,6 @@ public static class DependencyInjection
         services.AddScoped<
             IIncidentConsolidationService,
             IncidentConsolidationService>();
-
-        services.AddSingleton<IIncidentMediaStorage,
-            LocalIncidentMediaStorage>();
 
         services.AddHttpClient<
             IIncidentVisualAnalysisService,

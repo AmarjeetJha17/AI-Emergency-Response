@@ -43,6 +43,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 using System.Threading.RateLimiting;
 using Azure.Identity;
 
@@ -67,6 +68,19 @@ if (!string.IsNullOrWhiteSpace(keyVaultUri))
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                               ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    if (!builder.Environment.IsDevelopment() &&
+        !builder.Environment.IsEnvironment("Test"))
+    {
+        // Azure Container Apps ingress is the only network path to this container.
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    }
+});
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -393,11 +407,13 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddAI(builder.Configuration);
 
 builder.Services.AddScoped<IBackgroundJobScheduler, OutboxBackgroundJobScheduler>();
-if (builder.Environment.IsProduction())
+var messagingProvider = builder.Configuration["Messaging:Provider"];
+if (builder.Environment.IsProduction() ||
+    string.Equals(messagingProvider, "AzureServiceBus", StringComparison.OrdinalIgnoreCase))
 {
     var serviceBusNamespace = builder.Configuration["Messaging:ServiceBus:FullyQualifiedNamespace"];
     if (string.IsNullOrWhiteSpace(serviceBusNamespace))
-        throw new InvalidOperationException("Production requires Messaging:ServiceBus:FullyQualifiedNamespace.");
+        throw new InvalidOperationException("Azure Service Bus requires Messaging:ServiceBus:FullyQualifiedNamespace.");
     builder.Services.AddSingleton(_ => new ServiceBusClient(serviceBusNamespace, new DefaultAzureCredential()));
     builder.Services.AddSingleton<IApplicationMessageBus, AzureServiceBusMessageBus>();
     builder.Services.AddHostedService<AzureServiceBusConsumerBackgroundWorker>();
@@ -426,14 +442,21 @@ builder.Services.AddScoped<
 builder.Services.AddCors(
     options =>
     {
+        var configuredOrigins = builder.Configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>() ?? [];
+        var allowedOrigins = configuredOrigins.Length > 0
+            ? configuredOrigins
+            : builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Test")
+                ? ["http://localhost:5021", "https://localhost:7201"]
+                : [];
+
         options.AddPolicy(
             "WebClient",
             policy =>
             {
                 policy
-                    .WithOrigins(
-                        "http://localhost:5021",
-                        "https://localhost:7201")
+                    .WithOrigins(allowedOrigins)
                     .AllowAnyHeader()
                     .AllowAnyMethod()
                     .AllowCredentials();
@@ -487,6 +510,7 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
@@ -541,7 +565,9 @@ app.MapHealthChecks("/health");
 
 app.UseExceptionHandler();
 
-app.UseHttpsRedirection();
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/health"),
+    redirect => redirect.UseHttpsRedirection());
 
 app.UseCors("WebClient");
 
