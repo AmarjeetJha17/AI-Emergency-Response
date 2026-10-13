@@ -6,6 +6,8 @@ See the [environment matrix](environment-matrix.md) for workload ownership and t
 
 ASP.NET Core environment variables use double underscores for nested keys, for example `AI__Endpoint` for `AI:Endpoint` and `ApiSettings__BaseUrl` for `ApiSettings:BaseUrl`.
 
+The Web and API container images use .NET 10 and listen on HTTP port `8080` (`ASPNETCORE_HTTP_PORTS=8080`). This is a container runtime setting, not a secret. The Docker build excludes every `appsettings*.json` file, including base settings that may contain developer-machine paths or local connection values. Container Apps must inject application configuration and secret references at runtime; no settings file is included in the image.
+
 ## Database and identity
 
 | Setting | Current use and deployment guidance |
@@ -44,6 +46,14 @@ ASP.NET Core environment variables use double underscores for nested keys, for e
 | `Syncfusion:LicenseKey` | Required by the Web startup path. Store as a secret and scope access to the Web workload. |
 | `Logging:*` | ASP.NET Core logging levels. Cloud collection/export is not fully wired: current OpenTelemetry setup exports to console. Configure and verify Azure Monitor/Application Insights collection and alerting before pilot. |
 | `AllowedHosts` | ASP.NET Core host filtering. Set to the deployed hostnames appropriate to each environment. |
+
+## Container health endpoints
+
+| Endpoint | Workload | Meaning |
+|---|---|---|
+| `/health/live` | Web and API | Process liveness; used to determine whether the container should be restarted. |
+| `/health/ready` | Web | Web process can accept requests. It does not check API availability. |
+| `/health/ready` | API | Critical SQL Server health check passes. AI provider failure is not a reason to mark core incident APIs unready. |
 
 ## Other environment-specific application options
 

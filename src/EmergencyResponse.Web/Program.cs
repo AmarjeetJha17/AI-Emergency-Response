@@ -228,6 +228,16 @@ app.UseAuthorization();
 
 app.MapStaticAssets();
 
+app.MapGet("/health/live", () => Results.Ok(new
+{
+    status = "live"
+}));
+
+app.MapGet("/health/ready", () => Results.Ok(new
+{
+    status = "ready"
+}));
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")

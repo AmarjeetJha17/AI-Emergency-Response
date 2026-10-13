@@ -4,28 +4,36 @@ This is a planning inventory, not a provisioning record. None of these resources
 
 Environment boundaries and target roles are defined in the [environment matrix](environment-matrix.md).
 
-## Staging examples
+## Bicep foundation resources
 
-`centralindia` below is an example suffix, not a verified or selected region. The current Azure CLI session has no active login, so service availability, name availability, and pricing have not been checked.
+`infra/main.bicep` generates names from the resource-group ID and the `staging`/`pilot` environment parameter. The table below describes the resources actually declared in that template. `centralindia` examples elsewhere are not a verified or selected region. The current Azure CLI session has no active login, so service availability, name availability, and pricing have not been checked.
 
-| Resource | Example name | Purpose and notes |
+| Bicep resource | Purpose | Intended identity access | Environment |
+|---|---|---|---|
+| Log Analytics workspace | Container Apps platform log destination; 30-day retention in the template | Container Apps environment writes platform logs; operations users read under Azure RBAC | Staging or pilot, separate instance per resource group |
+| Container Apps environment | Managed runtime boundary for later Web/API/Worker apps | Platform-managed identity integration; app identities assigned separately when apps are added | Staging or pilot |
+| Azure Container Registry | Stores versioned application images; admin account is disabled | Later app user-assigned or system-assigned identity gets `AcrPull`; CI identity gets narrowly scoped push permission | Staging or pilot |
+| Storage account | Hosts private incident-media and knowledge-document containers; anonymous Blob and shared-key access are disabled | API/Worker runtime identities receive only required Blob data roles after implementation; no app role assignment exists yet | Staging or pilot |
+| `incident-media` Blob container | Private incident uploads | API identity for authorized media operations; Worker only if processing requires retrieval | Staging or pilot |
+| `knowledge-documents` Blob container | Private source knowledge documents | API/Worker identity only after Blob storage adapters and authorization are implemented | Staging or pilot |
+| Key Vault | Stores environment secrets/keys with RBAC authorization and purge protection | Each workload identity receives only the specific secret/key access it needs; assignments are not in this foundation | Staging or pilot |
+| Service Bus namespace | Durable message transport; local authentication is disabled | API identity sends; future Worker identity receives; role assignments are not in this foundation | Staging or pilot |
+| `incident-ai`, `visual-analysis`, `duplicate-detection`, `external-context` queues | Durable queues matching current API publisher/consumer route names | API sender and future Worker receiver, scoped to required queues | Staging or pilot |
+
+All four queues are included because the current Azure Service Bus publisher and consumer map to those names. This does not mean every application job is durable today; see the Worker deferral below.
+
+## Target resources not declared in this foundation
+
+| Resource | Purpose and access plan | Status |
 |---|---|---|
-| Resource group | `rg-er-staging-centralindia` | Isolate staging ownership, policy, tags, and costs |
-| Container Apps environment | `cae-er-staging` | Shared managed environment for staging apps |
-| Web Container App | `ca-er-web-staging` | Public HTTPS ingress for MVC/Web clients |
-| API Container App | `ca-er-api-staging` | HTTPS REST and `/hubs/incidents`; public for the initial browser SignalR model |
-| Worker Container App | `ca-er-worker-staging` | Persistent Service Bus consumer and background jobs; create after Worker host and durable queues exist |
-| Container Registry | `acerstaging001` | Private application image storage; confirm global name availability |
-| SQL server | `sql-er-staging-001` | Entra-authenticated Azure SQL logical server; restrict network access |
-| SQL database | `sqldb-er-staging` | Synthetic staging data only |
-| Storage account | `sterstaging001` | Private media, knowledge, and (if selected) Data Protection containers; confirm globally unique valid name |
-| Service Bus namespace | `sb-er-staging-001` | Durable staging queues/topics isolated from pilot |
-| Key Vault | `kv-er-staging-001` | Environment-specific secrets and key references; use managed identity access |
-| Log Analytics workspace | `log-er-staging-001` | Central staging logs and Container Apps diagnostics |
-| Application Insights | `appi-er-staging` | Application telemetry connected to the staging workspace, after exporter/integration is configured |
-| Azure AI Search | `srch-er-staging-001` | Staging-only index and documents |
-| AI Foundry/Azure OpenAI | `ai-er-staging-001` | Approved deployments, quotas, and cost controls for staging |
-| Azure SignalR Service | `signalr-er-staging-001` | Optional; add only if staging scale-out tests establish a need |
+| Resource group, e.g. `rg-er-staging-centralindia` | Isolate staging policy, ownership, and cost; apply approved tags and budget | Create only after subscription/region/cost review |
+| Web Container App, e.g. `ca-er-web-staging` | Public HTTPS MVC/Web entry point; configure API URL and Web secret settings | Not deployed; container image only is being prepared |
+| API Container App, e.g. `ca-er-api-staging` | REST and SignalR endpoint; public HTTPS for the current browser SignalR connection model | Not deployed; configure SQL, externalized CORS origins, health probes, and identity first |
+| Worker Container App, e.g. `ca-er-worker-staging` | Dedicated persistent queue consumer | Deferred until all job producers/consumers use a verified durable transport and a Worker host exists |
+| Azure SQL server/database, e.g. `sql-er-staging-001` / `sqldb-er-staging` | Operational records, identity, and audit using Entra authentication | Not declared; design private network and migration identity before provisioning |
+| Application Insights | Application telemetry and alerts | Not declared; current app exporters and Azure Monitor integration need configuration |
+| Azure AI Search and Foundry | Retrieval and model workloads with environment-specific quotas and cost limits | Not declared |
+| Azure SignalR Service | Optional SignalR scale-out | Not declared; evaluate after staging topology/load testing |
 
 ## Pilot examples
 
@@ -33,8 +41,8 @@ Use an independent pilot resource group and independent stateful services, for e
 
 ## Shared controls and tags
 
-Apply resource tags consistently, such as `application=emergency-response`, `environment=staging|pilot`, `owner=<approved-team>`, and `cost-center=<approved-value>`. Avoid putting personal data, subscription secrets, or incident identifiers in tags. Configure an environment budget and cost alerts before deploying billable services. Record approved SKU, replica limits, retention, backup, network, and data residency decisions with the inventory before provisioning.
+The Bicep foundation applies `project`, `environment`, and `managedBy` tags. Add approved owner and cost-center tags before deployment. Avoid putting personal data, subscription secrets, or incident identifiers in tags. Configure an environment budget and cost alerts before deploying billable services. Record approved SKU, replica limits, retention, backup, network, and data residency decisions with the inventory before provisioning.
 
 ## Provisioning status
 
-No Azure resources were created as part of Phase 17 Part 1. Subscription, region, SKU, name availability, and cost validation remain pending until an intended Azure subscription is available and authenticated.
+No Azure resources were created as part of Phase 17 Parts 1 or 2. The Bicep template is a local definition only. Subscription, region, SKU, name availability, role assignments, and cost validation remain pending until an intended Azure subscription is available and authenticated.

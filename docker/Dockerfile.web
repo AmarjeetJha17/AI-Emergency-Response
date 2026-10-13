@@ -1,0 +1,28 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY . .
+
+RUN dotnet restore src/EmergencyResponse.Web/EmergencyResponse.Web.csproj
+
+RUN dotnet publish \
+    src/EmergencyResponse.Web/EmergencyResponse.Web.csproj \
+    --configuration Release \
+    --no-restore \
+    --output /app/publish \
+    -p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+
+COPY --from=build /app/publish .
+
+RUN mkdir -p /app/storage \
+    && chown -R $APP_UID:$APP_UID /app
+
+USER $APP_UID
+
+ENTRYPOINT ["dotnet", "EmergencyResponse.Web.dll"]
