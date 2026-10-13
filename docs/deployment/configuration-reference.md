@@ -8,11 +8,13 @@ ASP.NET Core environment variables use double underscores for nested keys, for e
 
 The Web and API container images use .NET 10 and listen on HTTP port `8080` (`ASPNETCORE_HTTP_PORTS=8080`). This is a container runtime setting, not a secret. The Docker build excludes every `appsettings*.json` file, including base settings that may contain developer-machine paths or local connection values. Container Apps must inject application configuration and secret references at runtime; no settings file is included in the image.
 
+The Azure SQL target uses `ConnectionStrings__DefaultConnection` with the normal `tcp:<server>.database.windows.net,1433` hostname and `Authentication=Active Directory Default`. Private DNS inside the VNet resolves that hostname to the private endpoint. Do not configure the application with the endpoint's private IP address.
+
 ## Database and identity
 
 | Setting | Current use and deployment guidance |
 |---|---|
-| `ConnectionStrings:DefaultConnection` | Required by API outside the `Test` environment. Target Azure SQL with Microsoft Entra authentication and a contained database identity; verify the connection mode and permissions with the deployed identity. Do not use a production SQL username/password. |
+| `ConnectionStrings:DefaultConnection` | Required by API outside the `Test` environment. For Azure SQL use `Server=tcp:<sql-server>.database.windows.net,1433;Database=EmergencyResponse;Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;`. Private DNS provides the private route. Verify SqlClient/Azure Identity behavior and contained-user permissions with the deployed identity. Do not use a SQL username/password. |
 | `ConnectionStrings:TestDatabase` | Selected only in `Test`; local/CI test configuration, not a deployed runtime setting. |
 | `Jwt:Issuer`, `Jwt:Audience`, `Jwt:SecretKey`, `Jwt:ExpirationMinutes` | API JWT validation and issuance. Keep issuer/audience as environment configuration; supply `SecretKey` through Key Vault or a managed secret source and never expose it to browser code. |
 | `AdminSeed:Email`, `AdminSeed:Password`, `AdminSeed:FirstName`, `AdminSeed:LastName` | Admin seed options. The API invokes admin seeding at startup; review and constrain this bootstrap path before a pilot, and do not commit the password. Prefer a separately controlled initial-admin procedure. |
@@ -58,6 +60,8 @@ The Web and API container images use .NET 10 and listen on HTTP port `8080` (`AS
 ## Other environment-specific application options
 
 The API also binds `Map:*`, `VideoFrameExtraction:*`, `ResourceRecommendation:*`, `SituationDetection:*`, `Predictive:*`, `Copilot:Actions:*`, `Copilot:Memory:*`, `Security:*`, `Retention:*`, and `Reliability:*`. Review their option classes before setting cloud values. File paths such as model and local storage paths must be replaced with container-safe paths or Blob-backed providers where applicable. Do not copy developer-machine paths into Container Apps.
+
+For the current no-deployment preview, the SQL Entra administrator is obtained from the active Azure CLI user by `scripts/preview-staging-network.ps1`; the display name and object ID are passed to ARM at runtime and are not stored in Bicep parameter files or source control. Runtime identity, storage, and queue configuration remains pending app-resource deployment.
 
 ## Configuration and secret checks
 

@@ -2,18 +2,18 @@
 
 ## Decision status
 
-This document records the target architecture for a controlled pilot. It does not assert that Azure resources exist or that a deployment has been verified. Azure CLI is installed locally, but there is no active Azure login, so no subscription or region was verified for this decision.
+This document records the target architecture for a controlled pilot. It does not assert that Azure resources exist or that a deployment has been verified. The current infrastructure preview targets a dedicated `rg-er-staging-eastus` resource group in East US. The preview script reads the active Azure CLI subscription and signed-in Entra user; it does not store their identifiers in the repository.
 
 Related plans: [resource inventory](azure-resource-inventory.md), [configuration reference](configuration-reference.md), and [pilot entry criteria](pilot-entry-criteria.md).
 
 Use Azure Container Apps for the first cloud deployment. Keep the MVC Web app, REST/SignalR API, and background Worker as separate container apps. Use Azure SQL Database, private Blob Storage, Azure Service Bus, managed AI/Search services, and Azure Key Vault. Use Azure Monitor and Log Analytics for cloud observability. Evaluate Azure SignalR Service only when staging measurements or multi-replica operation require SignalR scale-out.
 
-The following resource groups are naming examples only:
+The following resource groups are naming examples only, except for the staging preview target:
 
-- `rg-er-staging-centralindia`
+- `rg-er-staging-eastus` (preview target; not provisioned by the preview)
 - `rg-er-pilot-centralindia`
 
-`centralindia` is a candidate example, not a selected deployment region. Choose a region only after reviewing the intended subscription, service availability, network and residency requirements, and cost. Apply the same isolation and naming rules to another region if that review selects one.
+East US is selected for the infrastructure preview because it matches the existing related resource group's region. This does not approve a deployment region: confirm service availability, data residency, network overlap, and cost before provisioning. `centralindia` remains a naming example for a future pilot decision.
 
 ## Workload mapping
 
@@ -63,6 +63,8 @@ Use managed identities for deployed workloads. Assign access by workload and ser
 | Developer | Local development access; no shared production runtime credential |
 
 For Azure SQL, target Microsoft Entra authentication with a contained database principal and least privilege. For Storage and Service Bus, use service-specific data-plane RBAC. Validate Azure Identity and SqlClient authentication against the selected hosting identity before directing pilot traffic.
+
+The staging VNet, SQL private endpoint, and private DNS design is documented in [network architecture](network-architecture.md) and [Azure SQL connectivity](azure-sql-connectivity.md). The templates currently preview only the dedicated resource group and shared foundation. Web/API app resources and runtime role assignments await versioned ACR images and a verified application identity design; Worker deployment remains deferred until all job paths are durable across processes.
 
 ## Health and operations
 
