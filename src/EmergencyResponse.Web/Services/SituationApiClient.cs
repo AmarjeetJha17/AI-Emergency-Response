@@ -167,7 +167,7 @@ public sealed class SituationApiClient : ISituationApiClient
     public async Task<IReadOnlyList<SituationCommandCenterItem>> GetCommandCenterAsync(
         CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync("api/situations/command-center", cancellationToken);
+        using var response = await _httpClient.GetAsync("api/situations/command-center", cancellationToken);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
@@ -176,20 +176,8 @@ public sealed class SituationApiClient : ISituationApiClient
 
         response.EnsureSuccessStatusCode();
 
-        try
-        {
-            var wrapper = await response.Content
-                .ReadFromJsonAsync<ApiResponseWrapper<IReadOnlyList<SituationCommandCenterItem>>>(cancellationToken);
-            if (wrapper?.Data != null)
-            {
-                return wrapper.Data;
-            }
-        }
-        catch
-        {
-            // Fallback to direct deserialization
-        }
-
+        // The API returns an array. Read once: trying a wrapper first closes
+        // the content stream when that incompatible deserialization fails.
         var direct = await response.Content
             .ReadFromJsonAsync<IReadOnlyList<SituationCommandCenterItem>>(cancellationToken);
         return direct ?? [];
@@ -198,7 +186,7 @@ public sealed class SituationApiClient : ISituationApiClient
     public async Task<IReadOnlyList<SituationMapItem>> GetOpenForMapAsync(
         CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync("api/situations/open/map", cancellationToken);
+        using var response = await _httpClient.GetAsync("api/situations/open/map", cancellationToken);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
@@ -207,28 +195,9 @@ public sealed class SituationApiClient : ISituationApiClient
 
         response.EnsureSuccessStatusCode();
 
-        try
-        {
-            var wrapper = await response.Content
-                .ReadFromJsonAsync<ApiResponseWrapper<IReadOnlyList<SituationMapItem>>>(cancellationToken);
-            if (wrapper?.Data != null)
-            {
-                return wrapper.Data;
-            }
-        }
-        catch
-        {
-            // Fallback to direct deserialization
-        }
-
         var direct = await response.Content
             .ReadFromJsonAsync<IReadOnlyList<SituationMapItem>>(cancellationToken);
         return direct ?? [];
     }
 
-    private sealed class ApiResponseWrapper<T>
-    {
-        public bool Success { get; set; }
-        public T? Data { get; set; }
-    }
 }

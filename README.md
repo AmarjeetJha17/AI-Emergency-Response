@@ -115,7 +115,7 @@ Private routing, deployed identities, migrations, end-to-end workflows, alert de
 src/      Domain, Application, Infrastructure, Api, Web
 tests/    UnitTests, IntegrationTests, CopilotEvaluation, LoadTests
 ml/       EmergencyResponse.PredictiveTraining
-tools/    EmergencyResponse.SearchIndexProvisioner
+tools/    EmergencyResponse.SearchIndexProvisioner, EmergencyResponse.DemoData
 infra/    Azure Bicep foundation, apps, preview, migration-runner templates
 docker/   Web and API Dockerfiles
 scripts/  Quality, deployment, and recovery utilities
@@ -141,6 +141,8 @@ Runtime secrets belong in User Secrets or environment variables. SQL test settin
 ## Portfolio walkthrough
 
 Start with [feature verification](docs/portfolio/feature-verification.md), then the [demo script](docs/portfolio/demo-script.md) and [screenshot index](docs/portfolio/screenshots/README.md). Screenshots use synthetic records and identify what was actually observed. Unavailable views remain pending rather than being presented as verified.
+
+The [DEMO18 dataset](docs/portfolio/synthetic-demo-data.md) imports six clearly marked synthetic reports with valid manual operational records into an isolated local database. Import is idempotent and cleanup is ownership-scoped. Local automated tests and authenticated MVC responses are verified; screenshots and live AI/duplicate assessments remain pending.
 
 ## Roadmap
 

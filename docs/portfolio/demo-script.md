@@ -109,11 +109,11 @@ No Azure deployment occurs. Containers exclude all appsettings JSON and require 
 ## 4. Walkthrough and screenshot protocol
 
 1. Record the source SHA, date, local environment, database, actor roles, and provider mode. Use one browser session per actor; never capture passwords/tokens.
-2. Register a synthetic Citizen, then submit up to three fabricated flood reports near one another. Prefix titles with `SYNTHETIC PORTFOLIO`; use no real people, phone numbers, or emergency requests.
+2. Register a synthetic Citizen through the existing application, then follow the [DEMO18 import and cleanup commands](synthetic-demo-data.md). The repeatable dataset has flood, fire, collision, collapse and overlapping-report inputs. It schedules no AI jobs. Use no real people, phone numbers, or emergency requests.
 3. As synthetic SystemAdmin, open incident details and verify the saved identifier, location, history, and actual analysis state. Do not describe pending/failed AI as successful.
 4. Capture the dashboard and map. Record missing tiles/layers explicitly. Respect map attribution; no automated tile scraping.
 5. Review synthetic resources and, only where the UI supports it, assign a simulated resource. Capture the command center; do not demonstrate real dispatch.
-6. Open situations after related reports have actually been processed. If no situation exists, capture the empty view with that limitation or leave the intended populated evidence pending.
+6. Open the DEMO18 manually grouped situation. Its summary explains uncertain casualties and overlapping counts; it is not an AI-generated summary or automatic clustering result. Any demonstration of automatic situation processing remains pending until executed.
 7. Use an approved synthetic knowledge document. Ask one knowledge question only if ingestion/Search is functioning; show actual citations and verify their source. No document/Copilot result is fabricated.
 8. Optionally demonstrate a supported note/tag proposal with explicit SystemAdmin approval, then check persisted results and audit. Do not claim crash-safe exactly-once execution.
 
@@ -125,4 +125,10 @@ Capture the six requested views using actual browser screenshots. Store reviewed
 
 Stop only the API/Web processes started for the demo. Retain or remove the disposable demo database/storage through an explicitly reviewed cleanup; do not delete any shared database or arbitrary directory. Remove session environment variables containing passwords and dispose of temporary credentials. Do not commit local secrets, raw logs containing identifiers, or test data outside the reviewed synthetic artifacts.
 
+For DEMO18 fixture removal use the explicit [ownership-scoped cleanup](synthetic-demo-data.md#safe-cleanup), preview first. Do not delete by prefix or force cascading removal of operator-created records. The tool preserves accounts and shared reference data.
+
 Publish changes through a feature branch and pull request. Required checks and protected master apply; direct pushes and automatic dependency merges are not the portfolio workflow. Link actual run results in the evidence register before marking a check complete.
+
+## Phase 18 Part 2.1 results
+
+2026-10-14 local verification: Release build, 536 unit tests, 87 SQL integration tests, EF model check and 79.59% Domain/Application coverage gate passed. The CLI seed/repeat/cleanup/reseed lifecycle passed. Nineteen real-cookie MVC/snapshot/access checks passed; browser rendering, JavaScript, SignalR, live provider workflows and screenshots remain pending. See the [full commands, actual evidence and blockers](synthetic-demo-data.md#actual-verification--2026-10-14).

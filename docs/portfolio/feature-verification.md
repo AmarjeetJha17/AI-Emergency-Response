@@ -10,6 +10,7 @@ Prepared 2026-10-14. Evidence is tied to its environment and source revision. **
 
 | Capability | Implementation | Verification and evidence | Remaining limits |
 |---|---|---|---|
+| DEMO18 synthetic demo fixtures | Implemented | Locally Verified: explicit CLI seed/repeat/cleanup/reseed, SQL/API scope tests and 19 authenticated MVC/snapshot checks | Browser/screenshots and live AI/duplicate/interactive workflows pending; [commands and evidence](synthetic-demo-data.md) |
 | Incident reporting, details, filtering, status | Implemented | Locally Verified: selected SQL/API cases in [CI at 22608ab](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38470547281) | Composed staged workflow pending |
 | Identity, permissions, Citizen ownership | Partially Implemented | Locally Verified: selected role/ownership tests in that CI run | Alternate resource status route and realtime isolation need hardening |
 | Structured incident AI and deterministic decisions | Implemented | Locally Verified: deterministic tests/offline fixtures; live extraction not established by that run | Live quality/calibration and retry recovery pending |
@@ -48,6 +49,7 @@ Current Phase 18 validation is recorded below. Screenshots are explicitly pendin
 | New required jobs | GitHub PR #17, `41aadf9` | 2026-10-14: Build and Test, Container Images, Bicep Validation, Analyze C#, and Review dependencies passed. CI recorded 509 unit tests, 86 SQL integration tests, 79.46% merged coverage and 14,291 smoke requests with zero failures | [CI 38534715013](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38534715013), [CodeQL 38534715263](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38534715263), [Dependency Review 38534715026](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38534715026); reports retained as workflow artifacts |
 | Master protection read-back | GitHub | 2026-10-14: applied and GET-verified | PR required; five checks above bound to GitHub Actions app; strict up-to-date base; administrator enforcement; conversation resolution; zero external approvals for solo owner; force pushes/deletion disabled |
 | Staging and operational launch | Azure | Not verified / NO-GO | [Staging](../deployment/staging-verification.md), [pilot decision](../deployment/pilot-go-no-go.md) |
+| Phase 18 Part 2.1 dataset and screen responses | Local working changes based on `962f97e`; PR #17 still open | 2026-10-14: Release build passed; 536 unit and 87 SQL integration tests passed; 79.59% merged coverage passed; no EF model changes; CLI lifecycle and 19 real-cookie MVC/access/snapshot checks passed | [DEMO18 evidence and limits](synthetic-demo-data.md); screenshots/JS/SignalR/live AI remain pending. Uncommitted changes have no new GitHub CI evidence |
 
 ## Dependency review
 

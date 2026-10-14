@@ -4,6 +4,8 @@ Only images captured from the actual local application belong here. No generated
 
 **Capture explicitly deferred by the owner on 2026-10-14.** Native computer-use was disconnected and no browser session was available. The owner chose to keep all six screenshots pending. No screenshots or live-AI outputs were generated for this checkpoint.
 
+Phase 18 Part 2.1 verified DEMO18 data through authenticated local MVC responses and snapshots, including dashboard, map, incident details, resources and situations. This is server-response evidence only; browser rendering, scripts, map tiles and visual review remain pending. See [actual verification](../synthetic-demo-data.md).
+
 | View | File | Status | Observed evidence |
 |---|---|---|---|
 | Dashboard | dashboard.png | Pending | Local authenticated dashboard |
