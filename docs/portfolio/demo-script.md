@@ -2,6 +2,8 @@
 
 This is a local engineering demonstration, not an operational pilot. Use only fabricated incidents/media and an isolated database. Missing dependencies or failed steps are recorded as pending/failed in the [evidence register](feature-verification.md), not bypassed.
 
+**Phase 18 Part 2.2 closure — 2026-10-15:** the project owner accepted this engineering checkpoint as complete and explicitly deferred the remaining browser/provider verification to later work. Continue using the [deferred backlog and actual check results](local-demo-verification.md#phase-closure--2026-10-15). Historical incomplete/sign-off statements below describe the evidence at the time of execution; deferred checks remain unverified rather than passed.
+
 ## 1. Prerequisites and configuration
 
 - .NET 10 SDK and the repository-local EF tool; SQL Server **2025** for the native-vector schema.
@@ -132,3 +134,29 @@ Publish changes through a feature branch and pull request. Required checks and p
 ## Phase 18 Part 2.1 results
 
 2026-10-14 local verification: Release build, 536 unit tests, 87 SQL integration tests, EF model check and 79.59% Domain/Application coverage gate passed. The CLI seed/repeat/cleanup/reseed lifecycle passed. Nineteen real-cookie MVC/snapshot/access checks passed; browser rendering, JavaScript, SignalR, live provider workflows and screenshots remain pending. See the [full commands, actual evidence and blockers](synthetic-demo-data.md#actual-verification--2026-10-14).
+
+## Phase 18 Part 2.2 results
+
+See [Local Demo Verification](local-demo-verification.md) for the current commands, per-check results and remaining blockers. Final Release restore/build, **544 unit tests**, **89 SQL integration tests** and EF model verification passed. The normal local hosts passed 52 real-JWT API checks, 19 cookie-authenticated MVC/snapshot checks and 29 operational checks. Coverage was not recollected.
+
+The walkthrough exercised the DEMO18 police resource assignment through the Web CSRF/JWT bridge and five authorized admin commands, flood review status/history, manual escalation/situation acknowledgements and reviewer notification read state. An Operator can assign and acknowledge; dispatch and resolution require the actual higher permission. The generic status endpoint now enforces the existing dispatch policy. A completed resource assignment no longer appears active in its detail response.
+
+Unassessed duplicate reports now open with an explicit unavailable notice; direct API candidate reads without an embedding return 409. Do not describe that result as successful duplicate detection. Live AI, Search/RAG, citations, media processing and controlled-action execution remain unverified. Local Search is not configured. No model request or Azure deployment was made in this part.
+
+The initial ownership-scoped cleanup/reseed passed. After operator/service changes, cleanup correctly refuses application-owned dependent records. Reimport preserves the edited dataset; do not force deletion to restore an initial demo state. The final synthetic records are retained and the verification-owned Web/API hosts are stopped.
+
+Chrome remained unavailable after the user's restart because the tool could not start its Codex app-server (`os error 3`). Screenshots, browser rendering and SignalR reconnect stay pending, and **Part 2.2 is not marked complete**.
+
+## Phase 18 Part 2.2B manual browser verification
+
+On 2026-10-15 the browser tool detected Chrome but failed before tab inspection with `Codex auth token is unavailable`. The owner agreed to verify manually; the limited captured results are recorded below. The [exact role-specific URLs, flood walkthrough and pending screen checklist](local-demo-verification.md#part-22b-follow-up--2026-10-15) are ready. The normal HTTPS hosts on API 7191 and Web 7201 were started on the retained isolated demo database for this walkthrough; no credentials/configuration were changed. Hosts may need to be restarted using the commands above if no longer running.
+
+Targeted corrections preserve unknown counts in incident context/linked situation records, explain summed/overlapping situation totals, and send incident updates only to existing operator and reporter groups. Release build, 547 unit tests, 89 SQL integration tests, 19 authorized MVC/snapshot checks and eight targeted API checks passed. The first SQL run on retained fixtures failed safely at the ownership guard; only the designated integration database was recreated for the passing full rerun. Demo and LOADTEST records were preserved. No live model request, Azure deployment or commit/push occurred.
+
+The owner subsequently confirmed Operator login and provided eight screenshots in two batches on 2026-10-15. Inspected copies show map tiles/markers and six incidents/six resources, persisted flood details/UnderReview, the duplicate NotStarted/no-conclusion warning, police Available/Unassigned with retained history, and initial SignalR connection messages. Token-bearing Console URLs and local actor GUID values were redacted before repository storage. No red Console error is visible; expanded map Issues identify three missing label associations, left open for frontend polishing. The full flood assessment/history, fire/situation, dashboard/list/inbox, map interactions, failed requests and reconnect remain unverified. See [the manual evidence register](local-demo-verification.md#inspected-manual-screenshot-evidence--2026-10-15) and [screenshot index](screenshots/README.md). Continue with [the next read-only manual steps](local-demo-verification.md#next-manual-evidence-read-only). Full Part 2.2 sign-off remains pending.
+
+The third batch supplied four fire/situation screenshots. They verify the fire's unknown description and acknowledged manual escalation, and the situation's manual summary, count warning and three linked reports with casualties unknown. They also revealed unsupported scheduled/automatic-grouping captions, unevaluated score/resource claims and Operator Resolve controls. The corrected views remove those claims, show Unknown casualties and Not evaluated when appropriate, and hide forbidden Resolve controls; Web resolve actions now match the existing higher roles. Dismiss remains permitted by actual role rules. No dismissal or resolution was executed.
+
+After rebuilding/restarting only the owned normal demo hosts: **557 unit tests**, **two focused SQL permission cases**, **24 real-cookie MVC/snapshot/access checks**, EF model verification and health checks passed. Build: 0 errors/15 warnings. The preceding 89-test full SQL result remains earlier evidence. The optional `-OperatorPassword` SecureString parameter on `scripts/verify-demo-pages.ps1` enables the additional view/resolve-denial regressions using the existing synthetic Operator; omitting it runs the original 19 checks. Operator detail reads retain their existing on-demand prediction behavior; no returned prediction is claimed as calibrated or a successful live AI assessment. No provider reprocessing/AI request was deliberately triggered.
+
+Refresh the same fire/situation URLs and capture corrected panels before declaring them visually fixed. The [before-correction screenshot evidence](local-demo-verification.md#third-manual-evidence-batch--fire-and-linked-situation-before-correction) remains unchanged apart from identifier redaction. Complete history, dashboard/list/command-center/inbox, map interactions and reconnect evidence still remain; no Azure deployment, cleanup, commit or push occurred.

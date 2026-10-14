@@ -889,8 +889,8 @@ public sealed class OperationalSituationService : IOperationalSituationService, 
                 Priority = inc?.Priority ?? PriorityLevel.Low,
                 Latitude = loc != null ? (double)loc.Latitude : 0.0,
                 Longitude = loc != null ? (double)loc.Longitude : 0.0,
-                PeopleAffected = inc?.PeopleAffected ?? 0,
-                Casualties = inc?.Casualties ?? 0,
+                PeopleAffected = inc?.PeopleAffected,
+                Casualties = inc?.Casualties,
                 IsPrimaryIncident = si.IsPrimaryIncident,
                 AddedAtUtc = si.AddedAtUtc
             };

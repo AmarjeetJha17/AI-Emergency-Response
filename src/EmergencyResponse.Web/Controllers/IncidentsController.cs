@@ -382,15 +382,26 @@ public class IncidentsController : Controller
         Guid id,
         CancellationToken cancellationToken)
     {
-        var candidates =
-            await _incidentApiClient.GetDuplicatesAsync(
-                id,
-                cancellationToken);
-
-        // Pass the source incident ID so the view can build correct review links.
+        var incident = await _incidentApiClient.GetByIdAsync(id, cancellationToken);
+        if (incident is null) return NotFound();
         ViewBag.SourceIncidentId = id;
+        ViewBag.DuplicateDetectionStatus = incident.DuplicateDetectionStatus;
+        if (incident.DuplicateDetectionStatus != DuplicateDetectionStatus.Completed)
+        {
+            ViewBag.DuplicateAssessmentUnavailable = true;
+            return View(Array.Empty<EmergencyResponse.Application.AI.DTOs.DuplicateIncidentCandidate>());
+        }
 
-        return View(candidates);
+        try
+        {
+            return View(await _incidentApiClient.GetDuplicatesAsync(id, cancellationToken));
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            // A completed flag alone cannot prove that a usable assessment exists.
+            ViewBag.DuplicateAssessmentUnavailable = true;
+            return View(Array.Empty<EmergencyResponse.Application.AI.DTOs.DuplicateIncidentCandidate>());
+        }
     }
 
     /// <summary>

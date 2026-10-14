@@ -17,6 +17,10 @@
 
 <div class="container-fluid py-3" id="situationCommandCenterPage">
     @Html.AntiForgeryToken()
+    <div class="alert alert-warning" role="note" id="situationCountCaveat">
+        Totals sum linked reports; unknown counts are excluded and overlapping reports may double-count people.
+        A zero total does not confirm no casualties. Verify each incident before coordinating resources.
+    </div>
 
     @if (ViewBag.ErrorMessage != null)
     {

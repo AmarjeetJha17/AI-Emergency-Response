@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using EmergencyResponse.Application.DTOs.Incidents;
+using EmergencyResponse.Application.Intelligence;
+using EmergencyResponse.Application.Situations.DTOs;
 using EmergencyResponse.Infrastructure.Identity;
 using EmergencyResponse.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Identity;
@@ -49,7 +51,25 @@ public sealed class PortfolioDemoSeederIntegrationTests(IntegrationTestFixture f
                 Assert.False(incident.HasDuplicateCandidates);
                 Assert.Empty(incident.VisualEvidence);
                 Assert.Single(incident.StatusHistory);
+                using var contextResponse = await Client.GetAsync($"/api/incidents/{id}/context");
+                await contextResponse.EnsureSuccessWithBodyAsync();
+                var context = await contextResponse.Content.ReadFromJsonAsync<IncidentContextSnapshot>();
+                Assert.NotNull(context);
+                Assert.Equal(incident.PeopleAffected, context.Incident.PeopleAffected);
+                Assert.Equal(incident.VehiclesAffected, context.Incident.VehiclesAffected);
+                Assert.Null(context.Incident.Casualties);
+                using var duplicates = await Client.GetAsync($"/api/incidents/{id}/duplicates");
+                Assert.Equal(HttpStatusCode.Conflict, duplicates.StatusCode);
+                Assert.Contains("No duplicate conclusion", await duplicates.Content.ReadAsStringAsync());
+                Assert.False(await ExecuteDbAsync(db => db.IncidentDuplicateMatches.AnyAsync(
+                    x => x.SourceIncidentId == id || x.CandidateIncidentId == id)));
             }
+            using var situationResponse = await Client.GetAsync($"/api/situations/{seeded.SituationIds[0]}");
+            await situationResponse.EnsureSuccessWithBodyAsync();
+            var situation = await situationResponse.Content.ReadFromJsonAsync<OperationalSituationResponse>();
+            Assert.NotNull(situation);
+            Assert.Equal(3, situation.Incidents.Count);
+            Assert.All(situation.Incidents, item => Assert.Null(item.Casualties));
             foreach (var (route, marker) in new[]
             {
                 ("/api/resources/command-center", "DEMO18-BOAT"),

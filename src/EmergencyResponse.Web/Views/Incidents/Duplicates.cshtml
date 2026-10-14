@@ -23,7 +23,14 @@
         </a>
     </div>
 
-    @if (!Model.Any())
+    @if (ViewBag.DuplicateAssessmentUnavailable == true)
+    {
+        <div class="alert alert-warning" role="status">
+            Duplicate assessment is unavailable. Processing status: @ViewBag.DuplicateDetectionStatus.
+            No duplicate conclusion has been made. Review the reports manually; they have not been merged.
+        </div>
+    }
+    else if (!Model.Any())
     {
         <div class="alert alert-success">
             No duplicate candidates were identified.

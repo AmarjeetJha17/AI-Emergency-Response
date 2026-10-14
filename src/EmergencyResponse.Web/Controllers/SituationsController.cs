@@ -166,7 +166,7 @@ public sealed class SituationsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
+    [Authorize(Roles = $"{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
     public async Task<IActionResult> Resolve(
         Guid id,
         [FromBody] SituationActionRequest? request,

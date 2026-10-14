@@ -2,6 +2,8 @@
 @using EmergencyResponse.Domain.Enums
 @using EmergencyResponse.Application.Predictive
 @using EmergencyResponse.Web.Models.Incidents
+@using System.Security.Claims
+@using EmergencyResponse.Application.Security.Authorization
 
 @{
     ViewData["Title"] = "Incident Details";
@@ -12,6 +14,8 @@
     var canReviewPrediction = User.IsInRole("Operator") ||
         User.IsInRole("EmergencyAdmin") ||
         User.IsInRole("SystemAdmin");
+    var canResolveEscalations = RolePermissions.HasPermission(
+        User.FindAll(ClaimTypes.Role).Select(claim => claim.Value), Permissions.EscalationsResolve);
 }
 
 <div class="container py-4" data-incident-id="@Model.Id">
@@ -105,9 +109,12 @@
                                         Acknowledge
                                     </button>
                                 }
+                                @if (canResolveEscalations)
+                                {
                                 <button type="button" class="btn btn-sm btn-success" onclick="openEscalationModal('@esc.Id', 'Resolve', 'Resolve Escalation Alert')">
                                     Resolve
                                 </button>
+                                }
                                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openEscalationModal('@esc.Id', 'Dismiss', 'Dismiss Escalation Alert')">
                                     Dismiss
                                 </button>

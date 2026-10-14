@@ -227,9 +227,9 @@ public class IncidentsController : ControllerBase
                 Description = incident.Description,
                 Latitude = location is null ? 0 : (double)location.Latitude,
                 Longitude = location is null ? 0 : (double)location.Longitude,
-                PeopleAffected = incident.PeopleAffected ?? 0,
-                VehiclesAffected = incident.VehiclesAffected ?? 0,
-                Casualties = incident.Casualties ?? 0,
+                PeopleAffected = incident.PeopleAffected,
+                VehiclesAffected = incident.VehiclesAffected,
+                Casualties = incident.Casualties,
                 SeverityScore = incident.SeverityScore,
                 PriorityScore = incident.PriorityScore
             },
@@ -261,6 +261,14 @@ public class IncidentsController : ControllerBase
             Guid incidentId,
             CancellationToken cancellationToken)
     {
+        var source = await _dbContext.Incidents.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == incidentId, cancellationToken);
+        if (source is null) return NotFound();
+        if (source.Embedding is null)
+        {
+            return Conflict(new { message = "Duplicate assessment is unavailable because the incident has no embedding. No duplicate conclusion has been made." });
+        }
+
         var candidates =
             await _duplicateIncidentService.FindCandidatesAsync(
                 incidentId,

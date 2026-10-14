@@ -1,12 +1,22 @@
 @model EmergencyResponse.Application.Situations.DTOs.OperationalSituationResponse
+@using System.Security.Claims
+@using EmergencyResponse.Application.Security.Authorization
 
 @{
     ViewData["Title"] = $"Situation {Model.SituationNumber}";
     var analysis = Model.LatestAnalysis;
+    var roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value);
+    var canResolve = RolePermissions.HasPermission(roles, Permissions.SituationsResolve);
+    var hasEvaluation = Model.LastEvaluatedAtUtc.HasValue;
+    var hasReportedCasualties = Model.Incidents.Any(incident => incident.Casualties.HasValue);
 }
 
 <div class="container-fluid py-3" id="situationDetailsPage">
     @Html.AntiForgeryToken()
+    <div class="alert alert-warning" role="note" id="situationCountCaveat">
+        Totals sum linked reports; unknown counts are excluded and overlapping reports may double-count people.
+        A zero total does not confirm no casualties. Verify each incident before coordinating resources.
+    </div>
 
     <!-- Top Navigation Bar -->
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
@@ -40,9 +50,12 @@
             }
             @if (Model.Status == EmergencyResponse.Domain.Enums.EscalationStatus.Open || Model.Status == EmergencyResponse.Domain.Enums.EscalationStatus.Acknowledged)
             {
+                @if (canResolve)
+                {
                 <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#resolveModal">
                     <i class="bi bi-check-circle me-1"></i>Resolve Situation
                 </button>
+                }
                 <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#dismissModal">
                     <i class="bi bi-x-circle me-1"></i>Dismiss
                 </button>
@@ -60,7 +73,7 @@
                 <div class="col-md-6">
                     <div class="d-flex justify-content-between mb-1">
                         <span class="small fw-semibold text-muted">Situation Severity Score</span>
-                        <span class="small fw-bold text-dark">@(Model.SituationScore?.ToString("F1") ?? "0.0") / 100</span>
+                        <span class="small fw-bold text-dark">@(hasEvaluation && Model.SituationScore.HasValue ? $"{Model.SituationScore.Value:F1} / 100" : "Not evaluated")</span>
                     </div>
                     <div class="progress" style="height: 10px;">
                         <div class="progress-bar @(Model.SituationScore >= 75 ? "bg-danger" : (Model.SituationScore >= 50 ? "bg-warning" : "bg-primary"))"
@@ -104,8 +117,8 @@
             <div class="card shadow-sm border-0 border-start border-4 border-danger h-100">
                 <div class="card-body py-3">
                     <div class="text-uppercase small text-muted fw-semibold">Reported Casualties</div>
-                    <div class="fs-3 fw-bold text-danger">@Model.Casualties</div>
-                    <div class="small text-muted">Requires urgent triage</div>
+                    <div class="fs-3 fw-bold text-danger">@(hasReportedCasualties ? Model.Casualties.ToString() : "Unknown")</div>
+                    <div class="small text-muted">Verify the linked reports; unknown counts are excluded</div>
                 </div>
             </div>
         </div>
@@ -114,9 +127,9 @@
                 <div class="card-body py-3">
                     <div class="text-uppercase small text-muted fw-semibold">Resource Availability</div>
                     <div class="fs-4 fw-bold @(Model.ResourceShortageDetected ? "text-danger" : "text-success")">
-                        @(Model.ResourceShortageDetected ? "Shortage Detected" : "Adequate")
+                        @(!hasEvaluation ? "Not evaluated" : Model.ResourceShortageDetected ? "Shortage Detected" : "No shortage detected")
                     </div>
-                    <div class="small text-muted">Based on department requirements</div>
+                    <div class="small text-muted">Confirm current resources before coordinating</div>
                 </div>
             </div>
         </div>
@@ -236,7 +249,7 @@
             {
                 <div class="text-muted p-3 text-center">
                     <i class="bi bi-clock-history fs-3 d-block mb-2"></i>
-                    AI situation analysis is scheduled or in progress.
+                    No AI situation assessment is available. Scheduling or completion has not been verified.
                 </div>
             }
         </div>
@@ -245,8 +258,8 @@
     <!-- Member Incidents Grid -->
     <div class="card shadow-sm border-0">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <span class="fw-bold text-dark fs-6"><i class="bi bi-collection-fill me-2 text-primary"></i>Correlated Incidents in Situation (@Model.Incidents.Count)</span>
-            <span class="text-muted small">Grouped by spatiotemporal proximity and continuous chain linkage</span>
+            <span class="fw-bold text-dark fs-6"><i class="bi bi-collection-fill me-2 text-primary"></i>Linked Incidents in Situation (@Model.Incidents.Count)</span>
+            <span class="text-muted small">Grouping provenance is described in the situation summary</span>
         </div>
 
         <div class="card-body p-0">
@@ -286,7 +299,11 @@
                                     @item.Latitude.ToString("F4"), @item.Longitude.ToString("F4")
                                 </td>
                                 <td class="small">
-                                    @item.PeopleAffected people
+                                    @(item.PeopleAffected?.ToString() ?? "Unknown") people
+                                    @if (!item.Casualties.HasValue)
+                                    {
+                                        <span class="text-muted">(casualties unknown)</span>
+                                    }
                                     @if (item.Casualties > 0)
                                     {
                                         <span class="text-danger fw-bold">(@item.Casualties casualties)</span>
@@ -347,6 +364,8 @@
 </div>
 
 <!-- Resolve Modal -->
+@if (canResolve)
+{
 <div class="modal fade" id="resolveModal" tabindex="-1" aria-labelledby="resolveModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -371,6 +390,7 @@
         </div>
     </div>
 </div>
+}
 
 <!-- Dismiss Modal -->
 <div class="modal fade" id="dismissModal" tabindex="-1" aria-labelledby="dismissModalLabel" aria-hidden="true">

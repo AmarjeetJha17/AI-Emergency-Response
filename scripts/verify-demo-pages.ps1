@@ -5,6 +5,8 @@ param(
     [Parameter(Mandatory)][string] $ReviewerEmail,
     [Parameter(Mandatory)][securestring] $ReviewerPassword,
     [Parameter(Mandatory)][string] $SeedResultPath,
+    [string] $OperatorEmail = 'DEMO18-operator@test.local',
+    [securestring] $OperatorPassword,
     [string] $OutputPath = 'artifacts/portfolio/demo18-pages.json'
 )
 
@@ -19,6 +21,7 @@ if ($seed.IncidentIds.Count -ne 6 -or $seed.SituationIds.Count -ne 1) {
     throw 'Use the JSON result of the DEMO18 seed command.'
 }
 $results = [System.Collections.Generic.List[object]]::new()
+$script:demoFireRoute = $null
 
 function New-DemoSession([string] $email, [securestring] $password) {
     $login = Invoke-WebRequest "$WebUrl/Account/Login" -SessionVariable webSession
@@ -44,11 +47,20 @@ function Assert-DemoPage($session, [string] $role, [string] $route, [string[]] $
         if (-not $response.Content.Contains($marker)) { throw "Expected demo content missing at $route ($role)." }
     }
     if ($route -like '/Incidents/Details/*') {
+        if ($role -eq 'Citizen' -and $response.Content.Contains('DEMO18-FIRE-01')) {
+            $script:demoFireRoute = $route
+        }
         foreach ($key in @('FIRE-01', 'COLLAPSE-01')) {
             if ($response.Content.Contains("DEMO18-$key") -and
                 -not $response.Content.Contains("DEMO18 manual exercise escalation for $key")) {
                 throw "Manual escalation missing from incident details at $route."
             }
+        }
+    }
+    if ($route -like '/Situations/Details/*') {
+        foreach ($unsupported in @('AI situation analysis is scheduled or in progress.',
+            'Grouped by spatiotemporal proximity and continuous chain linkage')) {
+            if ($response.Content.Contains($unsupported)) { throw "Unsupported provenance claim at $route." }
         }
     }
     $results.Add([pscustomobject]@{ Role = $role; Route = $route; Status = 200; Markers = $markers; Passed = $true })
@@ -65,9 +77,9 @@ foreach ($id in $seed.IncidentIds) {
 }
 Assert-DemoPage $reviewer 'SystemAdmin' '/Incidents?search=DEMO18-&pageSize=50' @('DEMO18-FIRE-01','DEMO18-COLLAPSE-01')
 Assert-DemoPage $reviewer 'SystemAdmin' '/Resources' @('DEMO18-BOAT','DEMO18-FIRE-TRUCK','DEMO18-AMBULANCE')
-Assert-DemoPage $reviewer 'SystemAdmin' '/Situations' @('DEMO18-SITUATION-FLOOD')
+Assert-DemoPage $reviewer 'SystemAdmin' '/Situations' @('DEMO18-SITUATION-FLOOD','situationCountCaveat','A zero total does not confirm no casualties')
 $situationId = [guid] $seed.SituationIds[0]
-Assert-DemoPage $reviewer 'SystemAdmin' "/Situations/Details/$situationId" @('DEMO18-SITUATION-FLOOD','may double-count')
+Assert-DemoPage $reviewer 'SystemAdmin' "/Situations/Details/$situationId" @('DEMO18-SITUATION-FLOOD','may double-count','situationCountCaveat','casualties unknown','No AI situation assessment is available','Grouping provenance is described','Not evaluated','<div class="fs-3 fw-bold text-danger">Unknown</div>','id="btnSubmitResolve"')
 Assert-DemoPage $reviewer 'SystemAdmin' '/Notifications' @('DEMO18-FIRE-01','DEMO18-COLLAPSE-01','DEMO18-flood-group')
 Assert-DemoPage $reviewer 'SystemAdmin' '/Dashboard' @('DEMO18-FLOOD-01','Open Escalation Alerts')
 Assert-DemoPage $reviewer 'SystemAdmin' '/Map' @('DEMO18-FLOOD-01','DEMO18-BOAT')
@@ -88,6 +100,47 @@ if (-not $anonymous.BaseResponse.RequestMessage.RequestUri.AbsolutePath.Equals('
     throw 'Anonymous incident list did not require login.'
 }
 $results.Add([pscustomobject]@{ Role = 'Anonymous'; Route = '/Incidents'; Status = $anonymous.StatusCode; Passed = $true; Check = 'Redirected to Login' })
+
+if ($OperatorPassword) {
+    $operatorSession = New-DemoSession $OperatorEmail $OperatorPassword
+    $situationRoute = "/Situations/Details/$situationId"
+    Assert-DemoPage $operatorSession 'Operator' $situationRoute @('DEMO18-SITUATION-FLOOD',
+        'No AI situation assessment is available','casualties unknown','Not evaluated','id="btnSubmitDismiss"')
+    $operatorSituation = Invoke-WebRequest "$WebUrl$situationRoute" -WebSession $operatorSession
+    if ($operatorSituation.Content.Contains('id="btnSubmitResolve"') -or
+        $operatorSituation.Content.Contains('data-bs-target="#resolveModal"')) {
+        throw 'Operator was shown a forbidden situation resolve control.'
+    }
+    $results.Add([pscustomobject]@{ Role = 'Operator'; Route = $situationRoute; Passed = $true;
+        Check = 'Resolve control absent; permitted dismiss retained' })
+
+    if (-not $script:demoFireRoute) { throw 'Fire fixture was not found through Citizen detail reads.' }
+    $incidentRoute = $script:demoFireRoute
+    # This real read may invoke the existing on-demand prediction path.
+        $incidentPage = Invoke-WebRequest "$WebUrl$incidentRoute" -WebSession $operatorSession
+        if ([regex]::IsMatch($incidentPage.Content, '<button[^>]*onclick="[^"]*Resolve Escalation Alert')) {
+            throw 'Operator was shown a forbidden escalation resolve control.'
+        }
+        if (-not $incidentPage.Content.Contains('Dismiss Escalation Alert') -or
+            -not $incidentPage.Content.Contains('occupancy/casualties are unknown')) {
+            throw 'Permitted dismissal or manual uncertainty evidence missing from fire detail.'
+        }
+        $results.Add([pscustomobject]@{ Role = 'Operator'; Route = $incidentRoute; Passed = $true;
+            Check = 'Manual escalation/uncertainty shown; resolve absent; permitted dismiss retained' })
+
+    $tokenMatch = [regex]::Match($operatorSituation.Content, '<input[^>]*name="__RequestVerificationToken"[^>]*value="([^"]+)"')
+    if (-not $tokenMatch.Success) { throw 'Missing operator antiforgery token.' }
+    foreach ($resolveRoute in @("/Situations/Resolve/$situationId", '/Escalations/Resolve/00000000-0000-0000-0000-000000000000')) {
+        $deniedResolve = Invoke-WebRequest "$WebUrl$resolveRoute" -Method Post -WebSession $operatorSession `
+            -ContentType 'application/json' -Body '{"notes":"DEMO18 permission verification: must not execute"}' `
+            -Headers @{ RequestVerificationToken = [System.Net.WebUtility]::HtmlDecode($tokenMatch.Groups[1].Value) }
+        if (-not $deniedResolve.BaseResponse.RequestMessage.RequestUri.AbsolutePath.Equals('/Account/AccessDenied')) {
+            throw "Operator resolve did not follow AccessDenied at $resolveRoute."
+        }
+        $results.Add([pscustomobject]@{ Role = 'Operator'; Route = $resolveRoute; Passed = $true;
+            Check = 'Real cookie/CSRF request denied before API call' })
+    }
+}
 
 $outputDirectory = Split-Path -Parent $OutputPath
 if ($outputDirectory) { $null = New-Item -ItemType Directory -Force -Path $outputDirectory }

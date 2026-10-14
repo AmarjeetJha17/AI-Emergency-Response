@@ -134,3 +134,13 @@ The complete integration suite was run against a fresh disposable integration da
 - Unknown casualty aggregation and possible double-counting in manual situations; intake Low/Normal defaults are not evaluated severity.
 - Existing package vulnerability and nullable warnings remain; passing this test suite does not remediate them.
 - Existing authorization, durable worker/recovery and Azure/pilot blockers in the [feature register](feature-verification.md) remain.
+
+## Part 2.2 follow-up
+
+The Phase 2.1 changes were committed as `bf63d0e` before [Part 2.2 verification](local-demo-verification.md). The final local build, 544 unit tests, 89 SQL integration tests, EF check, 52 real-JWT API checks, 19 MVC checks and 29 operational checks passed. This follow-up does not replace the historical coverage result above with a new measurement.
+
+The six reports/resources, two authored escalations, manual linked situation and three owned reminders were reimported, previewed, cleaned and restored before operational edits. An unrelated forecast reminder, accounts and reference data were retained. LOADTEST row counts/checksums were unchanged around the final guarded demo operations. Demo cleanup now correctly refuses the additional application-owned history/escalation/audit evidence created during the walkthrough; reimport keeps those state changes and stable IDs.
+
+The duplicate page can now display an explicit unavailable/pending/failed assessment without inventing a match; the no-embedding API returns a clear 409 rather than 500. The resource dispatch policy bypass and completed-assignment detail projection were fixed with regression coverage. There are still no fabricated AI analyses or duplicate scores in this dataset.
+
+Normal startup and the fixture seeder remain unchanged. The missing synthetic Operator was provisioned by invoking the existing identity test seeder outside startup, in an ignored local diagnostic harness; no public account/fixture bootstrap was added. Later Part 2.2B manual screenshots provide the bounded evidence in the verification report; SignalR reconnect and live provider workflows remain unverified. On 2026-10-15 the project owner accepted Phase 2.2 as complete with the remaining checks explicitly deferred. See [phase closure and deferred backlog](local-demo-verification.md#phase-closure--2026-10-15). No Azure deployment occurred.
