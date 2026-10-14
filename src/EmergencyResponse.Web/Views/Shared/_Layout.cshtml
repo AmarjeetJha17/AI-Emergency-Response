@@ -1,38 +1,50 @@
 @using Microsoft.Extensions.Configuration
 @inject IConfiguration _config
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+    bool IsNavActive(string controller, string? action = null) =>
+        string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) &&
+        (action == null || string.Equals(currentAction, action, StringComparison.OrdinalIgnoreCase) ||
+            controller == "Incidents" && action == "Index" && currentAction is not ("Create" or "MyReports"));
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - EmergencyResponse.Web</title>
+    <title>@ViewData["Title"] - Emergency Response</title>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/EmergencyResponse.Web.styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="stylesheet"
           href="~/_content/Syncfusion.AspNetCore.Themes/styles/fluent2.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">EmergencyResponse.Web</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+    <a class="er-skip-link" href="#mainContent">Skip to main content</a>
+    <header class="er-shell-header">
+        <nav class="navbar navbar-expand-xl navbar-light" aria-label="Primary navigation">
+            <div class="er-shell-width">
+                <a class="navbar-brand er-brand" asp-area="" asp-controller="Home" asp-action="Index">
+                    <span class="er-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 4 6v6c0 4 3 7 8 9 5-2 8-5 8-9V6l-8-3Z" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v9M7.5 11.5h9" stroke="currentColor" stroke-width="1.7"/></svg></span>
+                    Emergency Response
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#primaryNavigation" aria-controls="primaryNavigation"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                <div id="primaryNavigation" class="navbar-collapse collapse justify-content-between">
 
                     @* Primary navigation links *@
-                    <ul class="navbar-nav flex-grow-1">
+                    <ul class="navbar-nav er-shell-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link @(IsNavActive("Home", "Index") ? "active" : "")" aria-current="@(IsNavActive("Home", "Index") ? "page" : null)" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                            <a class="nav-link @(IsNavActive("Home", "Privacy") ? "active" : "")" aria-current="@(IsNavActive("Home", "Privacy") ? "page" : null)" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
 
                         @if (User.Identity?.IsAuthenticated == true)
@@ -43,7 +55,7 @@
                                  User.IsInRole("SystemAdmin"))
                             {
                                 <li class="nav-item">
-                                    <a class="nav-link text-dark"
+                                    <a class="nav-link @(IsNavActive("Copilot") ? "active" : "")" aria-current="@(IsNavActive("Copilot") ? "page" : null)"
                                        asp-controller="Copilot"
                                        asp-action="Index">
                                         Copilot
@@ -52,7 +64,7 @@
                             }
 
                             <li class="nav-item">
-                                <a class="nav-link text-dark"
+                                <a class="nav-link @(IsNavActive("Incidents", "Index") ? "active" : "")" aria-current="@(IsNavActive("Incidents", "Index") ? "page" : null)"
                                    asp-controller="Incidents"
                                    asp-action="Index">
                                     Incidents
@@ -60,7 +72,7 @@
                             </li>
 
                             <li class="nav-item">
-                                <a class="nav-link text-dark"
+                                <a class="nav-link @(IsNavActive("Incidents", "Create") ? "active" : "")" aria-current="@(IsNavActive("Incidents", "Create") ? "page" : null)"
                                    asp-controller="Incidents"
                                    asp-action="Create">
                                     Report Emergency
@@ -72,28 +84,28 @@
                                  User.IsInRole("SystemAdmin"))
                             {
                                 <li class="nav-item">
-                                    <a class="nav-link text-dark"
+                                    <a class="nav-link @(IsNavActive("Dashboard") ? "active" : "")" aria-current="@(IsNavActive("Dashboard") ? "page" : null)"
                                        asp-controller="Dashboard"
                                        asp-action="Index">
                                         Dashboard
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link text-dark"
+                                    <a class="nav-link @(IsNavActive("Map") ? "active" : "")" aria-current="@(IsNavActive("Map") ? "page" : null)"
                                        asp-controller="Map"
                                        asp-action="Index">
                                         Live Map
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link text-dark"
+                                    <a class="nav-link @(IsNavActive("Resources") ? "active" : "")" aria-current="@(IsNavActive("Resources") ? "page" : null)"
                                        asp-controller="Resources"
                                        asp-action="Index">
                                         Resources
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link text-dark"
+                                    <a class="nav-link @(IsNavActive("Situations") ? "active" : "")" aria-current="@(IsNavActive("Situations") ? "page" : null)"
                                        asp-controller="Situations"
                                        asp-action="Index">
                                         Situations
@@ -103,7 +115,7 @@
                             else
                             {
                                 <li class="nav-item">
-                                    <a class="nav-link text-dark"
+                                    <a class="nav-link @(IsNavActive("Incidents", "MyReports") ? "active" : "")" aria-current="@(IsNavActive("Incidents", "MyReports") ? "page" : null)"
                                        asp-controller="Incidents"
                                        asp-action="MyReports">
                                         My Reports
@@ -114,35 +126,34 @@
                     </ul>
 
                     @* Right-side auth controls *@
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center er-auth">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             @* Notification Bell Dropdown (Phase 12 Part 4) *@
                             <div class="dropdown me-2">
-                                <button class="btn btn-outline-secondary btn-sm position-relative"
+                                <button class="btn btn-outline-secondary btn-sm position-relative er-notification-button"
                                         type="button"
                                         id="notificationBell"
                                         data-bs-toggle="dropdown"
                                         aria-expanded="false"
-                                        title="Notifications">
-                                    <i class="bi bi-bell-fill"></i>
+                                        title="Notifications" aria-label="Notifications" aria-controls="notificationMenu">
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
                                     <span id="notificationBadge"
                                           class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"
-                                          style="font-size: 0.65rem;">
+                                          aria-hidden="true">
                                         0
                                     </span>
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-end shadow p-0 notification-dropdown"
                                      aria-labelledby="notificationBell"
-                                     id="notificationMenu"
-                                     style="width: 340px; max-height: 420px; overflow-y: auto;">
+                                     id="notificationMenu">
                                     <div class="p-2 border-bottom d-flex justify-content-between align-items-center bg-light">
                                         <strong class="small">Notifications</strong>
                                         <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none small" onclick="markAllNotificationsRead(event)">
                                             Mark all as read
                                         </button>
                                     </div>
-                                    <div id="notificationList" class="p-0">
+                                    <div id="notificationList" class="p-0" aria-live="polite" aria-busy="true">
                                         <div class="text-center text-muted p-3 small">Loading alerts...</div>
                                     </div>
                                     <div class="p-2 border-top text-center bg-light">
@@ -153,9 +164,7 @@
                                 </div>
                             </div>
 
-                            <span class="navbar-text me-1">
-                                Hello, @User.Identity.Name
-                            </span>
+                            <span class="er-user"><span class="er-user-label">Signed in</span><span>@User.Identity.Name</span></span>
 
                             <form asp-controller="Account"
                                   asp-action="Logout"
@@ -189,8 +198,8 @@
         </nav>
     </header>
 
-    <div class="container">
-        <main role="main" class="pb-3">
+    <div class="er-content">
+        <main id="mainContent" tabindex="-1">
 
             @* Flash messages set via TempData by controller actions *@
             @if (TempData["SuccessMessage"] is string successMsg)
@@ -212,9 +221,9 @@
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - EmergencyResponse.Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+    <footer class="er-footer">
+        <div class="er-shell-width">
+            <span>&copy; @DateTime.UtcNow.Year Emergency Response</span><a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
         </div>
     </footer>
 

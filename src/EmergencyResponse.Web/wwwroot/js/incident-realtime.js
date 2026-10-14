@@ -221,6 +221,16 @@
         if (!element) return;
         element.textContent = text;
         element.className = 'badge ' + cssClass;
+        if (text !== 'Live') {
+            setRefreshStatus('stale', 'Live updates are unavailable. Retrieved data may be stale; use Refresh overview to retry.');
+        }
+    }
+
+    function setRefreshStatus(state, message) {
+        const element = document.getElementById('dashboardRefreshStatus');
+        if (!element) return;
+        element.dataset.state = state;
+        element.textContent = message;
     }
 
     function setText(id, value) {
@@ -280,6 +290,10 @@
     }
 
     function updateIncidentGrid(incidents) {
+        if (!Array.isArray(incidents)) return;
+        setText('highPriorityIncidentCount', incidents.filter(item =>
+            (item.Priority ?? item.priority) === 'High').length);
+        document.getElementById('incidentQueueEmpty')?.classList.toggle('d-none', incidents.length !== 0);
         const element = document.getElementById('incidentGrid');
         const grid = element?.ej2_instances?.[0];
         if (!grid || !Array.isArray(incidents)) return;
@@ -304,9 +318,12 @@
         });
 
         grid.dataSource = normalized;
+        // Reapply the original map selection after the component binds the new snapshot.
+        setTimeout(function () { window.focusSelectedIncident?.(); }, 300);
     }
 
     function updateSeverityChart(data) {
+        document.getElementById('severityChartEmpty')?.classList.toggle('d-none', data.some(item => (item.Value ?? item.value) > 0));
         const element = document.getElementById('severityChart');
         const chart = element?.ej2_instances?.[0];
         if (!chart || !Array.isArray(data)) return;
@@ -324,6 +341,7 @@
     }
 
     function updateIncidentTrendChart(data) {
+        document.getElementById('incidentTrendEmpty')?.classList.toggle('d-none', data.some(item => (item.Count ?? item.count) > 0));
         const element = document.getElementById('incidentTrendChart');
         const chart = element?.ej2_instances?.[0];
         if (!chart || !Array.isArray(data)) return;
@@ -341,6 +359,7 @@
     }
 
     function updateReviewQueueChart(data) {
+        document.getElementById('reviewQueueEmpty')?.classList.toggle('d-none', data.some(item => (item.Count ?? item.count) > 0));
         const element = document.getElementById('reviewQueueChart');
         const chart = element?.ej2_instances?.[0];
         if (!chart || !Array.isArray(data)) return;
@@ -360,8 +379,9 @@
     function updateDashboardTimestamp(updatedAtUtc) {
         const element = document.getElementById('dashboardLastUpdated');
         if (!element) return;
-        const timestamp = updatedAtUtc ? new Date(updatedAtUtc) : new Date();
-        element.textContent = 'Updated ' + timestamp.toLocaleTimeString();
+        const timestamp = new Date(updatedAtUtc);
+        if (!updatedAtUtc || !Number.isFinite(timestamp.getTime())) return;
+        element.textContent = 'Snapshot retrieved ' + timestamp.toLocaleTimeString();
     }
 
     let _refreshDebounce = null;
@@ -370,6 +390,9 @@
 
         clearTimeout(_refreshDebounce);
         _refreshDebounce = setTimeout(async function () {
+            const button = document.getElementById('refreshDashboardButton');
+            if (button) button.disabled = true;
+            setRefreshStatus('loading', 'Refreshing the operational snapshot...');
             try {
                 const response = await fetch('/Dashboard/Snapshot', {
                     method: 'GET',
@@ -384,6 +407,20 @@
                 }
 
                 const data = await response.json();
+                const summaryKeys = ['criticalIncidents', 'highIncidents', 'activeIncidents', 'unassignedIncidents',
+                    'awaitingAIReview', 'awaitingDuplicateReview', 'awaitingVisualReview', 'openEscalations',
+                    'criticalEscalations', 'unacknowledgedEscalations', 'openSituations', 'criticalSituations',
+                    'situationsWithResourceShortage', 'unreadNotifications', 'criticalNotifications', 'urgentNotifications'];
+                if (!data.summary || summaryKeys.some(key => !Number.isInteger(data.summary[key]) || data.summary[key] < 0) ||
+                    !Array.isArray(data.incidents) || !Array.isArray(data.severityDistribution) ||
+                    !Array.isArray(data.incidentTrend) || !Array.isArray(data.reviewQueue) ||
+                    data.incidents.some(item => !item || !['Low', 'Normal', 'High', 'Critical'].includes(item.Priority ?? item.priority)) ||
+                    data.severityDistribution.some(item => !item || !Number.isInteger(item.value ?? item.Value) || (item.value ?? item.Value) < 0) ||
+                    data.incidentTrend.some(item => !item || !Number.isInteger(item.count ?? item.Count) || (item.count ?? item.Count) < 0) ||
+                    data.reviewQueue.some(item => !item || !Number.isInteger(item.count ?? item.Count) || (item.count ?? item.Count) < 0) ||
+                    !data.updatedAtUtc || !Number.isFinite(new Date(data.updatedAtUtc).getTime())) {
+                    throw new Error('Dashboard snapshot was incomplete');
+                }
 
                 updateDashboardSummary(data.summary);
                 updateIncidentGrid(data.incidents);
@@ -391,10 +428,13 @@
                 updateIncidentTrendChart(data.incidentTrend);
                 updateReviewQueueChart(data.reviewQueue);
                 updateDashboardTimestamp(data.updatedAtUtc);
+                setRefreshStatus('current', 'Operational snapshot retrieved successfully. Connection status is shown separately.');
             }
             catch (error) {
                 console.error('[SignalR] Dashboard refresh failed:', error);
+                setRefreshStatus('failed', 'Overview refresh failed. Previous values are retained and may be stale; retry Refresh overview.');
             }
+            finally { if (button) button.disabled = false; }
         }, 150);
     }
 
@@ -432,5 +472,6 @@
         }
     }
 
+    document.getElementById('refreshDashboardButton')?.addEventListener('click', refreshDashboard);
     startRealtime();
 }());

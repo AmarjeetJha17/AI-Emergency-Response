@@ -46,6 +46,24 @@ function Assert-DemoPage($session, [string] $role, [string] $route, [string[]] $
     foreach ($marker in $markers) {
         if (-not $response.Content.Contains($marker)) { throw "Expected demo content missing at $route ($role)." }
     }
+    # Shared shell assertions use real authorized HTML, not a browser rendering claim.
+    if ($response.Headers.'Content-Type' -match 'text/html') {
+        foreach ($marker in @('Emergency Response', 'id="mainContent"', 'href="#mainContent"',
+            'id="primaryNavigation"', 'data-bs-target="#primaryNavigation"', 'aria-label="Notifications"')) {
+            if (-not $response.Content.Contains($marker)) { throw "Shared shell marker missing at $route ($role)." }
+        }
+    }
+    if ($route -eq '/Dashboard') {
+        foreach ($marker in @('Emergency Operations Center', 'id="highPriorityIncidentCount"',
+            'High priority in the displayed queue', 'id="dashboardRefreshStatus"', 'id="refreshDashboardButton"',
+            'aria-label="Incident queue, horizontally scrollable"', 'id="severityChartEmpty"',
+            'id="reviewQueueEmpty"', 'Forecast data has not yet been checked.', '/js/dashboard-outlook.js')) {
+            if (-not $response.Content.Contains($marker)) { throw "Dashboard hook missing ($marker)." }
+        }
+        if (-not [regex]::IsMatch($response.Content, '<a[^>]*aria-current="page"[^>]*href="/Dashboard"')) {
+            throw 'Dashboard active navigation state missing.'
+        }
+    }
     if ($route -like '/Incidents/Details/*') {
         if ($role -eq 'Citizen' -and $response.Content.Contains('DEMO18-FIRE-01')) {
             $script:demoFireRoute = $route
@@ -82,6 +100,11 @@ $situationId = [guid] $seed.SituationIds[0]
 Assert-DemoPage $reviewer 'SystemAdmin' "/Situations/Details/$situationId" @('DEMO18-SITUATION-FLOOD','may double-count','situationCountCaveat','casualties unknown','No AI situation assessment is available','Grouping provenance is described','Not evaluated','<div class="fs-3 fw-bold text-danger">Unknown</div>','id="btnSubmitResolve"')
 Assert-DemoPage $reviewer 'SystemAdmin' '/Notifications' @('DEMO18-FIRE-01','DEMO18-COLLAPSE-01','DEMO18-flood-group')
 Assert-DemoPage $reviewer 'SystemAdmin' '/Dashboard' @('DEMO18-FLOOD-01','Open Escalation Alerts')
+$dashboardSnapshot = Invoke-RestMethod "$WebUrl/Dashboard/Snapshot" -WebSession $reviewer
+if ($dashboardSnapshot.incidents.Count -lt 6 -or $null -eq $dashboardSnapshot.summary.activeIncidents -or
+    -not $dashboardSnapshot.updatedAtUtc) { throw 'Authorized dashboard snapshot was incomplete.' }
+$results.Add([pscustomobject]@{ Role = 'SystemAdmin'; Route = '/Dashboard/Snapshot'; Passed = $true;
+    Check = 'Real authorized snapshot contains incidents, summary and retrieval timestamp' })
 Assert-DemoPage $reviewer 'SystemAdmin' '/Map' @('DEMO18-FLOOD-01','DEMO18-BOAT')
 Assert-DemoPage $reviewer 'SystemAdmin' '/Map/Snapshot' @('DEMO18-FLOOD-01','DEMO18-BOAT')
 
@@ -95,6 +118,13 @@ if (-not $denied.BaseResponse.RequestMessage.RequestUri.AbsolutePath.Equals('/Ac
     throw 'Citizen resource page did not follow the expected access-denied route.'
 }
 $results.Add([pscustomobject]@{ Role = 'Citizen'; Route = '/Resources'; Status = $denied.StatusCode; Passed = $true; Check = 'Redirected to AccessDenied' })
+foreach ($dashboardRoute in @('/Dashboard', '/Dashboard/Snapshot', '/Dashboard/IncidentVolume', '/Dashboard/Hotspots')) {
+    $deniedDashboard = Invoke-WebRequest "$WebUrl$dashboardRoute" -WebSession $reporter
+    if ($deniedDashboard.BaseResponse.RequestMessage.RequestUri.AbsolutePath -ne '/Account/AccessDenied') {
+        throw "Citizen was not denied at $dashboardRoute."
+    }
+    $results.Add([pscustomobject]@{ Role = 'Citizen'; Route = $dashboardRoute; Passed = $true; Check = 'Dashboard role boundary retained' })
+}
 $anonymous = Invoke-WebRequest "$WebUrl/Incidents?search=DEMO18-"
 if (-not $anonymous.BaseResponse.RequestMessage.RequestUri.AbsolutePath.Equals('/Account/Login')) {
     throw 'Anonymous incident list did not require login.'
@@ -103,6 +133,7 @@ $results.Add([pscustomobject]@{ Role = 'Anonymous'; Route = '/Incidents'; Status
 
 if ($OperatorPassword) {
     $operatorSession = New-DemoSession $OperatorEmail $OperatorPassword
+    Assert-DemoPage $operatorSession 'Operator' '/Dashboard' @('Emergency Operations Center', 'DEMO18-FLOOD-01')
     $situationRoute = "/Situations/Details/$situationId"
     Assert-DemoPage $operatorSession 'Operator' $situationRoute @('DEMO18-SITUATION-FLOOD',
         'No AI situation assessment is available','casualties unknown','Not evaluated','id="btnSubmitDismiss"')
