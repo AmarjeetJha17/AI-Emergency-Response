@@ -34,7 +34,7 @@ Prepared 2026-10-14. Evidence is tied to its environment and source revision. **
 
 Historical source: `22608ab`, CI run 38470547281, 2026-10-13 UTC: 504 unit and 86 integration tests passed; combined Domain/Application coverage 79.46%, required minimum 70%. Infrastructure/API/Web are outside that merged coverage gate. [CI](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38470547281), [CodeQL](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38470547242).
 
-Current Phase 18 validation and screenshots are recorded below after execution. Missing evidence stays pending. Live-AI workflow success can mean providers were not configured and execution was skipped.
+Current Phase 18 validation is recorded below. Screenshots are explicitly pending. Live-AI workflow success can mean providers were not configured and execution was skipped.
 
 ## Phase 18 execution register
 
@@ -45,22 +45,26 @@ Current Phase 18 validation and screenshots are recorded below after execution. 
 | EF model/migration verification | Local, `bba120f` | 2026-10-14: no pending model changes | Existing migrations remain aligned; this is not deployed-schema verification |
 | Docker and Bicep | Local, `bba120f` | 2026-10-14: Web/API images built successfully; both declare runtime user `1654` and expose HTTP port 8080. All five tracked Bicep templates compiled | `artifacts/portfolio/web-build.log`, `artifacts/portfolio/api-build.log`, `artifacts/infrastructure/`; no cloud resources deployed |
 | Synthetic UI and provider demo | Local | Screenshots explicitly pending at owner's request; no live incident/Copilot requests submitted | [Screenshot index](screenshots/README.md); local isolated demo database migrated and hosts started, but browser/provider workflows were not verified |
-| New required jobs | GitHub implementation branch | Pending | Add run links |
-| Master protection read-back | GitHub | Pending | Require five named checks; no force push/deletion |
+| New required jobs | GitHub PR #17, `41aadf9` | 2026-10-14: Build and Test, Container Images, Bicep Validation, Analyze C#, and Review dependencies passed. CI recorded 509 unit tests, 86 SQL integration tests, 79.46% merged coverage and 14,291 smoke requests with zero failures | [CI 38534715013](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38534715013), [CodeQL 38534715263](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38534715263), [Dependency Review 38534715026](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38534715026); reports retained as workflow artifacts |
+| Master protection read-back | GitHub | 2026-10-14: applied and GET-verified | PR required; five checks above bound to GitHub Actions app; strict up-to-date base; administrator enforcement; conversation resolution; zero external approvals for solo owner; force pushes/deletion disabled |
 | Staging and operational launch | Azure | Not verified / NO-GO | [Staging](../deployment/staging-verification.md), [pilot decision](../deployment/pilot-go-no-go.md) |
 
 ## Dependency review
 
-Baseline audit on 2026-10-14 found six open Dependabot PRs. Reviews must use current base/head SHAs; no automatic merge, closure, or comments are authorized by this checkpoint.
+All six open Dependabot PRs were reviewed on 2026-10-14 against configuration commit `bba120fa8c968621ea96333cea3e9207d0256104`. That commit contains the same production/test configuration as presentation commit `41aadf9`. The [sanitized review results](dependency-review-results.json) record full base/head SHAs, actual test counts, coverage and smoke IDs. Raw TRX, coverage, logs, evaluation and audit reports are retained locally under ignored `artifacts/dependency-review/`. No dependency PR was merged, closed, or commented on.
 
 | PR | Upgrade | Initial recorded checks | Current review/recommendation |
 |---|---|---|---|
-| [#1](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/1) | dependency-review-action 4 → 5 | Existing checks passed | Pending current-base review |
-| [#2](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/2) | Azure.Messaging.ServiceBus 7.20.2 → 7.21.0 | Existing checks passed | Pending current-base review |
-| [#3](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/3) | Azure.Search.Documents 11.6.0 → 12.0.0 | Existing checks passed | Pending current-base review |
-| [#4](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/4) | coverlet.collector 6.0.4 → 10.1.0 | Older checks failed | Reconcile current collector versions before retesting |
-| [#5](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/5) | DocumentFormat.OpenXml 3.1.1 → 3.5.1 | Existing checks passed | Pending parser/current-base review |
-| [#9](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/9) | Microsoft.Extensions.AI.OpenAI 10.10.0 → 10.10.1 | Older checks failed | Refresh against fixes; provider/live compatibility still requires evidence |
+| [#1](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/1) | dependency-review-action 4 → 5 | Existing checks passed | Workflow-only diff reviewed; `contents: read` and high-severity gate unchanged. Candidate for manual review after refreshed GitHub checks; v5 was not executed locally |
+| [#2](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/2) | Azure.Messaging.ServiceBus 7.20.2 → 7.21.0 | Existing checks passed | Isolated restore/build, 509 unit, 86 integration, 48 offline cases, EF, smoke and 79.46% coverage passed. Candidate after refreshed PR checks; live sender/receiver/recovery behavior remains unverified |
+| [#3](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/3) | Azure.Search.Documents 11.6.0 → 12.0.0 | Existing checks passed | Same local checks passed. Major upgrade: hold operational acceptance until live index/query/citation/access-scope compatibility is verified |
+| [#4](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/4) | coverlet.collector 6.0.4 → 10.1.0 | Older checks failed | Both projects already use 10.1.0; merging into review base produces no file changes. Redundant; owner may close after checking current base |
+| [#5](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/5) | DocumentFormat.OpenXml 3.1.1 → 3.5.1 | Existing checks passed | Same local checks passed. Candidate after refreshed PR checks and a representative DOCX ingestion check; full document/provider workflow remains unverified |
+| [#9](https://github.com/AmarjeetJha17/AI-Emergency-Response/pull/9) | Microsoft.Extensions.AI.OpenAI 10.10.0 → 10.10.1 | Older checks failed | Both projects already use 10.10.1. Resolving only stale Http/ML conflict in the disposable checkout leaves no changes. Redundant; no separate upgrade run claimed |
+
+Initial runs against retained test data failed two resource/situation assertions for each substantive upgrade. Serialized reruns against fresh datasets passed all 86 integration tests. The fixed-name safety guard was preserved; only this checkpoint's disposable SQL container was reset between complete suites. This reveals a repeat-run test-isolation limitation, not evidence of a package regression. Failed reports were excluded from merged coverage. Test substitutes do not prove live provider compatibility, and local review does not refresh GitHub checks on old dependency branches.
+
+The baseline audit contains 12 distinct package/version/advisory entries. PRs #2, #3 and #5 add zero entries relative to that baseline; the existing advisories remain unresolved. No upgrade was accepted or merged by this review.
 
 ## Known limitations and credential handling
 
@@ -68,4 +72,4 @@ Operational blockers include action permission bypass through resource status, I
 
 Runtime secrets were removed from current tracked configuration, not from Git history. Development account passwords previously published must be changed on any retained database; copying them to User Secrets does not rotate them. Audit externally supplied credentials privately and rotate any that were exposed. Deterministic test-only credentials/keys remain fixtures for disposable hosts. Per-run CI SQL credentials are disposable and never production credentials.
 
-The 2026-10-14 restore audit also reports existing high/moderate advisories for transitive `System.Security.Cryptography.Pkcs` 9.0.18 and high advisories for `System.Security.Cryptography.Xml` 8.0.4. Passing compilation/tests does not resolve these findings. Dependency upgrade recommendations below must retain this limitation until the vulnerable dependency paths are reviewed and remediated.
+The 2026-10-14 package audits report high/moderate advisories for transitive `System.Security.Cryptography.Pkcs` (9.0.18 and 10.0.10), high advisories for `System.Security.Cryptography.Xml` (8.0.4 and 10.0.10), and a high advisory for `Microsoft.AspNetCore.SignalR.Common` 10.0.12. See exact advisory URLs in the review results. Passing compilation/tests does not resolve these findings. Upgrade recommendations retain this limitation until the vulnerable dependency paths are reviewed and remediated.

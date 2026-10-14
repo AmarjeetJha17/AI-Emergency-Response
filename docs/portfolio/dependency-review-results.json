@@ -1,0 +1,485 @@
+{
+  "reviewDate": "2026-10-14",
+  "baseCommit": "bba120fa8c968621ea96333cea3e9207d0256104",
+  "environment": "Local Windows; isolated worktrees; fresh disposable SQL Server 2025 test databases; deterministic provider substitutes",
+  "externalChanges": "No dependency PR merged, closed, or commented on",
+  "reviews": [
+    {
+      "pr": 1,
+      "headCommit": "2cd7be4278f3dee9657a2f5cd12739731c3465cb",
+      "baseCommit": "bba120fa8c968621ea96333cea3e9207d0256104",
+      "changedFiles": [
+        ".github/workflows/dependency-review.yml"
+      ],
+      "status": "WorkflowOnlyReviewed",
+      "verificationLimit": "Workflow-only diff inspected: v4 to v5; contents:read and fail-on-severity:high unchanged. Local application checks do not execute the new GitHub action."
+    },
+    {
+      "pr": 2,
+      "headCommit": "cd7a268d94af3428db91f9627050974443c07b34",
+      "baseCommit": "bba120fa8c968621ea96333cea3e9207d0256104",
+      "changedFiles": [
+        "src/EmergencyResponse.Infrastructure/EmergencyResponse.Infrastructure.csproj"
+      ],
+      "status": "LocalChecksPassedWithFreshDataset",
+      "unit": {
+        "total": 509,
+        "passed": 509,
+        "failed": 0
+      },
+      "integration": {
+        "total": 86,
+        "passed": 86,
+        "failed": 0
+      },
+      "domainApplicationLineCoveragePercent": 79.46,
+      "coverageMinimumPercent": 70,
+      "offlineEvaluation": {
+        "runId": "eval-20261014T090547-cead879c4bf2438cb359eb6e3ad67ad5",
+        "total": 48,
+        "passed": 48,
+        "failed": 0,
+        "mode": "offline-fixture-validation"
+      },
+      "checks": [
+        {
+          "Name": "restore",
+          "ExitCode": 0
+        },
+        {
+          "Name": "build",
+          "ExitCode": 0
+        },
+        {
+          "Name": "unit",
+          "ExitCode": 0
+        },
+        {
+          "Name": "integration-fresh",
+          "ExitCode": 0
+        },
+        {
+          "Name": "evaluation",
+          "ExitCode": 0
+        },
+        {
+          "Name": "migration",
+          "ExitCode": 0
+        },
+        {
+          "Name": "smoke",
+          "ExitCode": 0
+        },
+        {
+          "Name": "coverage",
+          "ExitCode": 0
+        },
+        {
+          "Name": "dependency-audit",
+          "ExitCode": 0
+        }
+      ],
+      "smoke": {
+        "runId": "67ae8e2640ef584e702ff5e70399f56a",
+        "profile": "Smoke",
+        "scenario": "mixed",
+        "requests": 13345,
+        "failures": 0,
+        "errorRate": 0
+      },
+      "reportedAdvisories": [
+        {
+          "package": "Microsoft.AspNetCore.SignalR.Common",
+          "version": "10.0.12",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-334f-vvp4-7g6p"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-846f-f764-76mx"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "10.0.10",
+          "severity": "Moderate",
+          "url": "https://github.com/advisories/GHSA-2fmv-rv2c-59x7"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "9.0.18",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-846f-f764-76mx"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "9.0.18",
+          "severity": "Moderate",
+          "url": "https://github.com/advisories/GHSA-2fmv-rv2c-59x7"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-7hqp-7c5m-4vq6"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-c399-9853-6jmj"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-r955-8q5j-3h83"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-7hqp-7c5m-4vq6"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-c399-9853-6jmj"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-r955-8q5j-3h83"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-vrv5-2jg9-4mmr"
+        }
+      ],
+      "newAdvisoryEntryCountAgainstBaseline": 0,
+      "initialDatasetFailure": "Initial reused-database suite failed resource active-assignment and situation-count checks. Fresh-data rerun passed all 86 tests. Failed coverage was excluded."
+    },
+    {
+      "pr": 3,
+      "headCommit": "39bd1eab7e18f3afeff1c71f863f2d8d2c1e0d9a",
+      "baseCommit": "bba120fa8c968621ea96333cea3e9207d0256104",
+      "changedFiles": [
+        "src/EmergencyResponse.Infrastructure/EmergencyResponse.Infrastructure.csproj"
+      ],
+      "status": "LocalChecksPassedWithFreshDataset",
+      "unit": {
+        "total": 509,
+        "passed": 509,
+        "failed": 0
+      },
+      "integration": {
+        "total": 86,
+        "passed": 86,
+        "failed": 0
+      },
+      "domainApplicationLineCoveragePercent": 79.46,
+      "coverageMinimumPercent": 70,
+      "offlineEvaluation": {
+        "runId": "eval-20261014T090817-a08d18dba9034a828fb3f9b0d53f0375",
+        "total": 48,
+        "passed": 48,
+        "failed": 0,
+        "mode": "offline-fixture-validation"
+      },
+      "checks": [
+        {
+          "Name": "restore",
+          "ExitCode": 0
+        },
+        {
+          "Name": "build",
+          "ExitCode": 0
+        },
+        {
+          "Name": "unit",
+          "ExitCode": 0
+        },
+        {
+          "Name": "integration-fresh",
+          "ExitCode": 0
+        },
+        {
+          "Name": "evaluation",
+          "ExitCode": 0
+        },
+        {
+          "Name": "migration",
+          "ExitCode": 0
+        },
+        {
+          "Name": "smoke",
+          "ExitCode": 0
+        },
+        {
+          "Name": "coverage",
+          "ExitCode": 0
+        },
+        {
+          "Name": "dependency-audit",
+          "ExitCode": 0
+        }
+      ],
+      "smoke": {
+        "runId": "0e61606afe09595fd76afa1ff8593241",
+        "profile": "Smoke",
+        "scenario": "mixed",
+        "requests": 10996,
+        "failures": 0,
+        "errorRate": 0
+      },
+      "reportedAdvisories": [
+        {
+          "package": "Microsoft.AspNetCore.SignalR.Common",
+          "version": "10.0.12",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-334f-vvp4-7g6p"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-846f-f764-76mx"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "10.0.10",
+          "severity": "Moderate",
+          "url": "https://github.com/advisories/GHSA-2fmv-rv2c-59x7"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "9.0.18",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-846f-f764-76mx"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "9.0.18",
+          "severity": "Moderate",
+          "url": "https://github.com/advisories/GHSA-2fmv-rv2c-59x7"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-7hqp-7c5m-4vq6"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-c399-9853-6jmj"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-r955-8q5j-3h83"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-7hqp-7c5m-4vq6"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-c399-9853-6jmj"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-r955-8q5j-3h83"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-vrv5-2jg9-4mmr"
+        }
+      ],
+      "newAdvisoryEntryCountAgainstBaseline": 0,
+      "initialDatasetFailure": "Initial reused-database suite failed resource active-assignment and situation-count checks. Fresh-data rerun passed all 86 tests. Failed coverage was excluded."
+    },
+    {
+      "pr": 4,
+      "headCommit": "16d672d65fad675cae13c0f2396c1bbf145345dc",
+      "baseCommit": "bba120fa8c968621ea96333cea3e9207d0256104",
+      "changedFiles": [],
+      "status": "AlreadyPresent",
+      "verificationLimit": "Requested package versions already exist in the review base; no production file changes remain. No separate upgrade test run claimed."
+    },
+    {
+      "pr": 5,
+      "headCommit": "aa19e3292a9cae8f95a2c3f468eae6284d0ed3cc",
+      "baseCommit": "bba120fa8c968621ea96333cea3e9207d0256104",
+      "changedFiles": [
+        "src/EmergencyResponse.Infrastructure/EmergencyResponse.Infrastructure.csproj"
+      ],
+      "status": "LocalChecksPassedWithFreshDataset",
+      "unit": {
+        "total": 509,
+        "passed": 509,
+        "failed": 0
+      },
+      "integration": {
+        "total": 86,
+        "passed": 86,
+        "failed": 0
+      },
+      "domainApplicationLineCoveragePercent": 79.46,
+      "coverageMinimumPercent": 70,
+      "offlineEvaluation": {
+        "runId": "eval-20261014T091052-66bba014fff740f899a3b0ee2fec70e7",
+        "total": 48,
+        "passed": 48,
+        "failed": 0,
+        "mode": "offline-fixture-validation"
+      },
+      "checks": [
+        {
+          "Name": "restore",
+          "ExitCode": 0
+        },
+        {
+          "Name": "build",
+          "ExitCode": 0
+        },
+        {
+          "Name": "unit",
+          "ExitCode": 0
+        },
+        {
+          "Name": "integration-fresh",
+          "ExitCode": 0
+        },
+        {
+          "Name": "evaluation",
+          "ExitCode": 0
+        },
+        {
+          "Name": "migration",
+          "ExitCode": 0
+        },
+        {
+          "Name": "smoke",
+          "ExitCode": 0
+        },
+        {
+          "Name": "coverage",
+          "ExitCode": 0
+        },
+        {
+          "Name": "dependency-audit",
+          "ExitCode": 0
+        }
+      ],
+      "smoke": {
+        "runId": "41cb74f122db91c7084924ba872be385",
+        "profile": "Smoke",
+        "scenario": "mixed",
+        "requests": 13699,
+        "failures": 0,
+        "errorRate": 0
+      },
+      "reportedAdvisories": [
+        {
+          "package": "Microsoft.AspNetCore.SignalR.Common",
+          "version": "10.0.12",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-334f-vvp4-7g6p"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-846f-f764-76mx"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "10.0.10",
+          "severity": "Moderate",
+          "url": "https://github.com/advisories/GHSA-2fmv-rv2c-59x7"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "9.0.18",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-846f-f764-76mx"
+        },
+        {
+          "package": "System.Security.Cryptography.Pkcs",
+          "version": "9.0.18",
+          "severity": "Moderate",
+          "url": "https://github.com/advisories/GHSA-2fmv-rv2c-59x7"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-7hqp-7c5m-4vq6"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-c399-9853-6jmj"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "10.0.10",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-r955-8q5j-3h83"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-7hqp-7c5m-4vq6"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-c399-9853-6jmj"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-r955-8q5j-3h83"
+        },
+        {
+          "package": "System.Security.Cryptography.Xml",
+          "version": "8.0.4",
+          "severity": "High",
+          "url": "https://github.com/advisories/GHSA-vrv5-2jg9-4mmr"
+        }
+      ],
+      "newAdvisoryEntryCountAgainstBaseline": 0,
+      "initialDatasetFailure": "Initial reused-database suite failed resource active-assignment and situation-count checks. Fresh-data rerun passed all 86 tests. Failed coverage was excluded."
+    },
+    {
+      "pr": 9,
+      "headCommit": "5664b1d7caacd43fe0e6a1bb5f07d54cad79d3e0",
+      "baseCommit": "bba120fa8c968621ea96333cea3e9207d0256104",
+      "changedFiles": [],
+      "status": "AlreadyPresentAfterStaleConflictResolution",
+      "verificationLimit": "Requested package versions already exist in the review base; no production file changes remain. No separate upgrade test run claimed."
+    }
+  ],
+  "baselineAdvisoryEntryCount": 12
+}

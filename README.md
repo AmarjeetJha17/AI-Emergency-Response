@@ -94,7 +94,7 @@ Syncfusion is separately licensed and its key is required at Web startup. Obtain
 
 CI restores/builds the solution, checks pending EF model changes, runs unit and SQL-backed integration tests, evaluates offline AI fixtures, executes a performance smoke workload, and enforces **70% combined Domain/Application line coverage**. Container image builds and Bicep compilation are additional quality jobs. CodeQL and dependency review run separately.
 
-Historical verified snapshot for commit `22608ab` (CI on 2026-10-13 UTC): **504 unit tests**, **86 SQL integration tests**, and **79.46% combined Domain/Application coverage**, all passing. [Run evidence](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38470547281). This is a dated result, not a guarantee about another commit or coverage of Infrastructure/Web/API.
+Verified snapshot for portfolio commit `41aadf9` (CI on 2026-10-14 UTC): **509 unit tests**, **86 SQL integration tests**, and **79.46% combined Domain/Application coverage**, all passing. Docker builds, Bicep compilation, CodeQL and dependency review also passed. [Run evidence](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38534715013). This is a dated result, not a guarantee about another commit or coverage of Infrastructure/Web/API.
 
 The live-AI workflow can skip successfully when provider settings are missing. Its green badge alone is not real-model evaluation evidence. A short local/CI workload is not production capacity. See the [portfolio register](docs/portfolio/feature-verification.md), [testing docs](docs/testing), and actual [Actions history](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions).
 

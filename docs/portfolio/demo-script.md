@@ -82,6 +82,8 @@ API HTTPS: `https://localhost:7191`; Web HTTPS: `https://localhost:7201`. Web's 
 
 Tracked test connection strings are intentionally empty. Integration/readiness configuration reads environment variables last. Load options likewise prefer `ConnectionStrings__LoadTestDatabase`.
 
+Use a fresh disposable test dataset. The integration safety guard requires the exact database name `EmergencyResponse_IntegrationTests`. Reusing retained incidents, resource assignments, and situations across complete runs can fail two dataset-dependent assertions. Stop all test hosts before any authorized reset of your own disposable database; never reset a shared database or remove the name guard to run against it.
+
 ```powershell
 $env:ConnectionStrings__TestDatabase = "Server=127.0.0.1,1433;Database=EmergencyResponse_IntegrationTests;User Id=sa;Password=$sqlPasswordText;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True"
 $env:ConnectionStrings__LoadTestDatabase = "Server=127.0.0.1,1433;Database=EmergencyResponse_LoadTests;User Id=sa;Password=$sqlPasswordText;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True"
