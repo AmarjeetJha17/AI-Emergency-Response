@@ -113,6 +113,8 @@ public class IncidentsController : Controller
                     string.Empty,
                     "The incident could not be created.");
 
+                ViewBag.IncidentTypes =
+                    await _incidentTypeApiClient.GetAllAsync(cancellationToken);
                 return View(request);
             }
 
@@ -126,6 +128,8 @@ public class IncidentsController : Controller
                 string.Empty,
                 ex.Message);
 
+            ViewBag.IncidentTypes =
+                await _incidentTypeApiClient.GetAllAsync(cancellationToken);
             return View(request);
         }
     }

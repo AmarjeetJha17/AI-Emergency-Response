@@ -1,0 +1,52 @@
+@model EmergencyResponse.Application.DTOs.Common.PagedResult<EmergencyResponse.Application.DTOs.Incidents.IncidentListItem>
+
+<div class="er-table-region" tabindex="0" role="region" aria-label="Incident reports, scroll horizontally for all columns">
+    <table class="table table-hover er-incident-table mb-0">
+        <caption class="visually-hidden">Reports in your authorized scope with status, severity, priority and reported time.</caption>
+        <thead>
+            <tr>
+                <th scope="col">Incident</th>
+                <th scope="col">Type</th>
+                <th scope="col">Status</th>
+                <th scope="col">Severity</th>
+                <th scope="col">Priority</th>
+                <th scope="col">Reported (UTC)</th>
+                <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var incident in Model.Items)
+            {
+                var severityClass = incident.Severity switch
+                {
+                    "Critical" => "er-severity-critical",
+                    "High" => "er-severity-high",
+                    "Moderate" => "er-severity-moderate",
+                    _ => "er-severity-low"
+                };
+                var priorityClass = incident.Priority switch
+                {
+                    "Critical" => "er-severity-critical",
+                    "High" => "er-severity-high",
+                    _ => "er-severity-low"
+                };
+                <tr>
+                    <th scope="row" class="er-incident-identity">
+                        <a asp-action="Details" asp-route-id="@incident.Id" class="er-incident-number">@incident.IncidentNumber</a>
+                        <div class="er-incident-title">@incident.Title</div>
+                        @if (!string.IsNullOrWhiteSpace(incident.City))
+                        {
+                            <div class="er-form-hint">@incident.City</div>
+                        }
+                    </th>
+                    <td>@incident.IncidentType</td>
+                    <td><span class="er-status">@incident.Status</span></td>
+                    <td><span class="er-severity @severityClass">@incident.Severity</span></td>
+                    <td><span class="er-severity @priorityClass">@incident.Priority</span></td>
+                    <td><time datetime="@incident.ReportedAtUtc.ToString("yyyy-MM-ddTHH:mm:ssZ")">@incident.ReportedAtUtc.ToString("dd MMM yyyy")<span class="d-block er-form-hint">@incident.ReportedAtUtc.ToString("HH:mm") UTC</span></time></td>
+                    <td><a asp-action="Details" asp-route-id="@incident.Id" class="btn btn-sm btn-outline-primary" aria-label="Details for @incident.IncidentNumber">Details</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

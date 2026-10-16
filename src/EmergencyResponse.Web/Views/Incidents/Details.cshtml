@@ -18,24 +18,45 @@
         User.FindAll(ClaimTypes.Role).Select(claim => claim.Value), Permissions.EscalationsResolve);
 }
 
-<div class="container py-4" data-incident-id="@Model.Id">
+<div class="er-incidents" data-incident-id="@Model.Id">
     @Html.AntiForgeryToken()
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-
+    <header class="er-page-header">
         <div>
-            <h2>@Model.Title</h2>
-            <div class="text-muted">
-                @Model.IncidentNumber
+            <div class="er-eyebrow">Incident details</div>
+            <h1>@Model.Title</h1>
+            <div class="er-incident-meta">
+                <strong>@Model.IncidentNumber</strong>
+                <span class="er-status">@Model.Status</span>
+                <time datetime="@Model.ReportedAtUtc.ToString("yyyy-MM-ddTHH:mm:ssZ")">Reported @Model.ReportedAtUtc.ToString("dd MMM yyyy HH:mm") UTC</time>
             </div>
         </div>
-
-        <a asp-action="Index"
-           class="btn btn-outline-secondary">
-            Back
-        </a>
-
-    </div>
+        <div class="er-page-actions">
+            @if (canReviewPrediction)
+            {
+                <a asp-controller="Map" asp-action="Index" asp-route-incidentId="@Model.Id" class="btn btn-outline-primary">View on Live Map</a>
+            }
+            <a asp-action="Index" class="btn btn-outline-secondary">Back to Incidents</a>
+        </div>
+    </header>
+    <nav class="er-detail-nav" aria-label="Incident sections">
+        <a href="#incidentOverview">Report</a>
+        <a href="#incidentLocation">Location</a>
+        @if (Model.Status is not ("Closed" or "Rejected"))
+        {
+            <a href="#incidentUpload">Upload evidence</a>
+        }
+        @if (canReviewPrediction)
+        {
+            <a href="#predictiveIntelligenceCard">Prediction</a>
+            <a href="#incidentCoordination">Coordination</a>
+            <a href="#incidentVisualEvidence">Visual review</a>
+            @if (Model.StatusHistory.Any())
+            {
+                <a href="#incidentHistory">History</a>
+            }
+        }
+    </nav>
 
     @* Active Escalation Alerts (Phase 12) *@
     @if (Model.ActiveEscalations != null && Model.ActiveEscalations.Any())
@@ -70,7 +91,7 @@
                             <div class="d-flex align-items-center gap-2">
                                 <span class="fs-4">&#9888;</span>
                                 <div>
-                                    <h5 class="mb-0 fw-bold">ESCALATION ALERT: @esc.TypeName</h5>
+                                    <h2 class="er-section-title">Escalation: @esc.TypeName</h2>
                                     <div class="small text-muted">Created: @esc.CreatedAtUtc.ToString("dd MMM yyyy HH:mm:ss") UTC</div>
                                 </div>
                             </div>
@@ -102,7 +123,7 @@
 
                         @if (User.IsInRole("Operator") || User.IsInRole("EmergencyAdmin") || User.IsInRole("SystemAdmin"))
                         {
-                            <div class="d-flex gap-2 mt-3">
+                            <div class="d-flex flex-wrap gap-2 mt-3">
                                 @if (esc.Status == EscalationStatus.Open)
                                 {
                                     <button type="button" class="btn btn-sm btn-primary" onclick="openEscalationModal('@esc.Id', 'Acknowledge', 'Acknowledge Escalation Alert')">
@@ -157,8 +178,8 @@
                             <div class="d-flex align-items-center gap-2">
                                 <span class="fs-4">&#127757;</span>
                                 <div>
-                                    <div class="text-uppercase small fw-bold text-muted">Part of Operational Situation</div>
-                                    <h5 class="mb-0 fw-bold">@sit.SituationNumber: @sit.Title</h5>
+                                    <div class="er-eyebrow">Linked operational situation</div>
+                                    <h2 class="er-section-title">@sit.SituationNumber: @sit.Title</h2>
                                 </div>
                             </div>
                             <div class="d-flex gap-2 align-items-center">
@@ -196,33 +217,28 @@
 
         <div class="col-lg-8">
 
-            <div class="card shadow-sm">
+            <section class="card mb-4 er-detail-section" id="incidentOverview" aria-labelledby="incidentOverviewHeading">
                 <div class="card-body">
-
-                    <h5>Description</h5>
-
-                    <p>
-                        @Model.Description
-                    </p>
-
+                    <h2 class="er-section-title mb-3" id="incidentOverviewHeading">Report details</h2>
+                    <p class="er-incident-description">@Model.Description</p>
                     <hr />
-
-                    <div class="row">
-
-                        <div class="col-md-6">
-                            <strong>Type</strong>
-                            <div>@Model.IncidentType</div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <strong>Status</strong>
-                            <div>@Model.Status</div>
-                        </div>
-
-                    </div>
-
+                    <dl class="er-detail-facts">
+                        <div><dt>Incident type</dt><dd>@Model.IncidentType</dd></div>
+                        <div><dt>Current status</dt><dd>@Model.Status</dd></div>
+                    </dl>
                 </div>
-            </div>
+            </section>
+            <section class="card mb-4" aria-labelledby="incidentImpactHeading">
+                <div class="card-header"><h2 class="er-section-title" id="incidentImpactHeading">Reported impact</h2></div>
+                <div class="card-body">
+                    <p class="er-form-hint">Stored report counts. Unknown is not zero; these counts are not independently verified.</p>
+                    <dl class="er-impact-grid">
+                        <div><dt>People affected</dt><dd>@(Model.PeopleAffected?.ToString() ?? "Unknown")</dd></div>
+                        <div><dt>Vehicles affected</dt><dd>@(Model.VehiclesAffected?.ToString() ?? "Unknown")</dd></div>
+                        <div><dt>Casualties</dt><dd>@(Model.Casualties?.ToString() ?? "Unknown")</dd></div>
+                    </dl>
+                </div>
+            </section>
 
             @* Media upload — available to all authenticated users on non-terminal incidents *@
             @{

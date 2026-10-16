@@ -166,3 +166,30 @@ Precise manual checks, without capturing portfolio screenshots:
 - No genuine available volume forecast, resource-demand forecast, live AI/Copilot, media processing or Azure workflow is verified by this pass.
 
 Recommended commit: `feat: polish operations shell and dashboard design system`.
+
+## Phase 18 Part 2.3.3 — Incident reporting and details UI
+
+Date: 2026-10-16. Branch: `docs/phase18-portfolio-release`; PR #17 remains open and unchanged.
+
+## Implementation status
+
+The existing incident UI changes cover Report Emergency, the paged incident queue, My Reports, and Incident Details. The list and My Reports share the same incident table and pagination partials. The create action reloads incident types when a failed create returns the form. Incident details retain the existing escalation, situation, impact, prediction, status, resource, duplicate, history, and visual-evidence sections and their role-gated actions. Unknown impact counts are shown as `Unknown`; zero remains a distinct value. A Release build exposed a Razor parsing issue in the new pagination partial (`page` conflicted with the Razor directive); the loop variable is now `pageNumber`.
+
+Files changed for this part: `src/EmergencyResponse.Web/Controllers/IncidentsController.cs`, the four incident views under `src/EmergencyResponse.Web/Views/Incidents/`, `src/EmergencyResponse.Web/wwwroot/css/site.css`, and the new `_IncidentTable.cshtml` / `_IncidentPagination.cshtml` partials.
+
+## Build and test results
+
+- `dotnet build AI-Emergency-Response.slnx -c Release`: **passed**, 0 errors, 29 warnings. Warnings include existing NuGet vulnerability advisories for `System.Security.Cryptography.Pkcs` 9.0.18 and `System.Security.Cryptography.Xml` 8.0.4, plus existing nullable-reference warnings.
+- `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-restore`: **passed**, 569 passed, 0 failed, 0 skipped.
+- SQL integration suite: **blocked at fixture setup**. The run reported 89 failures and 0 passes because `ConnectionStrings:TestDatabase` is unset. `SqlServerReadiness` requires the dedicated `EmergencyResponse_IntegrationTests` database and refuses other database names; no database was changed.
+- `git diff --check`: passed with no whitespace errors.
+
+## Browser and responsive verification
+
+The requested visual checks at 1440 × 900, 1024 × 768, and 390 × 844 remain **blocked**. Navigating the available browser to `https://localhost:7201/Incidents` returned `net::ERR_CONNECTION_REFUSED`; the local Web/API hosts were not running. No layout, keyboard, touch, validation rendering, or screenshot inspection is claimed. Screenshot capture remains pending until genuine application screens can be opened and inspected.
+
+## Remaining verification
+
+Configure `ConnectionStrings:TestDatabase` for the isolated `EmergencyResponse_IntegrationTests` SQL database, then rerun the integration suite and the authorized MVC page check with the existing synthetic DEMO18 seed and accounts. Start the Web and API against that isolated environment and inspect all four incident pages at each requested viewport. Verify keyboard focus and validation-message association on the form; search, severity/status filters, clear-filter behavior and pagination on the queue; empty and paged states on My Reports; and operator/citizen visibility, alert actions, and navigation on Details. Check mobile overflow and action wrapping. Capture screenshots only after viewing the actual rendered screens.
+
+Recommended commit after remaining checks: `feat: polish incident reporting and details UI`.

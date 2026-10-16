@@ -53,6 +53,62 @@ img, svg { max-width: 100%; }
 .er-review-tag-duplicate { background: var(--er-high-soft); color: var(--er-high); }
 .er-review-tag-visual { background: var(--er-moderate-soft); color: var(--er-moderate); }
 /* Bootstrap collapse owns the navigation state. */
+/* Incident reporting and management reuse the shell's tokens. */
+.er-incidents { min-width: 0; }
+.er-incidents .row > *, .er-incidents .card, .er-incidents .card-body { min-width: 0; }
+.er-incidents h1, .er-incidents .card-body, .er-incidents .list-group-item { overflow-wrap: anywhere; }
+.er-report-page { max-width: 1120px; margin-inline: auto; }
+.er-form-section { position: relative; padding: var(--er-space-5); padding-top: 3.75rem; margin-bottom: var(--er-space-5); min-width: 0; }
+.er-form-section legend { position: absolute; top: var(--er-space-5); left: var(--er-space-5); width: auto; max-width: calc(100% - 3rem); font-size: 1.1rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: .65rem; }
+.er-step-number { display: inline-grid; place-items: center; width: 1.75rem; height: 1.75rem; border-radius: var(--er-radius-sm); color: var(--er-brand); background: var(--er-brand-soft); font-size: .8rem; }
+.er-form-hint { color: var(--er-text-secondary); font-size: .82rem; }
+.er-incidents .form-label { font-weight: 600; margin-bottom: .4rem; }
+.er-incidents .field-validation-error { display: block; font-size: .82rem; margin-top: .35rem; }
+.er-incidents .form-control + .er-form-hint { margin-top: .35rem; }
+.er-required { color: var(--er-critical); }
+.er-form-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--er-space-5); }
+.er-form-actions > p { max-width: 55ch; }
+.er-table-region { overflow-x: auto; max-width: 100%; border-radius: 0 0 var(--er-radius) var(--er-radius); }
+.er-incident-table { font-size: .85rem; vertical-align: middle; }
+.er-incident-table thead { background: var(--er-surface-muted); }
+.er-incident-table th, .er-incident-table td { padding: 1rem; color: var(--er-text); border-color: var(--er-border); }
+.er-incident-table thead th { font-size: .75rem; color: var(--er-text-secondary); font-weight: 700; }
+.er-incident-identity { min-width: 15rem; max-width: 26rem; }
+.er-incident-number { font-weight: 700; text-decoration: none; }
+.er-incident-title { font-weight: 400; margin-block: .3rem; overflow-wrap: anywhere; }
+.er-pagination { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 1rem; margin-top: var(--er-space-5); }
+.er-pagination .page-link { color: var(--er-brand); min-height: 2.5rem; }
+.er-pagination .active > .page-link { background: var(--er-brand); border-color: var(--er-brand); color: var(--er-surface); }
+.er-incident-meta, .er-detail-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.er-incident-meta { font-size: .85rem; color: var(--er-text-secondary); }
+.er-detail-nav { margin-bottom: var(--er-space-5); padding-bottom: var(--er-space-4); border-bottom: 1px solid var(--er-border); }
+.er-detail-nav a { font-size: .85rem; font-weight: 600; padding: .4rem .6rem; border-radius: var(--er-radius-sm); text-decoration: none; }
+.er-detail-nav a:hover { background: var(--er-brand-soft); }
+.er-incident-description { white-space: pre-wrap; overflow-wrap: anywhere; }
+.er-detail-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 0; }
+.er-detail-facts dt { color: var(--er-text-secondary); font-size: .8rem; font-weight: 600; }
+.er-detail-facts dd { margin: .25rem 0 0; overflow-wrap: anywhere; }
+.er-impact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 0; }
+.er-impact-grid > div { border: 1px solid var(--er-border); background: var(--er-surface-muted); border-radius: var(--er-radius-sm); padding: 1rem; }
+.er-impact-grid dt { color: var(--er-text-secondary); font-size: .8rem; font-weight: 600; }
+.er-impact-grid dd { margin: .4rem 0 0; font-size: 1.25rem; font-weight: 700; }
+.er-incidents .card-header strong { font-size: 1rem; }
+.er-incidents .progress { height: .5rem; background: var(--er-low-soft); }
+.er-incidents .er-detail-section { scroll-margin-top: 1rem; }
+.er-incidents .list-group-item { gap: .75rem; flex-wrap: wrap; }
+.er-incidents .list-group-item > div { min-width: 0; }
+.er-incidents .er-history-time { margin-left: 0 !important; }
+@media (max-width: 767.98px) {
+  .er-incidents .card-body { padding: 1rem; }
+  .er-form-section { padding: 1rem; padding-top: 3.5rem; }
+  .er-form-section legend { top: 1rem; left: 1rem; max-width: calc(100% - 2rem); }
+  .er-incidents .btn { min-height: 2.75rem; }
+  .er-incident-table { min-width: 760px; }
+  .er-impact-grid { grid-template-columns: minmax(0, 1fr); gap: .5rem; }
+  .er-impact-grid > div { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .er-impact-grid dd { margin: 0; }
+  .er-form-actions .er-page-actions { flex-wrap: wrap; }
+}
 .er-skip-link { position: fixed; top: -6rem; left: 1rem; z-index: 1200; padding: .75rem 1rem; background: var(--er-surface); border: 2px solid var(--er-focus); border-radius: var(--er-radius-sm); }
 .er-skip-link:focus { top: .5rem; }
 .er-shell-header { background: var(--er-surface); border-bottom: 1px solid var(--er-border); }

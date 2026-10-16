@@ -1,127 +1,86 @@
-﻿@model EmergencyResponse.Application.DTOs.Common.PagedResult<EmergencyResponse.Application.DTOs.Incidents.IncidentListItem>
+@model EmergencyResponse.Application.DTOs.Common.PagedResult<EmergencyResponse.Application.DTOs.Incidents.IncidentListItem>
 
 @{
     ViewData["Title"] = "Incidents";
+    var selectedSeverity = Context.Request.Query["severity"].ToString();
+    var selectedStatus = Context.Request.Query["status"].ToString();
 }
 
-<div class="container py-4">
-
-    <div class="d-flex justify-content-between align-items-center mb-4">
-
+<div class="er-incidents">
+    <header class="er-page-header">
         <div>
-            <h2>Incidents</h2>
-            <p class="text-muted">
-                Emergency incident management
-            </p>
+            <div class="er-eyebrow">Incident management</div>
+            <h1>Incidents</h1>
+            <p class="er-page-subtitle">Find reports in your authorized scope and open their details for review.</p>
         </div>
+        <div class="er-page-actions">
+            <a asp-action="MyReports" class="btn btn-outline-primary">My Reports</a>
+            <a asp-action="Create" class="btn btn-primary">Report Emergency</a>
+        </div>
+    </header>
 
-        <a asp-action="Create"
-           class="btn btn-danger">
-            Report Emergency
-        </a>
-
-    </div>
-
-    <div class="card shadow-sm mb-4">
+    <section class="er-panel mb-4" aria-labelledby="incidentFilterHeading">
+        <div class="er-section-header"><h2 class="er-section-title" id="incidentFilterHeading">Find incidents</h2></div>
         <div class="card-body">
-
-            <form method="get"
-                  class="row g-2">
-
-                <div class="col-md-6">
-                    <input name="search"
-                           value="@Context.Request.Query["search"]"
-                           class="form-control"
-                           placeholder="Search incidents..." />
+            <form method="get" class="row g-3 align-items-end">
+                <input type="hidden" name="pageSize" value="@(Model?.PageSize > 0 ? Model.PageSize : 10)" />
+                @if (!string.IsNullOrEmpty(Context.Request.Query["incidentTypeId"]))
+                {
+                    <input type="hidden" name="incidentTypeId" value="@Context.Request.Query["incidentTypeId"]" />
+                }
+                <div class="col-lg-5">
+                    <label for="incidentSearch" class="form-label">Search reports</label>
+                    <input type="search" id="incidentSearch" name="search" value="@Context.Request.Query["search"]"
+                           class="form-control" placeholder="Search incidents…" />
                 </div>
-
-                <div class="col-md-3">
-                    <select name="severity"
-                            class="form-select">
-
-                        <option value="">
-                            All Severities
-                        </option>
-
-                        <option value="Low">Low</option>
-                        <option value="Moderate">Moderate</option>
-                        <option value="High">High</option>
-                        <option value="Critical">Critical</option>
-
+                <div class="col-sm-6 col-lg-2">
+                    <label for="incidentSeverity" class="form-label">Severity</label>
+                    <select id="incidentSeverity" name="severity" class="form-select">
+                        <option value="">All severities</option>
+                        @foreach (var severity in new[] { "Low", "Moderate", "High", "Critical" })
+                        {
+                            <option value="@severity" selected="@(selectedSeverity == severity)">@severity</option>
+                        }
                     </select>
                 </div>
-
-                <div class="col-md-3">
-                    <button class="btn btn-primary w-100"
-                            type="submit">
-                        Search
-                    </button>
+                <div class="col-sm-6 col-lg-2">
+                    <label for="incidentStatus" class="form-label">Status</label>
+                    <select id="incidentStatus" name="status" class="form-select">
+                        <option value="">All statuses</option>
+                        @foreach (var status in new[] { "Submitted", "UnderReview", "Assigned", "InProgress", "Escalated", "Resolved", "Closed", "Rejected" })
+                        {
+                            <option value="@status" selected="@(selectedStatus == status)">@status</option>
+                        }
+                    </select>
                 </div>
-
+                <div class="col-lg-3 d-flex gap-2">
+                    <button class="btn btn-primary flex-grow-1" type="submit">Apply filters</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
+                </div>
             </form>
-
         </div>
-    </div>
+    </section>
 
-    <div class="card shadow-sm">
-
-        <div class="table-responsive">
-
-            <table class="table table-hover mb-0">
-
-                <thead>
-                    <tr>
-                        <th>Incident</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Severity</th>
-                        <th>Priority</th>
-                        <th></th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    @foreach (var incident in Model.Items)
-                    {
-                        <tr>
-
-                            <td>
-                                <strong>
-                                    @incident.IncidentNumber
-                                </strong>
-
-                                <div>
-                                    @incident.Title
-                                </div>
-
-                                <small class="text-muted">
-                                    @incident.City
-                                </small>
-                            </td>
-
-                            <td>@incident.IncidentType</td>
-                            <td>@incident.Status</td>
-                            <td>@incident.Severity</td>
-                            <td>@incident.Priority</td>
-
-                            <td>
-                                <a asp-action="Details"
-                                   asp-route-id="@incident.Id"
-                                   class="btn btn-sm btn-outline-primary">
-                                    Details
-                                </a>
-                            </td>
-
-                        </tr>
-                    }
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
+    @if (Model is null)
+    {
+        <div class="er-panel er-empty-state" role="alert"><strong>Reports are unavailable</strong>Try again when the service is available.</div>
+    }
+    else
+    {
+        <section class="er-panel" aria-labelledby="incidentResultsHeading">
+            <div class="er-section-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <h2 id="incidentResultsHeading" class="er-section-title">Incident queue</h2>
+                <span class="er-form-hint">@Model.TotalCount matching reports</span>
+            </div>
+            @if (!Model.Items.Any())
+            {
+                <div class="er-empty-state"><strong>No reports match these filters</strong><p>Change the search or filters to see other reports in your scope.</p><a asp-action="Index" class="btn btn-outline-primary">Clear filters</a></div>
+            }
+            else
+            {
+                <partial name="_IncidentTable" model="Model" />
+            }
+        </section>
+        <partial name="_IncidentPagination" model="Model" />
+    }
 </div>
