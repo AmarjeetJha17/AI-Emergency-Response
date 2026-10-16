@@ -273,3 +273,56 @@ The CI error about `OperationalSituationAnalysis` was verified against the curre
 The fix adds nullable `PortfolioDemoOwnershipKey` fields to situations and analyses. The demo situation carries `DEMO18-v1`; generated analyses inherit that key. Cleanup queries analyses only through the manifest-owned situation IDs, refuses any row whose key does not match, and includes only explicitly owned analyses in the deletion set. A regression test confirms unmarked analyses still block deletion; owned analyses are counted in dry-run output and removed before their parent.
 
 The EF migration is `20261016170848_AddPortfolioDemoOwnership`. A focused regression test first failed because the analysis entity had no ownership field; after the fix, all 20 portfolio seeder unit tests passed. The complete unit suite then passed 572 tests. The Release solution build passed with 14 warnings and no errors, and the CI EF pending-model-changes check reported no model changes after the migration. SQL Server integration execution remains unavailable locally because `ConnectionStrings__TestDatabase` is unset; the integration test now explicitly reanalyzes the seeded situation and asserts that the generated record inherits the demo ownership key before testing cleanup.
+
+## Phase 18 Part 2.3.6 — UI regression and responsive verification
+
+Date: 2026-10-17. Branch: `docs/phase18-portfolio-release`; PR #17. This checkpoint consolidates Parts 2.3.1–2.3.5. No source code, configuration, fixtures, or screenshots were changed in this verification pass. The worktree was clean at the start; no commit, push, merge, or deployment was made.
+
+### In-scope screen and interaction inventory
+
+| Screen | Source surfaces inspected | Interaction coverage / status |
+|---|---|---|
+| Shared shell | `Views/Shared/_Layout.cshtml`, `_Layout.cshtml.css`, `wwwroot/css/site.css`, `notifications.js` | Navigation state, role-conditioned links, responsive nav, skip/focus styles, notification bell, unread label, logout and script/CSRF wiring reviewed in source and UI tests. Browser interaction remains blocked. |
+| Dashboard | `Views/Dashboard/Index.cshtml`, `dashboard-outlook.js`, `incident-realtime.js` | KPI definitions, snapshot/refresh and stale behavior, queue/grid hooks, charts, forecast/hotspot availability, selected incident and reduced-motion behavior covered by source and JS regression checks. Actual chart/grid rendering remains blocked. |
+| Incident reporting | `Views/Incidents/Create.cshtml`, `IncidentsController.cs` | Form bindings, validation and failed-submit behavior reviewed; validation rendering and submission remain blocked. |
+| Incident list and My Reports | `Views/Incidents/Index.cshtml`, `MyReports.cshtml`, `_IncidentTable.cshtml`, `_IncidentPagination.cshtml` | Search, severity/status filters, clear/reset, paging and details links reviewed in implementation; browser interaction remains blocked. |
+| Incident details and review | `Views/Incidents/Details.cshtml`, `Duplicates.cshtml`, `DuplicateReview.cshtml`, `VisualReview.cshtml` | Status/impact/assessment/history sections and role-gated review/action controls reviewed. Live data/state transitions remain unverified. |
+| Live map | `Views/Map/Index.cshtml`, `emergency-map.js`, `emergency-map.css` | Filters, layers, markers/popups, selection/drawer, refresh/stale states, and reduced motion reviewed in source; actual map and SignalR interactions remain blocked. |
+| Resource command center and details | `Views/Resources/Index.cshtml`, `Details.cshtml`, `Recommendations.cshtml`, resource UI regression tests | Grid search/sort/filter/page, encoded templates, details, lifecycle action wiring and stale/error treatment reviewed; live component and authorized action behavior remain blocked. |
+| Copilot | `Views/Copilot/Index.cshtml`, `CopilotController.cs` | Question/context/antiforgery bindings, answer/citation/grounding/unavailable states, and approval-required proposal forms reviewed. Provider responses and live approval workflows were not invoked. |
+| Situations | `Views/Situations/Index.cshtml`, `Details.cshtml`, `SituationsController.cs` | Filters, snapshot refresh, unavailable/evaluation states, linked reports and role-guarded review/resolve controls reviewed. Modal and live workflow behavior remain blocked. |
+| Notifications | `Views/Notifications/Index.cshtml`, `NotificationsController.cs`, shared dropdown | Priority/read/type filters, clear, empty/unavailable states, explicit read behavior, and recipient scoping reviewed in source and existing tests; authenticated browser actions remain blocked. |
+
+Controller authorization attributes were reviewed: dashboard/map/resources are limited to operational roles; Copilot includes Responder/Operator/EmergencyAdmin/SystemAdmin; Situations separates read and mutation roles; Notifications and incident reports require authentication, with incident review routes further role-gated. This source review does not establish rendered role-specific screens.
+
+### Actual checks run in this pass
+
+| Check | Result |
+|---|---|
+| `dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore` | Passed: 0 errors, 14 NuGet vulnerability advisory warnings. The sandboxed attempt failed before compilation due host Service Control Manager access; rerun with permitted host access completed successfully. |
+| `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build` | Passed: 572 passed, 0 failed, 0 skipped. |
+| SQL integration suite against `EmergencyResponse_IntegrationTests` on local SQL Server | Passed: 89 passed, 0 failed, 0 skipped, 36 seconds. The temporary command environment targeted only this dedicated integration database; no production/shared database was used. |
+| `node --test scripts/tests/dashboard-ui.test.cjs scripts/tests/resource-command-center.test.cjs` | Passed: 28 passed, 0 failed. |
+| `node --check` for `dashboard-outlook.js`, `emergency-map.js`, `incident-realtime.js`, and `notifications.js` | Passed for all four scripts. |
+| `git diff --check` | Passed. |
+
+No schema changes were made, so no pending-model check was needed. The existing authorized MVC/API script requires private synthetic-account credentials, a DEMO18 seed-result file, and running local Web/API hosts; those prerequisites were not available for a new run. No credentials were read or changed. MVC/API evidence in earlier sections is historical, not a result from this pass.
+
+### Viewport/browser and live interaction results
+
+| Viewport | Result |
+|---|---|
+| 1440 × 900 | Not visually inspected. |
+| 1024 × 768 | Not visually inspected. |
+| 390 × 844 | Not visually inspected. |
+
+The browser automation security policy previously denied access to the local application URL. Per the phase instructions, no alternate browser route or policy workaround was attempted. Thus this pass does not claim rendered layout, overflow, keyboard/touch, console/network, role-session, modal/drawer, SignalR recovery, or live workflow acceptance. No screenshots were captured or added to the screenshot index. Existing manual captures and their limits remain documented in [the screenshot index](screenshots/README.md) and [local demo verification](local-demo-verification.md).
+
+### Findings, blockers, and phase status
+
+- No new critical/high defect was observed in the source and automated checks exercised by this pass; no targeted code fix was indicated.
+- **High acceptance blocker:** actual browser inspection at all three required viewports and interactive cross-page checks remain outstanding because the supported browser cannot access the local app under its security policy.
+- **Medium verification blocker:** fresh authenticated MVC/API checks across all five named roles were not run because private credentials, a seeded result file, and live host prerequisites were unavailable. Authorization attributes and automated suites passed, but do not establish rendered role-specific behavior.
+- Existing limitations documented above remain open and were not expanded in this consolidation pass.
+
+**Completion criteria: PARTIAL / NOT READY TO CLOSE.** Required build, unit, isolated SQL integration, JS, syntax, and diff checks passed. Browser/responsive and fresh authenticated cross-page acceptance remain pending; full responsive acceptance is not claimed. Recommended commit message when the owner chooses to record this documentation checkpoint: `docs: record phase 18 UI regression verification`.
