@@ -26,6 +26,7 @@
 
     // ── Connection Lifecycle ────────────────────────────────────────────────
     connection.onreconnecting(function () {
+        setMapConnectionStatus('Reconnecting…', 'bg-warning text-dark');
         if (isDashboard) {
             setConnectionStatus('Reconnecting...', 'bg-warning text-dark');
         }
@@ -38,6 +39,7 @@
     });
 
     connection.onreconnected(function () {
+        setMapConnectionStatus('Live updates connected', 'bg-success');
         if (isDashboard) {
             setConnectionStatus('Live', 'bg-success');
             refreshDashboard();
@@ -60,6 +62,7 @@
     });
 
     connection.onclose(function () {
+        setMapConnectionStatus('Disconnected · snapshot view', 'bg-danger');
         if (isDashboard) {
             setConnectionStatus('Disconnected', 'bg-danger');
         }
@@ -442,6 +445,7 @@
     async function startRealtime() {
         try {
             await connection.start();
+            setMapConnectionStatus('Live updates connected', 'bg-success');
 
             if (isDashboard) {
                 setConnectionStatus('Live', 'bg-success');
@@ -460,6 +464,7 @@
         }
         catch (error) {
             console.error('[SignalR] Connection failed:', error);
+            setMapConnectionStatus('Live updates unavailable', 'bg-danger');
             if (isDashboard) {
                 setConnectionStatus('Connection failed', 'bg-danger');
             }
@@ -470,6 +475,13 @@
                 window.resourceRecommendations.setConnectionStatus('Connection failed', 'bg-danger');
             }
         }
+    }
+
+    function setMapConnectionStatus(text, badgeClass) {
+        const element = document.getElementById('mapConnectionStatus');
+        if (!element) return;
+        element.className = 'badge ' + badgeClass;
+        element.textContent = text;
     }
 
     document.getElementById('refreshDashboardButton')?.addEventListener('click', refreshDashboard);

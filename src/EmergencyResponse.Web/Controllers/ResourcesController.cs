@@ -36,7 +36,8 @@ public sealed class ResourcesController : Controller
         var viewModel = new ResourceCommandCenterViewModel
         {
             Summary = await summaryTask,
-            Resources = await resourcesTask
+            Resources = await resourcesTask,
+            RetrievedAtUtc = DateTime.UtcNow
         };
 
         return View(viewModel);

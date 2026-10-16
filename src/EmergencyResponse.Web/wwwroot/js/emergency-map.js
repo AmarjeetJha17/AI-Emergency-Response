@@ -29,6 +29,21 @@
     var operationalZoneLayer = null;
     var isRefreshing = false;
 
+    function setMapRefreshStatus(state, message) {
+        var status = document.getElementById('mapRefreshStatus');
+        if (!status) return;
+        status.dataset.state = state;
+        status.textContent = message;
+        status.className = 'small ' + (state === 'failed' || state === 'unavailable' ? 'text-danger' : state === 'current' ? 'text-success' : 'text-muted');
+    }
+
+    function updateMapEmptyState(message) {
+        var state = document.getElementById('mapEmptyState');
+        if (!state) return;
+        state.textContent = message || '';
+        state.hidden = !message;
+    }
+
     function escapeHtml(str) {
         if (!str) return '';
         return String(str)
@@ -435,6 +450,10 @@
             else medium++;
         });
 
+        updateMapEmptyState(total > 0 ? '' : (incidents && incidents.length > 0
+            ? 'No incident coordinates are available for the current results.'
+            : 'No incidents match the current filters.'));
+
         // Update stats on DOM
         updateBadge('statCritical', critical);
         updateBadge('statHigh', high);
@@ -737,6 +756,9 @@
             attribution: attribution,
             maxZoom: 19
         }).addTo(emergencyMap);
+        emergencyMap.on('tileerror', function () {
+            setMapRefreshStatus('unavailable', 'Basemap tiles are unavailable; incident data may still be shown.');
+        });
 
         // Incident MarkerClusterGroup
         markersLayer = L.markerClusterGroup({
@@ -776,7 +798,8 @@
                 '<div class="map-legend-item"><span class="map-legend-dot dot-medium"></span> Medium (<span id="legendCountMedium">0</span>)</div>' +
                 '<div class="map-legend-item"><span class="map-legend-dot dot-low"></span> Low (<span id="legendCountLow">0</span>)</div>' +
                 '<div class="map-legend-item pt-1 border-top mt-1"><span class="resource-marker-mini"></span> Resource</div>' +
-                '<div class="map-legend-item"><span class="zone-marker-mini"></span> Operational radius</div>';
+                '<div class="map-legend-item"><span class="zone-marker-mini"></span> Operational radius</div>' +
+                '<div class="map-legend-item"><span class="situation-marker-mini">!</span> Situation marker</div>';
             return div;
         };
         legendControl.addTo(emergencyMap);
@@ -835,7 +858,10 @@
         isRefreshing = true;
 
         var refreshSpinner = document.getElementById('mapRefreshSpinner');
+        var refreshButton = document.getElementById('btnRefreshMap');
         if (refreshSpinner) refreshSpinner.classList.remove('d-none');
+        if (refreshButton) refreshButton.disabled = true;
+        setMapRefreshStatus('loading', 'Refreshing snapshot…');
 
         try {
             var response = await fetch('/Map/Snapshot', {
@@ -845,34 +871,38 @@
                 }
             });
 
-            if (response.ok) {
-                var data = await response.json();
-                mapState.allIncidents = data.incidents || [];
-                mapState.resources = data.resources || [];
-                mapState.operationalZones = data.operationalZones || [];
-
-                // Re-apply active filters on the updated authoritative snapshot
-                mapState.filteredIncidents = mapState.allIncidents.filter(matchesMapFilters);
-
-                renderIncidents(mapState.filteredIncidents, false);
-                renderResources(mapState.resources);
-                renderOperationalZones(mapState.operationalZones);
-
-                updateIncidentCount(mapState.filteredIncidents.length);
-                updateFilterSummary();
-
-                var lastUpdatedEl = document.getElementById('mapLastUpdated');
-                if (lastUpdatedEl) {
-                    lastUpdatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
-                }
-            } else {
-                console.warn('[EmergencyMap] Snapshot fetch failed with status:', response.status);
+            if (!response.ok) throw new Error('Snapshot request failed (' + response.status + ').');
+            var data = await response.json();
+            if (!data || !Array.isArray(data.incidents) || !Array.isArray(data.resources) ||
+                !Array.isArray(data.operationalZones) || !data.updatedAtUtc || !Number.isFinite(Date.parse(data.updatedAtUtc))) {
+                throw new Error('Snapshot response was incomplete.');
             }
+            mapState.allIncidents = data.incidents;
+            mapState.resources = data.resources;
+            mapState.operationalZones = data.operationalZones;
+
+            // Re-apply active filters on the updated authoritative snapshot.
+            mapState.filteredIncidents = mapState.allIncidents.filter(matchesMapFilters);
+
+            renderIncidents(mapState.filteredIncidents, false);
+            renderResources(mapState.resources);
+            renderOperationalZones(mapState.operationalZones);
+
+            updateIncidentCount(mapState.filteredIncidents.length);
+            updateFilterSummary();
+
+            var lastUpdatedEl = document.getElementById('mapLastUpdated');
+            if (lastUpdatedEl) {
+                lastUpdatedEl.textContent = 'Snapshot retrieved ' + new Date(data.updatedAtUtc).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC';
+            }
+            setMapRefreshStatus('current', 'Snapshot current');
         } catch (err) {
+            setMapRefreshStatus('failed', 'Refresh failed. Showing the last retrieved snapshot.');
             console.error('[EmergencyMap] Error refreshing map snapshot:', err);
         } finally {
             isRefreshing = false;
             if (refreshSpinner) refreshSpinner.classList.add('d-none');
+            if (refreshButton) refreshButton.disabled = false;
         }
     }
 
@@ -883,6 +913,8 @@
                 var config = JSON.parse(configEl.textContent || '{}');
                 initMap(config);
             } catch (e) {
+                updateMapEmptyState('Map unavailable. Snapshot data could not be loaded.');
+                setMapRefreshStatus('unavailable', 'Map unavailable');
                 console.error('[EmergencyMap] Failed to parse map config JSON:', e);
             }
         }
