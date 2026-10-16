@@ -838,6 +838,7 @@ public sealed class OperationalSituationService : IOperationalSituationService, 
             var analysisRecord = new OperationalSituationAnalysis
             {
                 OperationalSituation = situation,
+                PortfolioDemoOwnershipKey = situation.PortfolioDemoOwnershipKey,
                 ModelName = _aiOptions.Model,
                 PromptVersion = AIPromptVersions.SituationSummary,
                 InputSnapshotJson = JsonSerializer.Serialize(snapshot),

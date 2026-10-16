@@ -110,6 +110,7 @@ internal static class PortfolioDemoDataset
         records.Add(new OperationalSituation
         {
             Id = situationId, SituationNumber = "DEMO18-SITUATION-FLOOD", Title = "DEMO18 manual flood report group",
+            PortfolioDemoOwnershipKey = Key,
             Summary = "DEMO18 manual exercise group of three overlapping reports. Six people is the sum of reported counts and may double-count the same two occupants. Casualty total 0 is the model's aggregate default for unknown counts, not a confirmed absence of casualties. No AI summary or automatic clustering was run.",
             Level = EscalationLevel.Advisory, Status = EscalationStatus.Open,
             IncidentCount = 3, CriticalIncidentCount = 0, HighIncidentCount = 0,

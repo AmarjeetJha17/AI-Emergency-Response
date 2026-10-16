@@ -83,7 +83,18 @@ public static partial class DatabaseSeeder
         var placeholderDepartments = new[] { "DISASTER", "FIRE", "POLICE", "MEDICAL", "PWD" }.ToDictionary(x => x, _ => Guid.Empty);
         var expected = RecordIds(PortfolioDemoDataset.Build(placeholderTypes, placeholderDepartments, "", "", DateTime.UtcNow));
         var manifest = ReadManifest(marker, expected);
-        var guardedIds = new Dictionary<string, Guid[]>(manifest.Records) { [nameof(AuditLog)] = [PortfolioDemoDataset.ManifestId] };
+        var situationIds = manifest.Records[nameof(OperationalSituation)];
+        var situationAnalyses = await context.OperationalSituationAnalyses
+            .Where(x => situationIds.Contains(x.OperationalSituationId))
+            .ToListAsync(cancellationToken);
+        if (situationAnalyses.Any(x => x.PortfolioDemoOwnershipKey != PortfolioDemoDataset.Key))
+            throw new InvalidOperationException($"Cleanup blocked: {nameof(OperationalSituationAnalysis)} contains dependent records not owned by DEMO18.");
+
+        var guardedIds = new Dictionary<string, Guid[]>(manifest.Records)
+        {
+            [nameof(AuditLog)] = [PortfolioDemoDataset.ManifestId],
+            [nameof(OperationalSituationAnalysis)] = situationAnalyses.Select(x => x.Id).ToArray()
+        };
         await RefuseForeignReferencesAsync(context, guardedIds, cancellationToken);
         var owned = new List<BaseEntity>();
         var counts = new Dictionary<string, int>();
@@ -93,6 +104,8 @@ public static partial class DatabaseSeeder
             counts[group.Key] = rows.Count;
             owned.AddRange(rows);
         }
+        owned.AddRange(situationAnalyses);
+        counts[nameof(OperationalSituationAnalysis)] = situationAnalyses.Count;
         counts[nameof(AuditLog)] = 1;
         if (apply)
         {

@@ -70,6 +70,15 @@ public sealed class PortfolioDemoSeederIntegrationTests(IntegrationTestFixture f
             Assert.NotNull(situation);
             Assert.Equal(3, situation.Incidents.Count);
             Assert.All(situation.Incidents, item => Assert.Null(item.Casualties));
+
+            using var reanalysis = await Client.PostAsync($"/api/situations/{seeded.SituationIds[0]}/reanalyze", content: null);
+            await reanalysis.EnsureSuccessWithBodyAsync();
+            var analysisOwnershipKey = await ExecuteDbAsync(db => db.OperationalSituationAnalyses
+                .Where(x => x.OperationalSituationId == seeded.SituationIds[0])
+                .OrderByDescending(x => x.GeneratedAtUtc)
+                .Select(x => x.PortfolioDemoOwnershipKey)
+                .FirstAsync());
+            Assert.Equal("DEMO18-v1", analysisOwnershipKey);
             foreach (var (route, marker) in new[]
             {
                 ("/api/resources/command-center", "DEMO18-BOAT"),
@@ -100,6 +109,7 @@ public sealed class PortfolioDemoSeederIntegrationTests(IntegrationTestFixture f
             var dryRun = await ExecuteDbAsync(db => DatabaseSeeder.CleanupPortfolioDemoAsync(db, "Test"));
             Assert.False(dryRun.Applied);
             Assert.Equal(6, dryRun.RecordCounts["Incident"]);
+            Assert.True(dryRun.RecordCounts[nameof(EmergencyResponse.Domain.Entities.OperationalSituationAnalysis)] >= 1);
             Assert.Equal(before, await ExecuteDbAsync(db => db.Incidents.CountAsync()));
             await ExecuteDbAsync(db => DatabaseSeeder.CleanupPortfolioDemoAsync(db, "Test", apply: true));
             Assert.Equal(before - 6, await ExecuteDbAsync(db => db.Incidents.CountAsync()));

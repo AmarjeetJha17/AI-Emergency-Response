@@ -15,6 +15,14 @@ public sealed class PortfolioDemoSeederTests
     private static readonly PortfolioDemoSeedOptions Options = new("Test", "DEMO18-unit-citizen", "DEMO18-unit-operator");
 
     [Fact]
+    public void SituationAnalysesHaveExplicitNullableDemoOwnershipMarker()
+    {
+        var ownershipProperty = typeof(OperationalSituationAnalysis).GetProperty("PortfolioDemoOwnershipKey");
+        Assert.NotNull(ownershipProperty);
+        Assert.Equal(typeof(string), ownershipProperty!.PropertyType);
+    }
+
+    [Fact]
     public async Task Seed_RepeatsWithoutDuplicatesOrOverwritingReviewedState()
     {
         await using var fixture = await CreateFixtureAsync();
@@ -48,6 +56,7 @@ public sealed class PortfolioDemoSeederTests
         Assert.All(await db.Incidents.ToListAsync(), x => Assert.Equal(DuplicateDetectionStatus.NotStarted, x.DuplicateDetectionStatus));
         Assert.All(await db.Resources.ToListAsync(), x => Assert.Equal(ResourceStatus.Available, x.Status));
         var situation = await db.OperationalSituations.Include(x => x.Incidents).SingleAsync();
+        Assert.Equal("DEMO18-v1", situation.PortfolioDemoOwnershipKey);
         Assert.Equal(situation.IncidentCount, situation.Incidents.Count);
         Assert.Equal(3, situation.Incidents.Count);
         Assert.Single(situation.Incidents, x => x.IsPrimaryIncident);
@@ -104,6 +113,7 @@ public sealed class PortfolioDemoSeederTests
     [InlineData("notification")]
     [InlineData("audit")]
     [InlineData("outbox")]
+    [InlineData("analysis")]
     public async Task Cleanup_RefusesForeignDependentsWithoutChangingEitherDataset(string kind)
     {
         await using var fixture = await CreateFixtureAsync();
@@ -114,12 +124,41 @@ public sealed class PortfolioDemoSeederTests
         if (kind == "notification") db.Notifications.Add(new() { Id = Guid.NewGuid(), IncidentId = incidentId, UserId = Options.OperatorUserId, Title = "Operator-owned reminder", Message = "Do not clear my FK." });
         if (kind == "audit") db.AuditLogs.Add(new() { Id = Guid.NewGuid(), Action = "OperatorChange", EntityName = nameof(Incident), EntityId = incidentId.ToString(), OccurredAtUtc = DateTime.UtcNow });
         if (kind == "outbox") db.OutboxMessages.Add(new() { Id = Guid.NewGuid(), MessageKey = "other-owner", MessageType = "incident", PayloadJson = $"{{\"incidentId\":\"{incidentId}\"}}", OccurredAtUtc = DateTime.UtcNow });
+        if (kind == "analysis") db.OperationalSituationAnalyses.Add(new()
+        {
+            Id = Guid.NewGuid(), OperationalSituationId = seed.SituationIds[0], ModelName = "test-model",
+            PromptVersion = "test", InputSnapshotJson = "{}", OutputJson = "{}", GeneratedAtUtc = DateTime.UtcNow
+        });
         await db.SaveChangesAsync();
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => DatabaseSeeder.CleanupPortfolioDemoAsync(db, "Test", apply: true));
         Assert.Contains("Cleanup blocked", failure.Message);
         Assert.Equal(6, await db.Incidents.CountAsync());
         Assert.Equal(6, await db.Resources.CountAsync());
         Assert.Equal(3, await db.Notifications.CountAsync(x => x.DeduplicationKey != null));
+    }
+
+    [Fact]
+    public async Task Cleanup_RemovesOnlyAnalysesExplicitlyOwnedByTheDemoSituation()
+    {
+        await using var fixture = await CreateFixtureAsync();
+        var db = fixture.Context;
+        var seed = await DatabaseSeeder.SeedPortfolioDemoAsync(db, Options);
+        db.OperationalSituationAnalyses.Add(new()
+        {
+            Id = Guid.NewGuid(), OperationalSituationId = seed.SituationIds[0],
+            PortfolioDemoOwnershipKey = "DEMO18-v1", ModelName = "test-model",
+            PromptVersion = "test", InputSnapshotJson = "{}", OutputJson = "{}", GeneratedAtUtc = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var dryRun = await DatabaseSeeder.CleanupPortfolioDemoAsync(db, "Test");
+        Assert.False(dryRun.Applied);
+        Assert.Equal(1, dryRun.RecordCounts[nameof(OperationalSituationAnalysis)]);
+        Assert.Single(await db.OperationalSituationAnalyses.ToListAsync());
+
+        await DatabaseSeeder.CleanupPortfolioDemoAsync(db, "Test", apply: true);
+        Assert.Empty(await db.OperationalSituationAnalyses.ToListAsync());
+        Assert.Empty(await db.OperationalSituations.ToListAsync());
     }
 
     [Fact]

@@ -1,5 +1,41 @@
 # Phase 18 Parts 2.3.1–2.3.2 — Operations shell and dashboard
 
+## Phase 18 Part 2.3.4 — Live map and resource command center (2026-10-16)
+
+**Implementation checkpoint: code changes complete; visual and authorized runtime verification blocked.** No screenshots, commit, push, merge, or deployment were made.
+
+### Changes
+
+- The map and resource command center now show the server-retrieved UTC snapshot time. Manual refresh reports loading, success, and failure; failed refreshes retain the last successful values and timestamp.
+- The map no longer advertises a live connection by default. Its connection badge follows SignalR start, reconnect, and close outcomes. Empty/no-coordinate results and an unavailable map configuration have explicit messages. The Leaflet map height adapts across viewport sizes, its legend includes the situation marker, the incident drawer expands to the mobile viewport, and map animation respects reduced-motion preferences.
+- The resource grid remains Syncfusion-backed with its original fields, paging, sorting, filters, column chooser, and operational actions. Resource names and departments are HTML-encoded in templates; action buttons use escaped data attributes and delegated handlers instead of inline JavaScript. API error messages now render as text.
+- Resource details now have a breadcrumb, a clearer resource heading/status/action layout, and display an unknown department as `Unknown` when missing. Role rules, antiforgery tokens, lifecycle commands, and server-side transition checks were not changed.
+
+### Files changed
+
+`src/EmergencyResponse.Web/Controllers/MapController.cs`, `src/EmergencyResponse.Web/Controllers/ResourcesController.cs`, `src/EmergencyResponse.Web/Models/Map/EmergencyMapViewModel.cs`, `src/EmergencyResponse.Web/Models/Resources/ResourceCommandCenterViewModel.cs`, `src/EmergencyResponse.Web/Views/Map/Index.cshtml`, `src/EmergencyResponse.Web/Views/Resources/Index.cshtml`, `src/EmergencyResponse.Web/Views/Resources/Details.cshtml`, `src/EmergencyResponse.Web/wwwroot/css/emergency-map.css`, `src/EmergencyResponse.Web/wwwroot/css/site.css`, `src/EmergencyResponse.Web/wwwroot/js/emergency-map.js`, `src/EmergencyResponse.Web/wwwroot/js/incident-realtime.js`, and `scripts/tests/resource-command-center.test.cjs`.
+
+### Checks actually run
+
+| Check | Result |
+|---|---|
+| `dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore` | Passed, 0 errors, 18 warnings (existing NuGet vulnerability advisories and nullable warnings). |
+| `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build` | Passed: 569 passed, 0 failed, 0 skipped. |
+| `node --test scripts/tests/resource-command-center.test.cjs scripts/tests/dashboard-ui.test.cjs` | Passed: 28 checks after the final resource rendering assertion. |
+| `node --check` for `emergency-map.js` and `incident-realtime.js` | Passed. |
+| `git diff --check` | Passed; Git printed line-ending normalization notices only. |
+
+The focused resource test first reproduced three failures before the resource fixes: a false initial refresh timestamp, no visible failed-refresh status, and raw model interpolation into the Syncfusion templates.
+
+### Unverified / blocked
+
+- Browser policy denied access to the open `https://localhost:7201/` page and required no retries through alternate surfaces. Therefore no visual or responsive inspection was completed at 1440×900, 1024×768, or 390×844. Map filters/layers, drawer interactions, grid sorting/filtering/paging, keyboard focus, console/network behavior, and actual SignalR recovery were not browser-verified. No screenshots were captured.
+- Authorized MVC/snapshot checks were not run because they require a reachable local application and authorized demo session; accessing the denied app URL through another route was not attempted.
+- SQL integration tests were not run: `ConnectionStrings__TestDatabase` is unset in this environment. The integration harness requires the isolated `EmergencyResponse_IntegrationTests` database.
+- No live resource lifecycle action was issued, so lifecycle outcomes remain unverified in this pass.
+
+Recommended commit after the outstanding runtime checks: `feat: polish live map and resource command center`.
+
 Date: 2026-10-15. Branch: `docs/phase18-portfolio-release`; existing PR #17.
 
 **Status: COMPLETE — engineering checkpoint accepted by the project owner on 2026-10-15, with browser verification explicitly deferred.** Implementation and local regression results are recorded below. Browser rendering and responsive acceptance have not been verified; their execution status remains BLOCKED.
@@ -193,3 +229,11 @@ The requested visual checks at 1440 × 900, 1024 × 768, and 390 × 844 remain *
 Configure `ConnectionStrings:TestDatabase` for the isolated `EmergencyResponse_IntegrationTests` SQL database, then rerun the integration suite and the authorized MVC page check with the existing synthetic DEMO18 seed and accounts. Start the Web and API against that isolated environment and inspect all four incident pages at each requested viewport. Verify keyboard focus and validation-message association on the form; search, severity/status filters, clear-filter behavior and pagination on the queue; empty and paged states on My Reports; and operator/citizen visibility, alert actions, and navigation on Details. Check mobile overflow and action wrapping. Capture screenshots only after viewing the actual rendered screens.
 
 Recommended commit after remaining checks: `feat: polish incident reporting and details UI`.
+
+## CI follow-up — portfolio demo cleanup ownership
+
+The CI error about `OperationalSituationAnalysis` was verified against the current code. The portfolio seeder owns the situation through its audit manifest; analysis rows are created later by `OperationalSituationService`, and previously had no ownership marker. Cleanup correctly rejected those unowned dependents.
+
+The fix adds nullable `PortfolioDemoOwnershipKey` fields to situations and analyses. The demo situation carries `DEMO18-v1`; generated analyses inherit that key. Cleanup queries analyses only through the manifest-owned situation IDs, refuses any row whose key does not match, and includes only explicitly owned analyses in the deletion set. A regression test confirms unmarked analyses still block deletion; owned analyses are counted in dry-run output and removed before their parent.
+
+The EF migration is `20261016170848_AddPortfolioDemoOwnership`. A focused regression test first failed because the analysis entity had no ownership field; after the fix, all 20 portfolio seeder unit tests passed. The complete unit suite then passed 572 tests. The Release solution build passed with 14 warnings and no errors, and the CI EF pending-model-changes check reported no model changes after the migration. SQL Server integration execution remains unavailable locally because `ConnectionStrings__TestDatabase` is unset; the integration test now explicitly reanalyzes the seeded situation and asserts that the generated record inherits the demo ownership key before testing cleanup.
