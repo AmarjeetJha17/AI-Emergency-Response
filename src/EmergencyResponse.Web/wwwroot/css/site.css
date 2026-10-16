@@ -64,6 +64,19 @@ img, svg { max-width: 100%; }
 .er-review-tag { color: var(--er-text); background: var(--er-low-soft); border: 1px solid var(--er-border); }
 .er-review-tag-duplicate { background: var(--er-high-soft); color: var(--er-high); }
 .er-review-tag-visual { background: var(--er-moderate-soft); color: var(--er-moderate); }
+.er-copilot { max-width: 1120px; }
+.er-copilot .er-panel { min-width: 0; }
+.er-copilot-answer { white-space: pre-line; overflow-wrap: anywhere; }
+.er-copilot textarea { min-height: 7rem; }
+.er-copilot .list-group-item, .er-notifications p { overflow-wrap: anywhere; }
+.er-notifications .card-body { min-width: 0; }
+.er-notifications .notification-message { overflow-wrap: anywhere; }
+@media (max-width: 575.98px) {
+  .er-copilot .er-page-actions, .er-notifications .er-page-actions { justify-content: flex-start; width: 100%; }
+  .er-copilot .er-page-actions .btn, .er-notifications .er-page-actions .btn { min-height: 2.75rem; }
+  .er-notifications .card > .d-flex { flex-direction: column; }
+  .er-notifications .card > .d-flex > :last-child { align-items: stretch !important; white-space: normal !important; width: 100%; }
+}
 /* Bootstrap collapse owns the navigation state. */
 /* Incident reporting and management reuse the shell's tokens. */
 .er-incidents { min-width: 0; }

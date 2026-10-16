@@ -42,14 +42,25 @@ public sealed class CopilotController : Controller
             return View(model);
         }
 
-        model.Response = await _client.QueryAsync(
-            new CopilotQuery
+        try
+        {
+            model.Response = await _client.QueryAsync(
+                new CopilotQuery
+                {
+                    Question = model.Question,
+                    IncidentId = model.IncidentId,
+                    SituationId = model.SituationId
+                },
+                cancellationToken);
+            if (model.Response is null)
             {
-                Question = model.Question,
-                IncidentId = model.IncidentId,
-                SituationId = model.SituationId
-            },
-            cancellationToken);
+                model.ActionMessage = "The Copilot returned no response. Your question is preserved; try again later.";
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            model.ActionMessage = "The Copilot service is unavailable right now. Your question is preserved; try again later.";
+        }
         return View(model);
     }
 

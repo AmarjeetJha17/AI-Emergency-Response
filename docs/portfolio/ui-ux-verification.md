@@ -230,6 +230,41 @@ Configure `ConnectionStrings:TestDatabase` for the isolated `EmergencyResponse_I
 
 Recommended commit after remaining checks: `feat: polish incident reporting and details UI`.
 
+## Phase 18 Part 2.3.5 — Copilot, situations, and notifications
+
+Date: 2026-10-17. Branch: `docs/phase18-portfolio-release`; PR #17. Changes remain local and uncommitted.
+
+### Implementation
+
+- Copilot now uses the shared page heading and panels, keeps the question/context/antiforgery bindings, and presents the answer, grounding state, citations, evidence gaps, and response-specific verification notes separately. Empty citations are explicitly described as unverified. Provider and empty-response failures preserve the submitted question and show an unavailable state.
+- Proposal cards show their actual type and summary, expiration, approval requirement, and separate antiforgery-protected approval/rejection forms with labeled comments. Only proposals marked as requiring approval expose those controls; server routes and API revalidation remain authoritative.
+- Situation Command Center no longer claims a permanent Live connection. It labels the initial data as a snapshot, offers a manual snapshot refresh with success/failure status, and preserves active server filters when refreshing. If the initial request fails, it shows unavailable rather than zero-valued KPIs. Scores/evaluation time and shortage state show Not evaluated when no evaluation timestamp exists. Review state no longer claims an item was reviewed merely because no review is pending.
+- Situation evaluation, acknowledge, review, resolve, and dismiss controls follow the existing role permission map and endpoint role requirements. Linked-report caveat remains visible; aggregate values are labeled as reported totals and a zero casualty count is not presented as proof of no casualties.
+- Notification Center now has five clearly labeled summary cards, GET filters for priority/read status/type, visible active filters, a clear action, and a distinct data-unavailable state. Empty filtered results no longer say all notifications are caught up. Summary authorization failures are no longer converted to fake zero counts; a missing summary is calculated from the recipient-scoped loaded set and only unread rows contribute to the priority metrics. Reading remains an explicit user action. Arbitrary external `ActionUrl` values are not used as notification links; the existing incident/situation destination is used when the action URL is not local.
+- Added small-screen layout rules using existing design tokens. No new dependencies, fake response data, or live-connection claims were added.
+
+### Validation performed
+
+- `dotnet build AI-Emergency-Response.slnx -c Release --no-restore`: passed, 0 errors, 14 warnings. The warnings are existing package vulnerability advisories (including `System.Security.Cryptography.Pkcs` and `System.Security.Cryptography.Xml`); no new nullable Razor warning remains in the touched situation view.
+- `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-restore`: passed, 572 passed, 0 failed, 0 skipped.
+- `node --test scripts/tests/dashboard-ui.test.cjs scripts/tests/resource-command-center.test.cjs`: passed, 28 passed, 0 failed.
+- `git diff --check`: passed after the final edits.
+- `ConnectionStrings__TestDatabase` is unset. SQL integration tests were not run; the test harness requires the isolated `EmergencyResponse_IntegrationTests` database and will not use another database.
+- No focused MVC/browser snapshot test was available for these Razor views. Existing situation and notification API integration tests were not run because the isolated SQL test database is unavailable.
+
+### Browser and responsive verification
+
+Visual rendering, keyboard interaction, and the requested 1440 × 900, 1024 × 768, and 390 × 844 viewport checks remain blocked. The available browser automation was denied access to the local application URL by its security policy, and no alternate browser route was used. Build and source inspection do not count as visual verification.
+
+Manual verification once browser access is available:
+
+1. Sign in with existing synthetic Responder, Operator, EmergencyAdmin, and SystemAdmin accounts. Confirm unauthorized users do not see Copilot, situation mutation, evaluation, or resolution actions they cannot execute.
+2. Submit a Copilot question with and without hidden incident/situation context. Check validation, preserved question after provider error, grounded/partial/insufficient/unavailable states, citation metadata, absent-citation messaging, and response-specific verification notes. Check proposal types, expiration, approval requirement, comments, separate approval/rejection forms, and confirmation that approval is a server-authorized workflow.
+3. At each viewport, inspect situation filters and manual refresh. Verify a successful snapshot preserves active filters, a failed refresh retains prior rows with a stale/unavailable label, default evaluation timestamps show Not evaluated, and the linked-report caveat remains visible. Test the existing modal/state transitions with the appropriate role.
+4. Inspect notification priority/status/type filtering and clear behavior, all five metric meanings, long-message wrapping, empty and unavailable states, unread/read controls, and mark-all behavior. Confirm displaying a notification does not change its read state. Check keyboard focus and horizontal page overflow.
+
+Recommended commit: `feat: polish copilot situations and notifications UI`.
+
 ## CI follow-up — portfolio demo cleanup ownership
 
 The CI error about `OperationalSituationAnalysis` was verified against the current code. The portfolio seeder owns the situation through its audit manifest; analysis rows are created later by `OperationalSituationService`, and previously had no ownership marker. Cleanup correctly rejected those unowned dependents.
