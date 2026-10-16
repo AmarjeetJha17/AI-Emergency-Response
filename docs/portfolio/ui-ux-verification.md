@@ -232,7 +232,7 @@ Recommended commit after remaining checks: `feat: polish incident reporting and 
 
 ## Phase 18 Part 2.3.5 — Copilot, situations, and notifications
 
-Date: 2026-10-17. Branch: `docs/phase18-portfolio-release`; PR #17. Changes remain local and uncommitted.
+Date: 2026-10-17. Branch: `docs/phase18-portfolio-release`; PR #17. The UI changes were committed and pushed as `005a7ea`; subsequent SQL validation and the test-isolation follow-up are recorded below.
 
 ### Implementation
 
@@ -249,8 +249,9 @@ Date: 2026-10-17. Branch: `docs/phase18-portfolio-release`; PR #17. Changes rema
 - `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-restore`: passed, 572 passed, 0 failed, 0 skipped.
 - `node --test scripts/tests/dashboard-ui.test.cjs scripts/tests/resource-command-center.test.cjs`: passed, 28 passed, 0 failed.
 - `git diff --check`: passed after the final edits.
-- `ConnectionStrings__TestDatabase` is unset. SQL integration tests were not run; the test harness requires the isolated `EmergencyResponse_IntegrationTests` database and will not use another database.
-- No focused MVC/browser snapshot test was available for these Razor views. Existing situation and notification API integration tests were not run because the isolated SQL test database is unavailable.
+- At the initial UI pass, `ConnectionStrings__TestDatabase` was unset, so SQL integration tests were not run then. After configuring the dedicated `EmergencyResponse_IntegrationTests` database, the complete SQL integration suite passed: 89 passed, 0 failed, 0 skipped.
+- The first configured run exposed that the situation-evaluation integration test reused a fixed coordinate while leaving rows in the persistent test database. The test now gives each run a distinct geographic origin, preserving a tight cluster within each run and preventing stale rows from joining it. The focused test passed (1/1), followed by the full SQL suite (89/89).
+- No focused MVC/browser snapshot test was available for these Razor views. Situation and notification API integration coverage did run as part of the full SQL suite.
 
 ### Browser and responsive verification
 

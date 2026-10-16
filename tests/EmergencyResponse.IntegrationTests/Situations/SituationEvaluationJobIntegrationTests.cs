@@ -30,7 +30,10 @@ public sealed class SituationEvaluationJobIntegrationTests : IntegrationTestBase
     [Fact]
     public async Task EnqueuedEvaluationJob_CreatesUpdatesAndAcknowledgesSituation()
     {
-        var incidentIds = await CreateIncidentClusterAsync(3);
+        // The integration database persists between test runs. Give each run
+        // its own distant location so stale incidents cannot join this cluster.
+        var clusterOrigin = CreateClusterOrigin();
+        var incidentIds = await CreateIncidentClusterAsync(3, clusterOrigin);
         var triggerReason = $"IntegrationTest-{Guid.NewGuid():N}";
         var job = new SituationEvaluationJob(incidentIds[0], triggerReason);
 
@@ -58,7 +61,10 @@ public sealed class SituationEvaluationJobIntegrationTests : IntegrationTestBase
         var previousAnalysisCount = situation.Analyses.Count;
         await Task.Delay(TimeSpan.FromMilliseconds(25));
 
-        var additionalIncidentId = await AddIncidentToClusterAsync(incidentIds.Count, casualties: 5);
+        var additionalIncidentId = await AddIncidentToClusterAsync(
+            incidentIds.Count,
+            casualties: 5,
+            clusterOrigin);
         incidentIds.Add(additionalIncidentId);
         await queue.EnqueueAsync(new SituationEvaluationJob(
             additionalIncidentId,
@@ -91,13 +97,15 @@ public sealed class SituationEvaluationJobIntegrationTests : IntegrationTestBase
         Assert.False(acknowledgedSituation.RequiresHumanReview);
     }
 
-    private async Task<List<Guid>> CreateIncidentClusterAsync(int count)
+    private async Task<List<Guid>> CreateIncidentClusterAsync(
+        int count,
+        (decimal Latitude, decimal Longitude) clusterOrigin)
     {
         var incidentTypeId = await ExecuteDbAsync(db => db.IncidentTypes
             .Select(type => type.Id)
             .FirstAsync());
         var incidents = Enumerable.Range(0, count)
-            .Select(index => CreateClusterIncident(incidentTypeId, index, casualties: 0))
+            .Select(index => CreateClusterIncident(incidentTypeId, index, casualties: 0, clusterOrigin))
             .ToList();
 
         await ExecuteDbAsync(async db =>
@@ -109,12 +117,15 @@ public sealed class SituationEvaluationJobIntegrationTests : IntegrationTestBase
         return incidents.Select(incident => incident.Id).ToList();
     }
 
-    private async Task<Guid> AddIncidentToClusterAsync(int index, int casualties)
+    private async Task<Guid> AddIncidentToClusterAsync(
+        int index,
+        int casualties,
+        (decimal Latitude, decimal Longitude) clusterOrigin)
     {
         var incidentTypeId = await ExecuteDbAsync(db => db.IncidentTypes
             .Select(type => type.Id)
             .FirstAsync());
-        var incident = CreateClusterIncident(incidentTypeId, index, casualties);
+        var incident = CreateClusterIncident(incidentTypeId, index, casualties, clusterOrigin);
 
         await ExecuteDbAsync(async db =>
         {
@@ -125,7 +136,11 @@ public sealed class SituationEvaluationJobIntegrationTests : IntegrationTestBase
         return incident.Id;
     }
 
-    private static Incident CreateClusterIncident(Guid incidentTypeId, int index, int casualties)
+    private static Incident CreateClusterIncident(
+        Guid incidentTypeId,
+        int index,
+        int casualties,
+        (decimal Latitude, decimal Longitude) clusterOrigin)
     {
         var incident = TestDataFactory.CreateIncident(
             incidentTypeId,
@@ -140,13 +155,24 @@ public sealed class SituationEvaluationJobIntegrationTests : IntegrationTestBase
         incident.Casualties = casualties;
 
         var location = TestDataFactory.CreateIncidentLocation(incident.Id);
-        location.Latitude = 40.7128m + (index * 0.0001m);
-        location.Longitude = -74.0060m + (index * 0.0001m);
+        location.Latitude = clusterOrigin.Latitude + (index * 0.0001m);
+        location.Longitude = clusterOrigin.Longitude + (index * 0.0001m);
         location.City = "Situation Evaluation Test Cluster";
         location.Address = $"Test location {index + 1}";
         incident.Locations.Add(location);
 
         return incident;
+    }
+
+    private static (decimal Latitude, decimal Longitude) CreateClusterOrigin()
+    {
+        var bytes = Guid.NewGuid().ToByteArray();
+        var latitudeFraction = BitConverter.ToUInt32(bytes, 0) / (decimal)uint.MaxValue;
+        var longitudeFraction = BitConverter.ToUInt32(bytes, 4) / (decimal)uint.MaxValue;
+
+        return (
+            Latitude: -80m + (latitudeFraction * 160m),
+            Longitude: -170m + (longitudeFraction * 340m));
     }
 
     private async Task<OperationalSituation> WaitForSituationAsync(
