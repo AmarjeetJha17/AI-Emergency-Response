@@ -37,7 +37,15 @@
 
     async function loadSummary() {
         try {
-            const resp = await fetch('/Notifications/Summary');
+            const resp = await fetch('/Notifications/Summary', {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            const contentType = resp.headers.get('content-type') || '';
+            if (resp.redirected || !contentType.includes('application/json')) {
+                document.getElementById('notificationBell')?.setAttribute('aria-label', 'Notifications, unread count unavailable');
+                return;
+            }
             if (!resp.ok) throw new Error('Notification summary unavailable');
             const data = await resp.json();
             updateBadge(data.totalUnread);

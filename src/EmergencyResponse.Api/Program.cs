@@ -532,8 +532,11 @@ using (var scope = app.Services.CreateScope())
     var userManager =
         services.GetRequiredService<UserManager<ApplicationUser>>();
 
-    if (app.Environment.IsEnvironment("Test"))
+    if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Test"))
     {
+        app.Logger.LogInformation(
+            "Applying pending EF Core migrations for the {Environment} database.",
+            app.Environment.EnvironmentName);
         await dbContext.Database.MigrateAsync();
     }
 

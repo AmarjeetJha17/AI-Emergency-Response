@@ -11,6 +11,11 @@
             return '';
         }
 
+        const contentType = response.headers.get('content-type') || '';
+        if (response.redirected || !contentType.includes('application/json')) {
+            return '';
+        }
+
         const payload = await response.json();
         return payload.accessToken ?? '';
     }
@@ -444,6 +449,10 @@
     // ── Start Realtime ───────────────────────────────────────────────────────
     async function startRealtime() {
         try {
+            if (!await getToken()) {
+                throw new Error('An authenticated API token is unavailable. Sign in again to use live updates.');
+            }
+
             await connection.start();
             setMapConnectionStatus('Live updates connected', 'bg-success');
 

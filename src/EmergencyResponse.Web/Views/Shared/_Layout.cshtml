@@ -237,13 +237,16 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/_content/Syncfusion.AspNetCore.Popups/scripts/sf-dialog.min.js"></script>
-    <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
-    <script src="~/js/incident-realtime.js"
-            data-api-base="@(_config["ApiSettings:BaseUrl"]?.TrimEnd('/') ?? string.Empty)"></script>
-    <script src="~/js/notifications.js" asp-append-version="true"></script>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
+        <script src="~/js/incident-realtime.js"
+                data-api-base="@(_config["ApiSettings:BaseUrl"]?.TrimEnd('/') ?? string.Empty)"></script>
+        <script src="~/js/notifications.js" asp-append-version="true"></script>
 
-    @* Floating Toast Container for Real-Time Alerts *@
-    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;" id="notificationToastContainer"></div>
+        @* Floating Toast Container for Real-Time Alerts *@
+        <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;" id="notificationToastContainer"></div>
+    }
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
