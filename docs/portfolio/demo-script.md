@@ -80,6 +80,26 @@ dotnet run --project src/EmergencyResponse.Web --configuration Release --launch-
 
 API HTTPS: `https://localhost:7191`; Web HTTPS: `https://localhost:7201`. Web's `ApiSettings:BaseUrl` already matches the API HTTPS profile. Check API `/health/live` and `/health/ready`, then sign in through Web. A successful liveness response alone does not establish SQL/provider readiness.
 
+### If API startup reports `Invalid column name 'DataClassification'`
+
+The source migration `20261008095318_AddDataClassification` adds the field to `AspNetUsers` and several other tables. API startup applies migrations automatically only in the `Test` environment; a Development launch requires an explicit migration update. First confirm the API's effective connection target is your intended local development database. Do not copy a production/shared connection into the command below.
+
+The design-time context factory reads `ConnectionStrings__DefaultConnection` (or the integration-test variable) and does not load API User Secrets. In PowerShell, load the exact local development connection string into a temporary environment variable without printing it, then inspect the migration state:
+
+```powershell
+# Set this from your private local setup; do not paste or commit the value.
+$env:ConnectionStrings__DefaultConnection = $demoConnection
+dotnet ef migrations list --project src/EmergencyResponse.Infrastructure --startup-project src/EmergencyResponse.Api --context ApplicationDbContext
+```
+
+Review every pending migration and its `Up` operation. Back up the intended local database, then apply the reviewed migrations to that same target:
+
+```powershell
+dotnet ef database update --project src/EmergencyResponse.Infrastructure --startup-project src/EmergencyResponse.Api --context ApplicationDbContext --connection $env:ConnectionStrings__DefaultConnection
+```
+
+Restart the API after EF exits successfully. If `AddDataClassification` is reported as applied but SQL Server still reports the column missing, stop: the configured target may differ from the database you inspected, or the schema/history may have drifted. Do not hand-add the column or edit `__EFMigrationsHistory`; identify the target and repair the migration history/schema through a reviewed recovery plan. Remove the temporary variable when finished with `Remove-Item Env:\ConnectionStrings__DefaultConnection`.
+
 ## 3. Separate automated-test databases
 
 Tracked test connection strings are intentionally empty. Integration/readiness configuration reads environment variables last. Load options likewise prefer `ConnectionStrings__LoadTestDatabase`.

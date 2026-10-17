@@ -35,6 +35,31 @@ Prepared 2026-10-14. Evidence is tied to its environment and source revision. **
 
 ## Quality snapshot
 
+**Phase 18 Part 2.4 release preparation (2026-10-17):** the timed demo script, presentation, and README update are prepared against the actual source and previously inspected synthetic captures. The end-to-end walkthrough was not executed. Existing images predate the latest UI polish. Browser access remains blocked, so current-state screenshots, all-role live browser workflows, and responsive acceptance are pending. No feature verification classification was upgraded based on documentation alone. This Part 2.4 run passed the Release build, 572 unit tests, 89 dedicated SQL integration tests, 28 UI JavaScript tests, and four JavaScript syntax checks. They do not prove visual rendering or live-provider behavior.
+
+Actual commands from this release-preparation run:
+
+- `dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore` — passed, 0 errors, 49 warnings (existing NuGet vulnerability advisories and nullable-reference warnings).
+- `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build` — passed, 572 passed, 0 failed/skipped.
+- `$env:ConnectionStrings__TestDatabase='Server=localhost;Database=EmergencyResponse_IntegrationTests;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'; dotnet test tests/EmergencyResponse.IntegrationTests/EmergencyResponse.IntegrationTests.csproj --configuration Release --no-build` — passed, 89 passed, 0 failed/skipped. The value was set only for the command and targeted the dedicated local integration database.
+- `node --test scripts/tests/dashboard-ui.test.cjs scripts/tests/resource-command-center.test.cjs` — passed, 28 passed.
+- `node --check` for `dashboard-outlook.js`, `emergency-map.js`, `incident-realtime.js`, and `notifications.js` — passed.
+- `git diff --check` — final result recorded after the docs/assets review.
+
+The user reported a Development startup exception at `AdminSeeder` with SQL Server error 207, `Invalid column name 'DataClassification'`. Repository inspection found migration `20261008095318_AddDataClassification` adds this field to `AspNetUsers` and other tables, while API startup calls `MigrateAsync()` only in the `Test` environment. This is consistent with an old or mismatched local schema, but the user's configured database and its migration history were not inspected. Do not mark startup recovery as verified until the intended local database is identified, migration history/schema are checked, and an approved migration update is tested.
+
+## Phase 18 Part 2.4 release readiness
+
+| Deliverable/check | Status | Evidence and limitation |
+|---|---|---|
+| 3–5 minute synthetic demo walkthrough | Prepared, not executed | [Walkthrough](demo-walkthrough.md) uses existing routes and role rules. It avoids fixture mutation and live provider claims. |
+| Six current final-state screenshots | Blocked / pending | [Screenshot index](screenshots/README.md): genuine 2026-10-15 captures are historical and predate current UI polish; no new browser capture was made. |
+| Root README | Updated | Adds direct walkthrough links, setup/migration note, dated verification and explicit evidence/hosting boundaries. |
+| Six-slide portfolio presentation | Prepared | [Editable source](project-presentation.md) and [PowerPoint](AI-Emergency-Response-Portfolio-Deck.pptx); its one app image is explicitly labeled historical limited evidence. |
+| App start on the user's configured development DB | Not verified | Error suggests missing/mismatched `DataClassification` migration; database target and history were not inspected. |
+| Browser, responsive, all-role and live provider workflow | Pending | Prior localhost access policy block remains. No live model request or external action was performed. |
+| Azure hosting or emergency-authority integration | Not verified / not deployed | No Azure action taken. Operational release remains NO-GO. |
+
 Historical source: `22608ab`, CI run 38470547281, 2026-10-13 UTC: 504 unit and 86 integration tests passed; combined Domain/Application coverage 79.46%, required minimum 70%. Infrastructure/API/Web are outside that merged coverage gate. [CI](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38470547281), [CodeQL](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38470547242).
 
 Current Phase 18 validation is recorded below. Twelve inspected manual screenshots provide bounded local rendering and defect evidence; corrected screens and remaining interactions are pending. Skipped live-AI execution is not a successful provider workflow.

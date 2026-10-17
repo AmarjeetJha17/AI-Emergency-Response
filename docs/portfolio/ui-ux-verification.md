@@ -326,3 +326,25 @@ The browser automation security policy previously denied access to the local app
 - Existing limitations documented above remain open and were not expanded in this consolidation pass.
 
 **Completion criteria: PARTIAL / NOT READY TO CLOSE.** Required build, unit, isolated SQL integration, JS, syntax, and diff checks passed. Browser/responsive and fresh authenticated cross-page acceptance remain pending; full responsive acceptance is not claimed. Recommended commit message when the owner chooses to record this documentation checkpoint: `docs: record phase 18 UI regression verification`.
+
+## Phase 18 Part 2.4 follow-up — startup schema exception
+
+On 2026-10-17 the owner supplied a Visual Studio exception screenshot: SQL Server error 207, `Invalid column name 'DataClassification'`, thrown at `AdminSeeder.SeedAsync` while `UserManager.FindByEmailAsync` reads `AspNetUsers`. Source inspection confirms migration `20261008095318_AddDataClassification` adds that column (and the same property on eleven other tables). `Program.cs` applies migrations automatically only when the environment is `Test`, not `Development`; the documented Development setup requires an explicit EF migration update.
+
+This is consistent with an old schema or a mismatch between the database being migrated and the database used by the running API. The actual configured database name and `__EFMigrationsHistory` were not inspected, and no migration was applied. Treat local demo startup as blocked until the operator verifies the API's effective connection target, checks whether `20261008095318_AddDataClassification` is pending, reviews all pending `Up` operations, backs up the intended local database, and applies only the reviewed migrations. If EF reports the migration applied while the column is absent, stop and investigate schema drift or a wrong connection target; do not hand-add the column or edit migration history.
+
+The current shell did not have `ConnectionStrings__DefaultConnection`, and the API User Secrets file did not contain that key. Visual Studio may receive the connection from another private environment source. The configured server/database and migration history therefore remain unknown; no attempt was made to query or update an assumed database.
+
+### Phase 18 Part 2.4 validation run — 2026-10-17
+
+| Check | Actual result |
+|---|---|
+| `dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore` | Passed, 0 errors, 49 warnings. Warnings include existing package vulnerability advisories and nullable-reference warnings. |
+| `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build` | Passed: 572 passed, 0 failed, 0 skipped. |
+| `$env:ConnectionStrings__TestDatabase='Server=localhost;Database=EmergencyResponse_IntegrationTests;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'; dotnet test tests/EmergencyResponse.IntegrationTests/EmergencyResponse.IntegrationTests.csproj --configuration Release --no-build` | Passed: 89 passed, 0 failed, 0 skipped. Only the designated local integration database was targeted. |
+| `node --test scripts/tests/dashboard-ui.test.cjs scripts/tests/resource-command-center.test.cjs` | Passed: 28 passed. |
+| `node --check` on `dashboard-outlook.js`, `emergency-map.js`, `incident-realtime.js`, and `notifications.js` | Passed for all four scripts. |
+| Six-slide portfolio deck validation and render review | Package/layout validation passed with 0 findings. All six rendered previews were inspected. The actual map image failed to embed and diagram arrows pointed backward in a first draft; both were corrected before finalization. This does not claim testing in PowerPoint. |
+| `git diff --check` | Run after final documentation/assets review; see current Phase 2.4 report. |
+
+The authorized MVC/API script was not run: the required private synthetic account credentials, seed-result file, and known running Web/API hosts were unavailable. The browser remained blocked by its existing local-URL security policy. The demo walkthrough was not executed and no screenshot was captured in this run.

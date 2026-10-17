@@ -6,22 +6,34 @@ Phase 18 Part 2.2 was accepted as complete with remaining verification deferred 
 
 **2026-10-14:** capture was explicitly deferred by the owner while browser automation was unavailable. **2026-10-15:** the owner supplied twelve real Chrome screenshots in three batches: map controls/tiles/Console, flood details, duplicate unavailable state, resource details/history, map Issues, fire details/location and situation details/links. Reviewed copies have documented cropping/redaction. Fire/situation captures precede the resulting presentation/resolve corrections; corrected rendering and other screens remain pending. No live-AI output was fabricated.
 
+**Phase 18 Part 2.4 status (2026-10-17):** the repository captures were reopened and inspected for release use. They are genuine local application images but predate the 2.3.3–2.3.5 UI polish. The map capture is limited evidence of the earlier markers/layers and synthetic counts. The incident/resource details captures show synthetic records but older branding/layout. The fire/situation captures visibly preserve pre-correction defects and must remain defect evidence only. Do not label these as current final-state screenshots. Browser access was blocked by policy, so no replacement images were captured.
+
 Phase 18 Part 2.1 verified DEMO18 data through authenticated local MVC responses and snapshots, including dashboard, map, incident details, resources and situations. That is server-response evidence only. The manual Part 2.2B captures add the bounded visual results below; interactions and unshown screens remain pending. See [actual verification](../synthetic-demo-data.md).
 
 | View | File | Status | Observed evidence |
 |---|---|---|---|
-| Dashboard | dashboard.png | Pending | Local authenticated dashboard |
-| Live map | [live-map.png](live-map.png) | Captured and inspected — limited PASS | Real tiles/markers/clusters, six incidents and six resources; no selected-report drawer or toggled-layer evidence |
-| Flood incident details | [incident-details.png](incident-details.png) | Captured and inspected — limited PASS | DEMO18-FLOOD-01 description, UnderReview and explicit prediction unavailable; lower assessment/history not shown |
-| Duplicate unavailable state | [duplicate-assessment-unavailable.png](duplicate-assessment-unavailable.png) | Captured and inspected — limited PASS | NotStarted, no conclusion and no merge; no scored match fabricated |
-| Completed resource details/history | [resource-details.png](resource-details.png) | Captured and inspected — limited PASS | DEMO18 police Available/Unassigned; retained road lifecycle history; actor IDs redacted |
-| Resource command center | resources.png | Pending | Synthetic inventory/assignment |
+| Dashboard | dashboard.png | Pending — capture after latest UI polish | Current local authenticated dashboard and real synthetic values |
+| Live map | [live-map.png](live-map.png) | Historical capture, inspected — limited evidence only | 2026-10-15 image shows map tiles, markers/layers, six incidents and six resources before Part 2.3.4 polish; no selected-report drawer or toggled-layer evidence; attribution partly clipped |
+| Flood incident details | [incident-details.png](incident-details.png) | Historical capture, inspected — data subset only | 2026-10-15 image shows DEMO18-FLOOD-01 description, UnderReview and prediction unavailable; older shell/UI; lower assessment/history not shown |
+| Duplicate unavailable state | [duplicate-assessment-unavailable.png](duplicate-assessment-unavailable.png) | Historical capture, inspected — state subset only | 2026-10-15 image shows NotStarted, no conclusion and no merge; no scored match fabricated; predates later UI polish |
+| Completed resource details/history | [resource-details.png](resource-details.png) | Historical capture, inspected — data subset only | 2026-10-15 image shows DEMO18 police Available/Unassigned and retained road lifecycle history; older shell/UI; actor IDs redacted |
+| Resource command center | resource-command-center.png | Pending — capture after latest UI polish | Current synthetic inventory, grid and available actions |
+| Copilot grounded response | copilot-grounded-response.png | Pending — do not fabricate | Actual provider response, citation and grounding state, only if permitted services work |
+| Situation and notifications | situations-notifications.png | Pending — capture after latest corrections | Actual situation detail or recipient-scoped notification workflow |
 | Fire detail/manual escalation | [fire-details-before-correction.png](fire-details-before-correction.png) | Captured before correction — limited data PASS | Explicit unknown occupants, manual reason and acknowledged escalation; forbidden Operator Resolve button is defect evidence |
 | Situation detail | [situation-details-before-correction.png](situation-details-before-correction.png) | Captured before correction — data PASS / presentation FAIL | Manual acknowledged summary/count caveat; unsupported evaluation/Resolve presentation prompted fixes |
 | Situation links | [situation-links-before-correction.png](situation-links-before-correction.png) | Captured before correction — data PASS / provenance FAIL | Three named links with casualties unknown; false scheduled/grouping captions prompted fixes |
 | Copilot citations | copilot-citations.png | Pending | Actual permitted retrieval and response |
 
 For each captured image record date, source commit, environment, actor role, synthetic dataset, provider mode, and observations in the feature register. A UI rendering is not proof of authorization, grounding, recovery, or Azure staging verification. Pending screens remain visible until observed.
+
+## Manual capture checklist
+
+1. Start the local API and Web using the reviewed [setup guide](../demo-script.md). Confirm the intended local database name and apply reviewed migrations before startup. Confirm the current worktree/commit and synthetic provider mode.
+2. Open Chrome at 1440 × 900 and the actual local application. Use a separate synthetic role session as appropriate. Never capture credentials, tokens, personal information, or browser account details.
+3. Capture the real dashboard, corrected incident details, map, resource command center, Copilot state, and situation/notifications workflow. Capture the current status text exactly as rendered. If a provider or service is unavailable, capture that truthful unavailable state rather than retrying until a fabricated success appears.
+4. Inspect each image at full size for clipping, illegible content, errors, personal data, tokens, and misleading status. Record the role, date, source revision, environment, and what the image proves. Preserve the original capture; any redaction must be documented and must not change the UI state.
+5. Repeat key screens at 1024 × 768 and 390 × 844 for responsive inspection, even if the portfolio index keeps one 1440 × 900 representative per view.
 
 ## Map evidence provenance
 

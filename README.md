@@ -96,7 +96,7 @@ CI restores/builds the solution, checks pending EF model changes, runs unit and 
 
 Verified snapshot for portfolio commit `41aadf9` (CI on 2026-10-14 UTC): **509 unit tests**, **86 SQL integration tests**, and **79.46% combined Domain/Application coverage**, all passing. Docker builds, Bicep compilation, CodeQL and dependency review also passed. [Run evidence](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions/runs/38534715013). This is a dated result, not a guarantee about another commit or coverage of Infrastructure/Web/API.
 
-The live-AI workflow can skip successfully when provider settings are missing. Its green badge alone is not real-model evaluation evidence. A short local/CI workload is not production capacity. See the [portfolio register](docs/portfolio/feature-verification.md), [testing docs](docs/testing), and actual [Actions history](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions).
+The live-AI workflow can skip successfully when provider settings are missing. Its green badge alone is not real-model evaluation evidence. A short local/CI workload is not production capacity. The latest local regression run on 2026-10-17 passed the Release build (49 warnings, 0 errors), 572 unit tests, 89 SQL integration tests against the dedicated `EmergencyResponse_IntegrationTests` database, 28 UI JavaScript tests, and JavaScript syntax checks. The warnings include existing vulnerability advisories and nullable-reference warnings. This run did not verify browser rendering or live AI. See the dated [portfolio register](docs/portfolio/feature-verification.md), [UI verification](docs/portfolio/ui-ux-verification.md), [testing docs](docs/testing), and actual [Actions history](https://github.com/AmarjeetJha17/AI-Emergency-Response/actions).
 
 ## Deployment and safety status
 
@@ -134,15 +134,25 @@ dotnet restore AI-Emergency-Response.slnx
 dotnet build AI-Emergency-Response.slnx --configuration Release
 ```
 
-These commands build the project; they do not configure services or migrate a database. Follow the [local setup and synthetic demo script](docs/portfolio/demo-script.md) before starting the API/Web or executing migrations.
+These commands build the project; they do not configure services or migrate a database. Development API startup runs seeders but does not apply migrations. Apply migrations explicitly to the intended local database after checking its server and database name. Follow the [local setup and synthetic demo script](docs/portfolio/demo-script.md) before starting API/Web or importing fixtures.
 
 Runtime secrets belong in User Secrets or environment variables. SQL test settings are intentionally empty in tracked files: supply `ConnectionStrings__TestDatabase` and `ConnectionStrings__LoadTestDatabase` for the dedicated disposable databases. Test setup can reset data; never point it at a shared or production database.
 
 ## Portfolio walkthrough
 
-Start with [feature verification](docs/portfolio/feature-verification.md), then the [demo script](docs/portfolio/demo-script.md) and [screenshot index](docs/portfolio/screenshots/README.md). Screenshots use synthetic records and identify what was actually observed. Unavailable views remain pending rather than being presented as verified.
+Start with the timed [3–5 minute demo walkthrough](docs/portfolio/demo-walkthrough.md), then read the [local setup and synthetic demo script](docs/portfolio/demo-script.md). The six-slide [portfolio deck](docs/portfolio/AI-Emergency-Response-Portfolio-Deck.pptx) and its [editable Markdown source](docs/portfolio/project-presentation.md) summarize the architecture and evidence boundaries. The existing [screenshot index](docs/portfolio/screenshots/README.md) contains genuine but limited captures from 2026-10-15. Those images predate later UI polish. Current dashboard, resource command center, Copilot, and responsive captures remain pending; do not present the older screenshots as current corrected screens.
 
-The [DEMO18 dataset](docs/portfolio/synthetic-demo-data.md) imports six clearly marked synthetic reports with valid manual operational records into an isolated local database. Import is idempotent and cleanup is ownership-scoped. Local automated tests and authenticated MVC responses are verified; screenshots and live AI/duplicate assessments remain pending.
+The [DEMO18 dataset](docs/portfolio/synthetic-demo-data.md) imports six clearly marked synthetic reports, six resources, manual escalations, a manually grouped situation, and review reminders into an isolated local database. Import is idempotent and cleanup is ownership-scoped, but cleanup refuses to remove later application-owned evidence. The fixtures do not run AI, confirm duplicate relationships, send notifications, or dispatch resources. Local automated checks and selected authenticated MVC/API responses have passed at dated checkpoints; current UI screenshots and live AI/duplicate assessments remain pending.
+
+## Current verification status
+
+- **Implemented:** the application and local demo tooling described above.
+- **Verified locally:** dated build, unit, isolated SQL integration, JavaScript, and selected authenticated MVC/API checks listed in the verification register.
+- **Partially verified:** map/resource rendering and selected incident, resource, and situation data in manual captures from 2026-10-15. Those captures predate the latest UI polish and show only limited paths.
+- **Not verified:** current visual layouts at desktop/tablet/mobile sizes, a complete end-to-end walkthrough, fresh all-role browser workflows, live AI grounding quality, full SignalR recovery, or operational integration with emergency authorities.
+- **Hosting:** no hosted demo or Azure staging deployment is verified. Run locally using the setup guide. This project is not approved for real emergency operations.
+
+More detail: [feature verification](docs/portfolio/feature-verification.md), [UI verification](docs/portfolio/ui-ux-verification.md), [synthetic dataset](docs/portfolio/synthetic-demo-data.md), and [screenshot evidence](docs/portfolio/screenshots/README.md).
 
 ## Roadmap
 
