@@ -31,6 +31,9 @@ public class OperationalSituation : BaseEntity
 
     public bool RequiresHumanReview { get; set; } = true;
 
+    /// <summary>Explicit ownership marker used only by the portfolio-demo importer and its dependent records.</summary>
+    public string? PortfolioDemoOwnershipKey { get; set; }
+
     public DateTime? LastEvaluatedAtUtc { get; set; }
 
     public DateTime? LastAIAnalysisAtUtc { get; set; }

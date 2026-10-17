@@ -12,19 +12,19 @@
 
 <div class="container-fluid py-3" id="emergencyMapPage" data-selected-incident-id="@Model.SelectedIncidentId" data-selected-resource-id="@Model.SelectedResourceId">
     <!-- Header -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-        <div>
-            <div class="d-flex align-items-center gap-2">
-                <h2 class="h4 mb-0 fw-bold">Live Emergency Map</h2>
-                <span class="badge bg-success-subtle text-success border border-success d-inline-flex align-items-center gap-1 px-2 py-1">
-                    <span class="live-indicator-dot"></span> Live
-                </span>
+    <header class="er-page-header mb-4">
+        <div class="er-page-heading">
+            <p class="er-eyebrow mb-1">Operations</p>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <h1 class="er-page-title mb-0">Emergency Map</h1>
+                <span id="mapConnectionStatus" class="badge bg-secondary" role="status" aria-live="polite">Snapshot view</span>
             </div>
-            <div class="text-muted small">Real-time situational awareness, spatial tracking, and resource deployment</div>
+            <p class="er-page-subtitle mb-0">Incident locations, response resources, and operational areas.</p>
         </div>
-        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
-            <span id="mapLastUpdated" class="text-muted small me-2"></span>
-            <button id="btnRefreshMap" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" title="Refresh Map Incidents">
+        <div class="er-page-actions">
+            <span id="mapLastUpdated" class="text-muted small" aria-live="polite">Snapshot retrieved @Model.RetrievedAtUtc.ToString("dd-MMM-yyyy HH:mm:ss") UTC</span>
+            <span id="mapRefreshStatus" class="small text-muted" role="status" aria-live="polite"></span>
+            <button id="btnRefreshMap" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" title="Refresh Map Incidents" aria-label="Refresh map snapshot">
                 <span id="mapRefreshSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                 <span>↻ Refresh</span>
             </button>
@@ -35,16 +35,16 @@
                 Incident List
             </a>
         </div>
-    </div>
+    </header>
 
     <!-- Map Filters Card -->
     <div class="card shadow-sm mb-3">
         <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
             <div>
-                <span class="fw-semibold text-dark"><i class="bi bi-funnel me-1"></i>Map Filters & Layers</span>
-                <span class="small text-muted ms-2 d-none d-md-inline">Filter active incidents and toggle operational layers.</span>
+                <h2 class="h6 fw-semibold text-dark mb-0"><i class="bi bi-funnel me-1"></i>Map Filters & Layers</h2>
+                <span class="small text-muted">Filter incidents and toggle operational layers.</span>
             </div>
-            <span id="activeMapFilterSummary" class="small text-muted">Showing all active incidents.</span>
+            <span id="activeMapFilterSummary" class="small text-muted" aria-live="polite">Showing all active incidents.</span>
         </div>
         <div class="card-body">
             <div class="row g-3">
@@ -106,30 +106,27 @@
                 </div>
 
                 <div class="col-md-6 col-lg-3">
-                    <label class="form-label fw-semibold small mb-1">AI Review</label>
-                    <div class="form-check mt-1">
+                    <div class="form-check mt-3">
                         <input id="mapAIReviewFilter" class="form-check-input" type="checkbox">
-                        <label class="form-check-label small" for="mapAIReviewFilter">
+                        <label class="form-check-label small fw-semibold" for="mapAIReviewFilter">
                             AI review required
                         </label>
                     </div>
                 </div>
 
                 <div class="col-md-6 col-lg-3">
-                    <label class="form-label fw-semibold small mb-1">Duplicate Review</label>
-                    <div class="form-check mt-1">
+                    <div class="form-check mt-3">
                         <input id="mapDuplicateFilter" class="form-check-input" type="checkbox">
-                        <label class="form-check-label small" for="mapDuplicateFilter">
+                        <label class="form-check-label small fw-semibold" for="mapDuplicateFilter">
                             Duplicate review required
                         </label>
                     </div>
                 </div>
 
                 <div class="col-md-6 col-lg-3">
-                    <label class="form-label fw-semibold small mb-1">Visual Review</label>
-                    <div class="form-check mt-1">
+                    <div class="form-check mt-3">
                         <input id="mapVisualFilter" class="form-check-input" type="checkbox">
-                        <label class="form-check-label small" for="mapVisualFilter">
+                        <label class="form-check-label small fw-semibold" for="mapVisualFilter">
                             Visual review required
                         </label>
                     </div>
@@ -211,6 +208,7 @@
 
     <!-- Map Container -->
     <div class="emergency-map-container">
+        <div id="mapEmptyState" class="map-empty-state" role="status" aria-live="polite" hidden></div>
         <div id="emergencyMap"></div>
     </div>
 

@@ -425,9 +425,14 @@ else
 builder.Services.AddHostedService<OutboxPublisherBackgroundWorker>();
 builder.Services.Configure<ReliableMessagingOptions>(builder.Configuration.GetSection(ReliableMessagingOptions.SectionName));
 
-builder.Services.Configure<AIOptions>(
-    builder.Configuration.GetSection(
-        AIOptions.SectionName));
+builder.Services.AddOptions<AIOptions>()
+    .Bind(builder.Configuration.GetSection(AIOptions.SectionName))
+    .Validate(options => Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var endpoint)
+                         && endpoint.Scheme == Uri.UriSchemeHttps
+                         && !string.IsNullOrWhiteSpace(options.Deployment)
+                         && !string.IsNullOrWhiteSpace(options.EmbeddingDeployment),
+        "AI endpoint, chat deployment, and embedding deployment must be configured.")
+    .ValidateOnStart();
 
 builder.Services.Configure<MapOptions>(
     builder.Configuration.GetSection(
@@ -527,8 +532,11 @@ using (var scope = app.Services.CreateScope())
     var userManager =
         services.GetRequiredService<UserManager<ApplicationUser>>();
 
-    if (app.Environment.IsEnvironment("Test"))
+    if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Test"))
     {
+        app.Logger.LogInformation(
+            "Applying pending EF Core migrations for the {Environment} database.",
+            app.Environment.EnvironmentName);
         await dbContext.Database.MigrateAsync();
     }
 

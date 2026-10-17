@@ -1,4 +1,5 @@
 using EmergencyResponse.Application.Escalation.DTOs;
+using EmergencyResponse.Application.Common.Roles;
 using EmergencyResponse.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -40,6 +41,7 @@ public sealed class EscalationsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = $"{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
     public async Task<IActionResult> Resolve(
         Guid id,
         [FromBody] EscalationActionRequest request,

@@ -6,12 +6,28 @@
 }
 
 #emergencyMap {
-    height: calc(100vh - 200px);
-    min-height: 560px;
+    height: clamp(360px, 62vh, 720px);
     width: 100%;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid #d6dee8;
+    box-shadow: 0 2px 8px rgba(15, 35, 60, 0.10);
     z-index: 1;
+}
+
+.map-empty-state {
+    position: absolute;
+    z-index: 500;
+    top: 50%;
+    left: 50%;
+    width: min(90%, 28rem);
+    padding: 1rem 1.25rem;
+    transform: translate(-50%, -50%);
+    border: 1px solid #d6dee8;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.96);
+    color: #334155;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(15, 35, 60, 0.12);
 }
 
 /* Map Header Stats */
@@ -235,6 +251,17 @@
     50% { opacity: 0.4; transform: scale(0.85); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .emergency-map-container *,
+    .emergency-map-container *::before,
+    .live-indicator-dot {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
 /* Marker Clustering */
 .emergency-cluster {
     border-radius: 50%;
@@ -387,10 +414,26 @@
     vertical-align: middle;
 }
 
+.situation-marker-mini {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: #5b4bb7;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+}
+
 /* Incident Details Offcanvas Drawer */
 #incidentDetailsDrawer {
     width: 420px;
-    max-width: 90vw;
+    max-width: min(90vw, 420px);
 }
 
 #incidentDetailsDrawer .offcanvas-body {
@@ -410,5 +453,13 @@
 
 .situation-map-popup .list-unstyled li:last-child {
     border-bottom: none !important;
+}
+
+@media (max-width: 575.98px) {
+    #emergencyMap { height: clamp(360px, 58vh, 560px); }
+    #incidentDetailsDrawer { width: 100vw; max-width: 100vw; }
+    .map-stats-bar { gap: 0.5rem; }
+    .map-stat-badge { padding: 0.35rem 0.6rem; font-size: 0.78rem; }
+    .map-legend { max-width: min(76vw, 230px); padding: 0.5rem 0.65rem; font-size: 0.75rem; }
 }
 

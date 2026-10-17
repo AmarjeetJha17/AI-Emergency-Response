@@ -18,9 +18,9 @@ public sealed class IncidentContextIncident
     public string Description { get; init; } = string.Empty;
     public double Latitude { get; init; }
     public double Longitude { get; init; }
-    public int PeopleAffected { get; init; }
-    public int VehiclesAffected { get; init; }
-    public int Casualties { get; init; }
+    public int? PeopleAffected { get; init; }
+    public int? VehiclesAffected { get; init; }
+    public int? Casualties { get; init; }
     public int SeverityScore { get; init; }
     public int PriorityScore { get; init; }
 }

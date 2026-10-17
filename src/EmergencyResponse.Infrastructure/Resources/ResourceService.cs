@@ -754,7 +754,8 @@ public sealed class ResourceService : IResourceService
         Resource r,
         IReadOnlyList<ResourceStatusHistoryItem>? history = null)
     {
-        var active = r.Assignments.FirstOrDefault(a => a.IsActive)
+        var active = r.Assignments.FirstOrDefault(a => a.IsActive);
+        var timingAssignment = active
             ?? r.Assignments.OrderByDescending(a => a.AssignedAtUtc).FirstOrDefault();
 
         return new ResourceDetailsResponse
@@ -780,7 +781,7 @@ public sealed class ResourceService : IResourceService
             AssignedByUserId = active?.AssignedByUserId,
             AssignmentRemarks = active?.Remarks,
             StatusHistory = history ?? [],
-            OperationalTiming = active != null ? ResourceTimingCalculator.Calculate(active) : null
+            OperationalTiming = timingAssignment != null ? ResourceTimingCalculator.Calculate(timingAssignment) : null
         };
     }
 

@@ -27,7 +27,31 @@ public sealed class NotificationsController : Controller
         string? type = null,
         CancellationToken cancellationToken = default)
     {
-        var items = await _notificationApiClient.GetForCurrentUserAsync(100, cancellationToken);
+        IReadOnlyList<NotificationItem> items;
+        IReadOnlyList<NotificationItem> summaryItems;
+        NotificationSummary? summary;
+        try
+        {
+            items = await _notificationApiClient.GetForCurrentUserAsync(100, cancellationToken);
+            summaryItems = items;
+            summary = await _notificationApiClient.GetSummaryAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            _logger.LogError(ex, "Failed to load notifications for the current user.");
+            ViewBag.ErrorMessage = "Notifications are currently unavailable. Try refreshing this page.";
+            items = Array.Empty<NotificationItem>();
+            summaryItems = items;
+            summary = null;
+        }
+
+        summary ??= new NotificationSummary
+        {
+            TotalUnread = summaryItems.Count(x => !x.IsRead),
+            CriticalUnread = summaryItems.Count(x => !x.IsRead && x.Priority == NotificationPriority.Critical),
+            UrgentUnread = summaryItems.Count(x => !x.IsRead && x.Priority == NotificationPriority.Urgent),
+            ImportantUnread = summaryItems.Count(x => !x.IsRead && x.Priority == NotificationPriority.Important)
+        };
 
         if (!string.IsNullOrWhiteSpace(priority) && Enum.TryParse<NotificationPriority>(priority, true, out var pEnum))
         {
@@ -50,8 +74,6 @@ public sealed class NotificationsController : Controller
         {
             items = items.Where(x => x.Type == tEnum).ToList();
         }
-
-        var summary = await _notificationApiClient.GetSummaryAsync(cancellationToken);
 
         ViewBag.Summary = summary;
         ViewBag.SelectedPriority = priority;

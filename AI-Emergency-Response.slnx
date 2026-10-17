@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/tools/">
+    <Project Path="tools/EmergencyResponse.DemoData/EmergencyResponse.DemoData.csproj" />
     <Project Path="tools/EmergencyResponse.SearchIndexProvisioner/EmergencyResponse.SearchIndexProvisioner.csproj" />
   </Folder>
   <Folder Name="/ml/">

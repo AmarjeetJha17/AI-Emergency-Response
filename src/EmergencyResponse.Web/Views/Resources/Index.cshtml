@@ -8,21 +8,21 @@
     @Html.AntiForgeryToken()
 
     <!-- Header -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-        <div>
+    <header class="er-page-header mb-4">
+        <div class="er-page-heading">
+            <p class="er-eyebrow mb-1">Operations</p>
             <div class="d-flex align-items-center gap-2">
-                <h2 class="h4 mb-0 fw-bold">Resource Command Center</h2>
-                <span id="resourceConnectionStatus" class="badge bg-secondary d-inline-flex align-items-center gap-1 px-2 py-1">
-                    <span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true" style="width: 0.5rem; height: 0.5rem;"></span> Connecting...
-                </span>
+                <h1 class="er-page-title mb-0">Resource Command Center</h1>
+                <span id="resourceConnectionStatus" class="badge bg-secondary d-inline-flex align-items-center gap-1 px-2 py-1" role="status" aria-live="polite">Connecting…</span>
             </div>
-            <div class="text-muted small">Real-time emergency fleet dispatch, operational lifecycle, and unit readiness</div>
+            <p class="er-page-subtitle mb-0">Fleet readiness, dispatch assignments, and operational state.</p>
         </div>
-        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
-            <span id="resourceLastUpdated" class="text-muted small me-2"></span>
-            <button id="btnRefreshResources" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" title="Refresh Resources">
+        <div class="er-page-actions">
+            <span id="resourceLastUpdated" class="text-muted small" aria-live="polite">Snapshot retrieved @Model.RetrievedAtUtc.ToString("dd-MMM-yyyy HH:mm:ss") UTC</span>
+            <span id="resourceRefreshStatus" class="small text-muted" role="status" aria-live="polite"></span>
+            <button id="btnRefreshResources" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" title="Refresh Resources" aria-label="Refresh resource snapshot">
                 <span id="resourceRefreshSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                <span>↻ Refresh</span>
+                <span>Refresh</span>
             </button>
             <a asp-controller="Map" asp-action="Index" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-geo-alt me-1"></i>Live Map
@@ -31,7 +31,7 @@
                 Incident Dashboard
             </a>
         </div>
-    </div>
+    </header>
 
     <!-- Operational KPI Cards -->
     <div class="row g-3 mb-4">
@@ -122,15 +122,15 @@
     </div>
 
     <!-- Resource Fleet Grid -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <div>
-                <span class="fw-bold text-dark fs-6"><i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>Operational Fleet Roster</span>
-                <span class="text-muted small ms-2 d-none d-md-inline">Dispatch controls and operational state monitor</span>
+    <section class="card shadow-sm" aria-labelledby="resourceRosterTitle">
+        <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="min-w-0">
+                <h2 id="resourceRosterTitle" class="h6 fw-bold text-dark mb-1"><i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>Operational Fleet Roster</h2>
+                <p class="text-muted small mb-0">Search, filter, and manage the model-backed fleet roster.</p>
             </div>
         </div>
 
-        <div class="card-body p-0">
+        <div class="card-body p-0 resource-grid-scroll" role="region" aria-label="Resource fleet roster, horizontally scrollable" tabindex="0">
             <ejs-grid id="resourceGrid"
                       dataSource="@Model.Resources"
                       toolbar="@(new List<string>() { "Search", "ColumnChooser" })"
@@ -195,7 +195,7 @@
                 </e-grid-columns>
             </ejs-grid>
         </div>
-    </div>
+    </section>
 </div>
 
 <!-- Assign Resource Modal Dialog -->
@@ -337,6 +337,13 @@
 </ejs-dialog>
 
 <!-- Grid Column Templates -->
+<script>
+    function escapeResourceHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, function (character) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character];
+        });
+    }
+</script>
 <script id="resourceStatusTemplate" type="text/x-template">
     ${if(Status == "Available" || Status == 0)}
         <span class="badge bg-success">Available</span>
@@ -355,19 +362,19 @@
     ${else if(Status == "Maintenance" || Status == 7)}
         <span class="badge bg-secondary text-light">Maintenance</span>
     ${else}
-        <span class="badge bg-light text-dark border">${Status}</span>
+        <span class="badge bg-light text-dark border">Other status</span>
     ${/if}
 </script>
 
 <script id="resourceIncidentTemplate" type="text/x-template">
     ${if(ActiveIncidentNumber)}
         <div>
-            <a href="/Dashboard?incidentId=${ActiveIncidentId}" class="badge bg-primary-subtle text-primary border border-primary text-decoration-none" title="${ActiveIncidentTitle}">
-                ${ActiveIncidentNumber}
+            <a href="/Dashboard?incidentId=${ActiveIncidentId}" class="badge bg-primary-subtle text-primary border border-primary text-decoration-none" title="${escapeResourceHtml(ActiveIncidentTitle || 'Open assigned incident')}">
+                ${escapeResourceHtml(ActiveIncidentNumber)}
             </a>
             ${if(ActiveIncidentTitle)}
-                <div class="small text-muted text-truncate" style="max-width: 170px;" title="${ActiveIncidentTitle}">
-                    ${ActiveIncidentTitle}
+                <div class="small text-muted text-truncate" style="max-width: 170px;" title="${escapeResourceHtml(ActiveIncidentTitle)}">
+                    ${escapeResourceHtml(ActiveIncidentTitle)}
                 </div>
             ${/if}
         </div>
@@ -385,31 +392,31 @@
         ${/if}
 
         ${if(Status == "Available" || Status == 0)}
-            <button type="button" class="btn btn-outline-success py-0 px-2" onclick="openAssignModal('${Id}', '${Name}', '${DepartmentName}')">
+            <button type="button" class="btn btn-outline-success py-0 px-2" data-resource-action="assign" data-resource-id="${Id}" data-resource-name="${escapeResourceHtml(Name)}" data-resource-department="${escapeResourceHtml(DepartmentName || '')}">
                 Assign
             </button>
         ${else if(Status == "Assigned" || Status == 1)}
-            <button type="button" class="btn btn-outline-primary py-0 px-2 fw-semibold" onclick="openCommandModal('${Id}', '${Name}', 'Dispatch', 'Dispatched', '${ActiveIncidentNumber}')">
+            <button type="button" class="btn btn-outline-primary py-0 px-2 fw-semibold" data-resource-action="command" data-resource-id="${Id}" data-resource-name="${escapeResourceHtml(Name)}" data-resource-command="Dispatch" data-resource-target="Dispatched" data-resource-incident="${escapeResourceHtml(ActiveIncidentNumber || '')}">
                 Dispatch
             </button>
         ${else if(Status == "Dispatched" || Status == 2)}
-            <button type="button" class="btn btn-outline-info text-dark py-0 px-2 fw-semibold" onclick="openCommandModal('${Id}', '${Name}', 'MarkEnRoute', 'En Route', '${ActiveIncidentNumber}')">
+            <button type="button" class="btn btn-outline-info text-dark py-0 px-2 fw-semibold" data-resource-action="command" data-resource-id="${Id}" data-resource-name="${escapeResourceHtml(Name)}" data-resource-command="MarkEnRoute" data-resource-target="En Route" data-resource-incident="${escapeResourceHtml(ActiveIncidentNumber || '')}">
                 En Route
             </button>
         ${else if(Status == "EnRoute" || Status == 3)}
-            <button type="button" class="btn btn-outline-danger py-0 px-2 fw-semibold" onclick="openCommandModal('${Id}', '${Name}', 'MarkOnScene', 'On Scene', '${ActiveIncidentNumber}')">
+            <button type="button" class="btn btn-outline-danger py-0 px-2 fw-semibold" data-resource-action="command" data-resource-id="${Id}" data-resource-name="${escapeResourceHtml(Name)}" data-resource-command="MarkOnScene" data-resource-target="On Scene" data-resource-incident="${escapeResourceHtml(ActiveIncidentNumber || '')}">
                 On Scene
             </button>
         ${else if(Status == "OnScene" || Status == 4)}
-            <button type="button" class="btn btn-outline-secondary py-0 px-2 fw-semibold" onclick="openCommandModal('${Id}', '${Name}', 'BeginReturn', 'Returning', '${ActiveIncidentNumber}')">
+            <button type="button" class="btn btn-outline-secondary py-0 px-2 fw-semibold" data-resource-action="command" data-resource-id="${Id}" data-resource-name="${escapeResourceHtml(Name)}" data-resource-command="BeginReturn" data-resource-target="Returning" data-resource-incident="${escapeResourceHtml(ActiveIncidentNumber || '')}">
                 Begin Return
             </button>
         ${else if(Status == "Returning" || Status == 5)}
-            <button type="button" class="btn btn-outline-success py-0 px-2 fw-semibold" onclick="openCommandModal('${Id}', '${Name}', 'MarkAvailable', 'Available', '${ActiveIncidentNumber}')">
+            <button type="button" class="btn btn-outline-success py-0 px-2 fw-semibold" data-resource-action="command" data-resource-id="${Id}" data-resource-name="${escapeResourceHtml(Name)}" data-resource-command="MarkAvailable" data-resource-target="Available" data-resource-incident="${escapeResourceHtml(ActiveIncidentNumber || '')}">
                 Available
             </button>
         ${else}
-            <button type="button" class="btn btn-outline-secondary py-0 px-2" onclick="openStatusModal('${Id}', '${Name}', '${Status}', '${ActiveIncidentId}')">
+            <button type="button" class="btn btn-outline-secondary py-0 px-2" data-resource-action="status" data-resource-id="${Id}" data-resource-name="${escapeResourceHtml(Name)}" data-resource-status="${escapeResourceHtml(Status)}" data-resource-incident="${ActiveIncidentId || ''}">
                 Update
             </button>
         ${/if}
@@ -428,12 +435,28 @@
                 return tokenInput ? tokenInput.value : '';
             }
 
+            function showResourceAlert(container, message) {
+                if (!container) return;
+                var alert = document.createElement('div');
+                alert.className = 'alert alert-danger py-2 small';
+                alert.textContent = message;
+                container.replaceChildren(alert);
+            }
+
             function setConnectionStatus(text, badgeClass) {
                 var el = document.getElementById('resourceConnectionStatus');
                 if (el) {
                     el.className = 'badge d-inline-flex align-items-center gap-1 px-2 py-1 ' + badgeClass;
                     el.textContent = text;
                 }
+            }
+
+            function setRefreshStatus(state, message) {
+                var el = document.getElementById('resourceRefreshStatus');
+                if (!el) return;
+                el.dataset.state = state;
+                el.textContent = message;
+                el.className = 'small ' + (state === 'failed' ? 'text-danger' : state === 'current' ? 'text-success' : 'text-muted');
             }
 
             function updateKPIs(summary) {
@@ -460,44 +483,53 @@
                 if (elUnavail) elUnavail.textContent = summary.unavailable;
             }
 
+            function isValidSummary(summary) {
+                return summary && ['available', 'assigned', 'dispatched', 'enRoute', 'onScene', 'returning', 'unavailable', 'maintenance']
+                    .every(function (key) { return Number.isInteger(summary[key]) && summary[key] >= 0; });
+            }
+
             async function refreshCommandCenter() {
                 if (isRefreshing) return;
                 isRefreshing = true;
 
                 var spinner = document.getElementById('resourceRefreshSpinner');
+                var refreshButton = document.getElementById('btnRefreshResources');
                 if (spinner) spinner.classList.remove('d-none');
+                if (refreshButton) refreshButton.disabled = true;
+                setRefreshStatus('loading', 'Refreshing fleet snapshot…');
 
                 try {
                     var response = await fetch('/Resources/Snapshot', {
                         headers: { 'Accept': 'application/json' }
                     });
 
-                    if (response.ok) {
-                        var data = await response.json();
-                        updateKPIs(data.summary);
-
-                        var gridEl = document.getElementById('resourceGrid');
-                        var grid = gridEl?.ej2_instances?.[0];
-                        if (grid) {
-                            grid.dataSource = data.resources || [];
-                            grid.refresh();
-                        }
-
-                        var totalEl = document.getElementById('fleetTotalUnits');
-                        if (totalEl && data.resources) {
-                            totalEl.textContent = 'Total Tracked Units: ' + data.resources.length;
-                        }
-
-                        var lastUpdatedEl = document.getElementById('resourceLastUpdated');
-                        if (lastUpdatedEl) {
-                            lastUpdatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
-                        }
+                    if (!response.ok) throw new Error('Snapshot request failed (' + response.status + ').');
+                    var data = await response.json();
+                    if (!data || !isValidSummary(data.summary) || !Array.isArray(data.resources) || !data.updatedAtUtc || Number.isNaN(Date.parse(data.updatedAtUtc))) {
+                        throw new Error('Snapshot response was incomplete.');
                     }
+                    updateKPIs(data.summary);
+
+                    var gridEl = document.getElementById('resourceGrid');
+                    var grid = gridEl?.ej2_instances?.[0];
+                    if (grid) {
+                        grid.dataSource = data.resources;
+                        grid.refresh();
+                    }
+
+                    var totalEl = document.getElementById('fleetTotalUnits');
+                    if (totalEl) totalEl.textContent = 'Total Tracked Units: ' + data.resources.length;
+
+                    var lastUpdatedEl = document.getElementById('resourceLastUpdated');
+                    if (lastUpdatedEl) lastUpdatedEl.textContent = 'Snapshot retrieved ' + new Date(data.updatedAtUtc).toLocaleString('en-GB', { timeZone: 'UTC' }) + ' UTC';
+                    setRefreshStatus('current', 'Snapshot current');
                 } catch (e) {
+                    setRefreshStatus('failed', 'Refresh failed. Showing the last retrieved snapshot.');
                     console.error('[ResourceCommandCenter] Refresh failed:', e);
                 } finally {
                     isRefreshing = false;
                     if (spinner) spinner.classList.add('d-none');
+                    if (refreshButton) refreshButton.disabled = false;
                 }
             }
 
@@ -507,17 +539,25 @@
                 setConnectionStatus: setConnectionStatus
             };
 
-            // Hook up manual refresh button
             document.addEventListener('DOMContentLoaded', function () {
                 var btn = document.getElementById('btnRefreshResources');
-                if (btn) {
-                    btn.addEventListener('click', refreshCommandCenter);
-                }
+                if (btn) btn.addEventListener('click', refreshCommandCenter);
 
-                var lastUpdatedEl = document.getElementById('resourceLastUpdated');
-                if (lastUpdatedEl) {
-                    lastUpdatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
-                }
+                var grid = document.getElementById('resourceGrid');
+                if (grid) grid.addEventListener('click', function (event) {
+                    var button = event.target.closest('[data-resource-action]');
+                    if (!button) return;
+                    var action = button.dataset.resourceAction;
+                    if (action === 'assign') {
+                        window.openAssignModal(button.dataset.resourceId, button.dataset.resourceName, button.dataset.resourceDepartment);
+                    } else if (action === 'command') {
+                        window.openCommandModal(button.dataset.resourceId, button.dataset.resourceName,
+                            button.dataset.resourceCommand, button.dataset.resourceTarget, button.dataset.resourceIncident);
+                    } else if (action === 'status') {
+                        window.openStatusModal(button.dataset.resourceId, button.dataset.resourceName,
+                            button.dataset.resourceStatus, button.dataset.resourceIncident);
+                    }
+                });
             });
 
             // ── Assign Modal Logic ──────────────────────────────────────────────
@@ -527,7 +567,7 @@
 
                 document.getElementById('assignResourceId').value = resourceId;
                 document.getElementById('assignTargetName').textContent = resourceName;
-                document.getElementById('assignTargetDepartment').textContent = departmentName || 'General Fleet';
+                document.getElementById('assignTargetDepartment').textContent = departmentName || 'Unknown department';
                 document.getElementById('assignNotes').value = '';
 
                 var select = document.getElementById('assignIncidentSelect');
@@ -577,7 +617,7 @@
                 var alertContainer = document.getElementById('assignAlertContainer');
 
                 if (!incidentId) {
-                    alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">Please select an incident to assign.</div>';
+                    showResourceAlert(alertContainer, 'Please select an incident to assign.');
                     return;
                 }
 
@@ -605,10 +645,10 @@
                         closeAssignDialog();
                         await refreshCommandCenter();
                     } else {
-                        alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">' + (result.message || 'Assignment failed.') + '</div>';
+                        showResourceAlert(alertContainer, result.message || 'Assignment failed.');
                     }
                 } catch (err) {
-                    alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">Network or server error during assignment.</div>';
+                    showResourceAlert(alertContainer, 'Network or server error during assignment.');
                 } finally {
                     spinner.classList.add('d-none');
                     btn.disabled = false;
@@ -736,7 +776,7 @@
                 var alertContainer = document.getElementById('statusAlertContainer');
 
                 if (!nextStatus) {
-                    alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">Please select a status transition.</div>';
+                    showResourceAlert(alertContainer, 'Please select a status transition.');
                     return;
                 }
 
@@ -765,10 +805,10 @@
                         closeStatusDialog();
                         await refreshCommandCenter();
                     } else {
-                        alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">' + (result.message || 'Status transition failed.') + '</div>';
+                        showResourceAlert(alertContainer, result.message || 'Status transition failed.');
                     }
                 } catch (err) {
-                    alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">Network or server error during status transition.</div>';
+                    showResourceAlert(alertContainer, 'Network or server error during status transition.');
                 } finally {
                     spinner.classList.add('d-none');
                     btn.disabled = false;
@@ -855,10 +895,10 @@
                         closeCommandDialog();
                         await refreshCommandCenter();
                     } else {
-                        alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">' + (result.message || 'Resource command failed.') + '</div>';
+                        showResourceAlert(alertContainer, result.message || 'Resource command failed.');
                     }
                 } catch (err) {
-                    alertContainer.innerHTML = '<div class="alert alert-danger py-2 small">Network or server error during command execution.</div>';
+                    showResourceAlert(alertContainer, 'Network or server error during command execution.');
                 } finally {
                     spinner.classList.add('d-none');
                     btn.disabled = false;

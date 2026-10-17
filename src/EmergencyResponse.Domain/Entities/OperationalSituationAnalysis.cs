@@ -4,6 +4,9 @@ namespace EmergencyResponse.Domain.Entities;
 
 public class OperationalSituationAnalysis : BaseEntity
 {
+    /// <summary>Copied from the owning situation only when that situation is an explicitly owned portfolio fixture.</summary>
+    public string? PortfolioDemoOwnershipKey { get; set; }
+
     public Guid OperationalSituationId { get; set; }
 
     public OperationalSituation OperationalSituation { get; set; } = null!;

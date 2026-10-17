@@ -93,6 +93,7 @@ public sealed class ResourcesController : ControllerBase
     }
 
     [HttpPost("{resourceId:guid}/status")]
+    [Authorize(Policy = Permissions.ResourcesDispatch)]
     public async Task<ActionResult<ResourceStatusTransitionResult>> ChangeStatus(
         Guid resourceId,
         ChangeResourceStatusRequest request,

@@ -144,45 +144,25 @@ public static class DependencyInjection
             IncidentExternalContextService>();
         services.AddHostedService<ExternalContextBackgroundWorker>();
 
-        var options =
-            configuration
-                .GetSection(AIOptions.SectionName)
-                .Get<AIOptions>()
-            ?? throw new InvalidOperationException(
-                "AI configuration is missing.");
-
-        if (string.IsNullOrWhiteSpace(options.Endpoint))
+        // Resolve the final host configuration after WebApplicationFactory and
+        // environment providers have applied their overrides. Test substitutes
+        // must not depend on a real endpoint in the repository's appsettings.
+        services.AddSingleton(sp =>
         {
-            throw new InvalidOperationException(
-                "AI endpoint is not configured.");
-        }
+            var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
+            return !string.IsNullOrWhiteSpace(options.ApiKey)
+                ? new AzureOpenAIClient(new Uri(options.Endpoint),
+                    new System.ClientModel.ApiKeyCredential(options.ApiKey))
+                : new AzureOpenAIClient(new Uri(options.Endpoint),
+                    new DefaultAzureCredential());
+        });
 
-        if (string.IsNullOrWhiteSpace(options.Deployment))
+        services.AddChatClient(sp =>
         {
-            throw new InvalidOperationException(
-                "AI deployment is not configured.");
-        }
-        var azureClient = !string.IsNullOrWhiteSpace(options.ApiKey)
-            ? new AzureOpenAIClient(
-                new Uri(options.Endpoint),
-                new System.ClientModel.ApiKeyCredential(options.ApiKey))
-            : new AzureOpenAIClient(
-                new Uri(options.Endpoint),
-                new DefaultAzureCredential());
-
-        services.AddSingleton(azureClient);
-
-        var chatClient =
-            azureClient
-                .GetChatClient(options.Deployment)
-                .AsIChatClient();
-
-        var embeddingGenerator =
-            azureClient
-                .GetEmbeddingClient(options.EmbeddingDeployment)
-                .AsIEmbeddingGenerator();
-
-        services.AddChatClient(chatClient);
+            var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
+            return sp.GetRequiredService<AzureOpenAIClient>()
+                .GetChatClient(options.Deployment).AsIChatClient();
+        });
 
         services.AddScoped<
             IIncidentAnalysisService,
@@ -224,7 +204,12 @@ public static class DependencyInjection
 
         services.AddSingleton<
             IEmbeddingGenerator<string, Embedding<float>>
-        >(embeddingGenerator);
+        >(sp =>
+        {
+            var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
+            return sp.GetRequiredService<AzureOpenAIClient>()
+                .GetEmbeddingClient(options.EmbeddingDeployment).AsIEmbeddingGenerator();
+        });
 
         services.AddScoped<IIncidentEmbeddingService, IncidentEmbeddingService>();
 
@@ -311,6 +296,19 @@ public static class DependencyInjection
             SituationAnalysisService>();
 
         return services;
+    }
+
+    private static AIOptions ReadAIOptions(IConfiguration configuration)
+    {
+        var options = configuration.GetSection(AIOptions.SectionName).Get<AIOptions>()
+            ?? throw new InvalidOperationException("AI configuration is missing.");
+        if (string.IsNullOrWhiteSpace(options.Endpoint))
+            throw new InvalidOperationException("AI endpoint is not configured.");
+        if (string.IsNullOrWhiteSpace(options.Deployment))
+            throw new InvalidOperationException("AI deployment is not configured.");
+        if (string.IsNullOrWhiteSpace(options.EmbeddingDeployment))
+            throw new InvalidOperationException("AI embedding deployment is not configured.");
+        return options;
     }
 }
 
