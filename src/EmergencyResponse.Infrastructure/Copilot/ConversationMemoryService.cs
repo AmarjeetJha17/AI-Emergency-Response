@@ -98,7 +98,7 @@ public sealed class ConversationMemoryService : IConversationMemoryService
         CopilotMessage message,
         CancellationToken cancellationToken = default)
     {
-        var conversation = await GetOwnedAsync(userId, conversationId, cancellationToken);
+        var conversation = await GetOwnedTrackedAsync(userId, conversationId, cancellationToken);
         if (conversation is null)
         {
             throw new KeyNotFoundException("Conversation was not found.");
@@ -115,9 +115,7 @@ public sealed class ConversationMemoryService : IConversationMemoryService
         message.CopilotConversationId = conversationId;
         message.SequenceNumber = count + 1;
         _db.CopilotMessages.Add(message);
-        await _db.SaveChangesAsync(cancellationToken);
         conversation.LastActivityAtUtc = DateTime.UtcNow;
-        _db.CopilotConversations.Update(conversation);
         await _db.SaveChangesAsync(cancellationToken);
     }
 
@@ -126,14 +124,13 @@ public sealed class ConversationMemoryService : IConversationMemoryService
         Guid conversationId,
         CancellationToken cancellationToken = default)
     {
-        var conversation = await GetOwnedAsync(userId, conversationId, cancellationToken);
+        var conversation = await GetOwnedTrackedAsync(userId, conversationId, cancellationToken);
         if (conversation is null)
         {
             throw new KeyNotFoundException("Conversation was not found.");
         }
 
         conversation.ArchivedAtUtc = DateTime.UtcNow;
-        _db.CopilotConversations.Update(conversation);
         await _db.SaveChangesAsync(cancellationToken);
     }
 
@@ -143,14 +140,22 @@ public sealed class ConversationMemoryService : IConversationMemoryService
         string title,
         CancellationToken cancellationToken = default)
     {
-        var conversation = await GetOwnedAsync(userId, conversationId, cancellationToken);
+        var conversation = await GetOwnedTrackedAsync(userId, conversationId, cancellationToken);
         if (conversation is null)
         {
             throw new KeyNotFoundException("Conversation was not found.");
         }
 
         conversation.Title = title.Trim()[..Math.Min(200, title.Trim().Length)];
-        _db.CopilotConversations.Update(conversation);
         await _db.SaveChangesAsync(cancellationToken);
     }
+
+    private Task<CopilotConversation?> GetOwnedTrackedAsync(
+        string userId,
+        Guid conversationId,
+        CancellationToken cancellationToken) =>
+        _db.CopilotConversations
+            .FirstOrDefaultAsync(
+                x => x.Id == conversationId && x.UserId == userId,
+                cancellationToken);
 }

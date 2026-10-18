@@ -28,11 +28,11 @@ This is an engineering demonstration, not an operational emergency service.
 
 The application includes incident reporting and review, an operations dashboard, a Leaflet map, a resource command center, Copilot, situations, and recipient-scoped notifications.
 
-![Historical DEMO18 map capture](screenshots/live-map.png)
+![Current local operations dashboard](screenshots/dashboard-2026-10-18.png)
 
-**Evidence caption:** Actual Operator capture from 2026-10-15. It shows six synthetic incidents/resources and the configured map layers. It predates Parts 2.3.4–2.3.5 UI polish, has clipped attribution, and does not show drawer selection, layer toggling, or SignalR recovery. Current final-state screenshots remain pending.
+**Evidence caption:** Owner-supplied local Operator capture from 2026-10-18. It displays 12 active/unassigned incidents, eight critical incidents, six open escalation alerts, and eight unread alerts. Source revision and dataset identity were not supplied; this screenshot is not a claim of DEMO18 or responsive acceptance.
 
-**Speaker guidance:** Use the image only as limited historical evidence. The current walkthrough should use the live local app when browser access and migrations are available. If it is not available, describe the workflow from source and evidence docs without claiming a live demo.
+**Speaker guidance:** This is a bounded screenshot of a local desktop view. Do not treat the shown counts as validated demo fixtures or evidence of message delivery. The resource, situation, Copilot, and responsive workflows remain incomplete or unverified in the current evidence set.
 
 ## Slide 4 — Architecture and technology
 
@@ -69,9 +69,9 @@ flowchart LR
 
 ## Slide 6 — Engineering evidence and release status
 
-**Local release-preparation checks, 17 Oct 2026:** Release build passed with 49 warnings and 0 errors; 572 unit tests passed; 89 isolated SQL integration tests passed; 28 UI JavaScript checks passed; four JavaScript syntax checks passed. Warnings include existing package advisories and nullable-reference warnings.
+**Dated local baseline, 17 Oct 2026:** Release build passed with 49 warnings and 0 errors; 572 unit tests passed; 89 isolated SQL integration tests passed; 28 UI JavaScript checks passed; four JavaScript syntax checks passed. These results predate subsequent API startup, SignalR logging, and Copilot memory changes. A focused Copilot fix and regression test are now in the worktree; the current SDK/project-reference resolution failure prevented compilation and test execution.
 
-**Release boundary:** No verified public host or Azure staging deployment. Browser and responsive acceptance remain pending. Durable-job recovery, model quality, several security/recovery paths, video scanning/tooling, and pilot acceptance remain open. Current API startup requires the database migrations to be applied explicitly in Development.
+**Release boundary:** No verified public host or Azure staging deployment. Current screenshots show selected local desktop views, but the complete browser workflow, responsive acceptance, Copilot answer, and resource/situation workflows remain pending. Durable-job recovery, model quality, several security/recovery paths, video scanning/tooling, and pilot acceptance remain open. API startup applies pending migrations in Development and Test before seeding; confirm the selected database and review/backup retained local data before launch. Azure deployment remains out of scope.
 
 **Speaker guidance:** These tests establish their asserted code paths, not production capacity, visual rendering, live AI quality, or operational readiness. Close with the next step: resolve the local migration target, run the real local walkthrough, capture corrected screens, and continue the release-readiness checks. Azure deployment remains out of scope.
 
@@ -84,4 +84,4 @@ flowchart LR
 - UI and viewport status: [ui-ux-verification.md](ui-ux-verification.md).
 - Image provenance and capture limits: [screenshots/README.md](screenshots/README.md).
 
-The screenshot on slide 3 is the original indexed application image, not a current-state capture. No external facts or fabricated application results are included.
+The dashboard image is an owner-supplied local capture dated 2026-10-18; its source commit and dataset identity are unknown. The older Map Console screenshot containing an access token is excluded. The indexed screenshot register records the visible Resource Command Center loading state, empty Situation Center state, and absent Copilot response. No external facts or fabricated application results are included.

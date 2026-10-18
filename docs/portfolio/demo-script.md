@@ -57,7 +57,7 @@ dotnet user-secrets set 'KnowledgeSearch:Endpoint' '<your-Azure-Search-HTTPS-end
 
 Replace placeholders before running. The AI client uses an externally configured `AI:ApiKey` or Azure Identity credentials. Search configuration and access must match [configuration reference](../deployment/configuration-reference.md). Do not provision cloud resources merely to finish screenshots. User Secrets are local plaintext configuration, not a production secret store. Environment variables override User Secrets.
 
-## 2. Explicit migrations and startup
+## 2. Development migrations and startup
 
 The design-time factory does not load API User Secrets. Pass the intended connection explicitly. Check the database name before applying migrations:
 
@@ -66,7 +66,7 @@ if ($demoConnection -notmatch 'Database=EmergencyResponse_PortfolioDemo;') { thr
 dotnet ef database update --project src/EmergencyResponse.Infrastructure --startup-project src/EmergencyResponse.Api --context ApplicationDbContext --connection $demoConnection
 ```
 
-Development API startup seeds reference data, roles, and the configured SystemAdmin, but does **not** apply migrations. Existing development users are not reset by seeding. Previously published passwords must be changed on retained databases.
+Development and Test API startup now apply pending migrations before seeding reference data, roles, and the configured SystemAdmin. This can change the database selected by the API connection string. Confirm the effective server/database and review pending migration `Up` operations before launching against any retained data; back up that database first. Existing development users are not reset by seeding. Previously published passwords must be changed on retained databases. Production startup does not auto-migrate.
 
 Start API and Web in separate terminals from the repository root:
 
@@ -82,7 +82,7 @@ API HTTPS: `https://localhost:7191`; Web HTTPS: `https://localhost:7201`. Web's 
 
 ### If API startup reports `Invalid column name 'DataClassification'`
 
-The source migration `20261008095318_AddDataClassification` adds the field to `AspNetUsers` and several other tables. API startup applies migrations automatically only in the `Test` environment; a Development launch requires an explicit migration update. First confirm the API's effective connection target is your intended local development database. Do not copy a production/shared connection into the command below.
+The source migration `20261008095318_AddDataClassification` adds the field to `AspNetUsers` and several other tables. Current Development and Test API startup applies pending migrations before `AdminSeeder` queries users. First confirm the API's effective connection target is your intended local development database; startup migration can modify that database. Do not use a production/shared connection for a Development launch.
 
 The design-time context factory reads `ConnectionStrings__DefaultConnection` (or the integration-test variable) and does not load API User Secrets. In PowerShell, load the exact local development connection string into a temporary environment variable without printing it, then inspect the migration state:
 
@@ -92,7 +92,7 @@ $env:ConnectionStrings__DefaultConnection = $demoConnection
 dotnet ef migrations list --project src/EmergencyResponse.Infrastructure --startup-project src/EmergencyResponse.Api --context ApplicationDbContext
 ```
 
-Review every pending migration and its `Up` operation. Back up the intended local database, then apply the reviewed migrations to that same target:
+Prefer the explicit review path for an existing or retained database: inspect every pending migration and its `Up` operation, back up the intended local database, then apply the reviewed migrations to that same target before launching:
 
 ```powershell
 dotnet ef database update --project src/EmergencyResponse.Infrastructure --startup-project src/EmergencyResponse.Api --context ApplicationDbContext --connection $env:ConnectionStrings__DefaultConnection

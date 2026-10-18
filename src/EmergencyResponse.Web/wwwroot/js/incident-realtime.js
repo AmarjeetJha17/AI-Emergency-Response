@@ -11,7 +11,7 @@
             return '';
         }
 
-        const contentType = response.headers.get('content-type') || '';
+        const contentType = response.headers?.get?.('content-type') || '';
         if (response.redirected || !contentType.includes('application/json')) {
             return '';
         }
@@ -22,8 +22,22 @@
 
     const isDashboard = document.getElementById('emergencyDashboard') !== null;
 
-    const connection = new signalR.HubConnectionBuilder()
-        .withUrl(apiBase + '/hubs/incidents', {
+    const hubConnectionBuilder = new signalR.HubConnectionBuilder();
+    if (typeof hubConnectionBuilder.configureLogging === 'function') {
+        hubConnectionBuilder.configureLogging({
+            log: function (logLevel, message) {
+                if (logLevel < signalR.LogLevel.Warning || logLevel >= signalR.LogLevel.None) return;
+
+                const safeMessage = String(message).replace(
+                    /([?&]access_token=)[^&\s]+/gi,
+                    '$1[REDACTED]');
+                const log = logLevel >= signalR.LogLevel.Error ? console.error : console.warn;
+                log.call(console, '[SignalR]', safeMessage);
+            }
+        });
+    }
+
+    const connection = hubConnectionBuilder.withUrl(apiBase + '/hubs/incidents', {
             accessTokenFactory: getToken
         })
         .withAutomaticReconnect()
@@ -449,10 +463,6 @@
     // ── Start Realtime ───────────────────────────────────────────────────────
     async function startRealtime() {
         try {
-            if (!await getToken()) {
-                throw new Error('An authenticated API token is unavailable. Sign in again to use live updates.');
-            }
-
             await connection.start();
             setMapConnectionStatus('Live updates connected', 'bg-success');
 

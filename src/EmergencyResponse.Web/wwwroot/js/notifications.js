@@ -41,8 +41,8 @@
                 headers: { 'Accept': 'application/json' },
                 credentials: 'same-origin'
             });
-            const contentType = resp.headers.get('content-type') || '';
-            if (resp.redirected || !contentType.includes('application/json')) {
+            const contentType = resp.headers?.get?.('content-type') || '';
+            if (resp.redirected || (contentType && !contentType.includes('application/json'))) {
                 document.getElementById('notificationBell')?.setAttribute('aria-label', 'Notifications, unread count unavailable');
                 return;
             }
