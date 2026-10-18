@@ -15,4 +15,11 @@ public sealed class AIOptions
     public string Model { get; set; } = null!;
 
     public string EmbeddingDeployment { get; set; } = null!;
+
+    /// <summary>
+    /// Operator verification that configured model deployments exist, the
+    /// workload identity is authorized, and a synthetic smoke request passed.
+    /// This is an explicit status signal, not a live provider probe.
+    /// </summary>
+    public bool? DeploymentAvailabilityVerified { get; set; }
 }
