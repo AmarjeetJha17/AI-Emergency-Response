@@ -11,14 +11,13 @@
   "parameters": {
     "stagingResourceGroupName": {
       "type": "string",
-      "defaultValue": "rg-er-staging-eastus",
+      "defaultValue": "rg-er-staging-preview",
       "metadata": {
         "description": "Dedicated staging resource group name for the preview."
       }
     },
     "location": {
       "type": "string",
-      "defaultValue": "eastus",
       "metadata": {
         "description": "Azure region for the staging resource group and resources."
       }
@@ -40,6 +39,18 @@
       "defaultValue": "GP_S_Gen5_1",
       "metadata": {
         "description": "SQL Database SKU used for the initial infrastructure preview; review cost and regional availability before deployment."
+      }
+    },
+    "aiResourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Existing Azure AI resource group. Pass the value explicitly for each deployment."
+      }
+    },
+    "aiResourceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Existing Azure AI account name. Pass the value explicitly for each deployment."
       }
     }
   },
@@ -94,6 +105,12 @@
           },
           "sqlDatabaseSkuName": {
             "value": "[parameters('sqlDatabaseSkuName')]"
+          },
+          "aiResourceGroupName": {
+            "value": "[parameters('aiResourceGroupName')]"
+          },
+          "aiResourceName": {
+            "value": "[parameters('aiResourceName')]"
           }
         },
         "template": {
@@ -170,14 +187,12 @@
             },
             "aiResourceGroupName": {
               "type": "string",
-              "defaultValue": "AI-Emergency-Response-RG",
               "metadata": {
                 "description": "Resource group containing the existing Foundry/Azure OpenAI resource."
               }
             },
             "aiResourceName": {
               "type": "string",
-              "defaultValue": "ai-emergency-response",
               "metadata": {
                 "description": "Existing Azure AI account used by low-volume synthetic staging calls."
               }

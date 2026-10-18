@@ -4,9 +4,9 @@ This runbook deploys only the Web and API apps with synthetic records. It does n
 
 ## Gates
 
-1. Confirm the active Azure subscription/resource group and request a Container Apps environment quota increase if provider validation still reports the existing environment limit.
-2. Review East US service availability, VNet overlap (`10.40.0.0/16`), SQL/Search/Bastion pricing, and expected AI request cost.
-3. Compile `infra/main.bicep`, `infra/staging-preview.bicep`, `infra/apps.bicep`, and `infra/staging-migration-runner.bicep`; run subscription `what-if` and review create/replace/delete operations.
+1. Confirm the active Azure subscription/resource group and request a Container Apps environment quota increase if provider validation reports the environment limit. The current requested portfolio preflight is East US 2; see [portfolio Azure preflight](portfolio-azure-preflight.md).
+2. Review East US 2 service/SKU availability, VNet overlap (`10.40.0.0/16`), SQL/Search/Bastion pricing, model deployment availability/quota, and expected AI request cost.
+3. Compile all tracked Bicep templates, then run subscription `what-if` with explicit `location`, `aiResourceGroupName`, and `aiResourceName`; review create/modify/replace/delete and unsupported operations. The preview helper is `scripts/preview-staging-network.ps1`.
 4. Provision the foundation only after the quota, budget, naming and network reviews pass. Confirm SQL, Blob and Search private endpoints are approved and their private DNS resolves from the Container Apps VNet.
 5. Populate Key Vault secrets `jwt-signing-key`, `admin-seed-password`, and `syncfusion-license-key` through an approved secret-entry path. Never put the values in Bicep parameters or shell history.
 
@@ -36,9 +36,9 @@ As the temporary runner managed identity (set `AZURE_CLIENT_ID` to the runner id
 
 ## Deploy API, then Web, then update CORS
 
-After migrations, the Search index and SQL contained users have been verified, deploy `infra/apps.bicep` with the immutable `imageTag` and `deployWeb=false`. Confirm the API revision starts, the managed identity reaches SQL, Service Bus, Blob, Search, Key Vault and Foundry, and `/health/ready` is healthy.
+After migrations, the Search index and SQL contained users have been verified, deploy `infra/apps.bicep` with the immutable `imageTag`, `deployWeb=false`, and explicit `aiResourceGroupName`/`aiResourceName`. Both apps use the same existing Container Apps environment. Confirm the API revision starts, the managed identity reaches SQL, Service Bus, Blob, Search, Key Vault and Foundry, and `/health/ready` is healthy.
 
-Read the API ingress FQDN. Deploy `infra/apps.bicep` with `deployWeb=true`, `apiBaseUrl=https://<api-fqdn>/`, and the same `imageTag`. Read the Web ingress FQDN. Run the Bicep deployment again with `deployWeb=true`, the actual API URL, and `webOrigin=https://<web-fqdn>` so the API CORS policy allows the deployed Web origin. Keep external API ingress enabled because the browser currently connects directly to `/hubs/incidents`.
+Read the API ingress FQDN. Deploy `infra/apps.bicep` with `deployWeb=true`, `apiBaseUrl=https://<api-fqdn>/`, the same `imageTag`, and the same explicit AI account coordinates. Read the Web ingress FQDN. Run the Bicep deployment again with `deployWeb=true`, the actual API URL, the same AI coordinates, and `webOrigin=https://<web-fqdn>` so the API CORS policy allows the deployed Web origin. Keep external API ingress enabled because the browser currently connects directly to `/hubs/incidents`.
 
 Confirm revisions, identity-based image pulls, Key Vault secret references, startup/readiness probes, console logs, Data Protection persistence and the absence of secret values in logs. Web/API URLs and CORS must all use HTTPS.
 

@@ -23,10 +23,10 @@ param apiExternalIngress bool = true
 param adminSeedEmail string = 'pilot-admin@emergencyresponse.example'
 
 @description('Resource group containing the existing Foundry/Azure OpenAI resource.')
-param aiResourceGroupName string = 'AI-Emergency-Response-RG'
+param aiResourceGroupName string
 
 @description('Existing Azure AI resource name used by the API.')
-param aiResourceName string = 'ai-emergency-response'
+param aiResourceName string
 
 var suffix = take(uniqueString(resourceGroup().id), 8)
 var containerAppsEnvironmentName = 'cae-er-${environmentName}-vnet'

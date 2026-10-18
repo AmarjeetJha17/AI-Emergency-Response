@@ -33,10 +33,10 @@ param sqlDatabaseName string = 'EmergencyResponse'
 param sqlDatabaseSkuName string = 'GP_S_Gen5_1'
 
 @description('Resource group containing the existing Foundry/Azure OpenAI resource.')
-param aiResourceGroupName string = 'AI-Emergency-Response-RG'
+param aiResourceGroupName string
 
 @description('Existing Azure AI account used by low-volume synthetic staging calls.')
-param aiResourceName string = 'ai-emergency-response'
+param aiResourceName string
 
 var suffix = take(uniqueString(resourceGroup().id), 8)
 

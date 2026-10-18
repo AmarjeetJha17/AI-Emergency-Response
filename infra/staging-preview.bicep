@@ -1,10 +1,16 @@
 targetScope = 'subscription'
 
 @description('Dedicated staging resource group name for the preview.')
-param stagingResourceGroupName string = 'rg-er-staging-eastus'
+param stagingResourceGroupName string = 'rg-er-staging-preview'
 
 @description('Azure region for the staging resource group and resources.')
-param location string = 'eastus'
+param location string
+
+@description('Existing Azure AI resource group. Pass the value explicitly for each deployment.')
+param aiResourceGroupName string
+
+@description('Existing Azure AI account name. Pass the value explicitly for each deployment.')
+param aiResourceName string
 
 @description('Display name of the signed-in Microsoft Entra SQL administrator.')
 param sqlEntraAdminLogin string
@@ -36,6 +42,8 @@ module stagingFoundation 'main.bicep' = {
   params: {
     environmentName: 'staging'
     location: location
+    aiResourceGroupName: aiResourceGroupName
+    aiResourceName: aiResourceName
     sqlEntraAdminLogin: sqlEntraAdminLogin
     sqlEntraAdminObjectId: sqlEntraAdminObjectId
     sqlEntraAdminPrincipalType: 'User'

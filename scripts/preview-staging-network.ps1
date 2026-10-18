@@ -1,6 +1,12 @@
 param(
-    [string] $ResourceGroupName = 'rg-er-staging-eastus',
-    [string] $Location = 'eastus',
+    [Parameter(Mandatory = $true)]
+    [string] $ResourceGroupName,
+    [Parameter(Mandatory = $true)]
+    [string] $Location,
+    [Parameter(Mandatory = $true)]
+    [string] $AiResourceGroupName,
+    [Parameter(Mandatory = $true)]
+    [string] $AiResourceName,
     [string] $DatabaseSkuName = 'GP_S_Gen5_1',
     [ValidateSet('Template', 'Provider', 'ProviderNoRbac')]
     [string] $ValidationLevel = 'Template'
@@ -33,6 +39,8 @@ Write-Host 'Running subscription-scope what-if only; no Azure deployment will be
 $parameters = @(
     "stagingResourceGroupName=$ResourceGroupName",
     "location=$Location",
+    "aiResourceGroupName=$AiResourceGroupName",
+    "aiResourceName=$AiResourceName",
     "sqlEntraAdminLogin=$($principal.displayName)",
     "sqlEntraAdminObjectId=$($principal.id)",
     "sqlDatabaseSkuName=$DatabaseSkuName"

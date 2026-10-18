@@ -2,7 +2,7 @@
 
 ## Target topology
 
-The initial staging preview targets a dedicated `rg-er-staging-eastus` resource group in East US. The planned path is:
+The staging preview takes a caller-selected resource group and region (the current portfolio preflight uses East US 2). The planned path is:
 
 ```text
 Browser -- HTTPS --> Web Container App

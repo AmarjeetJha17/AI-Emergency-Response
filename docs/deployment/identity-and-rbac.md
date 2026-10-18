@@ -22,8 +22,8 @@ Azure Blob adapters use `DefaultAzureCredential` and are selected when `Storage:
 
 `AcrPull` is a registry-scope role for the dedicated user-assigned image-pull identity. ACR admin authentication remains disabled. Store no credentials in Bicep parameters; use managed identity or Key Vault for runtime secrets that cannot use identity authentication.
 
-For direct resource-group deployments of `main.bicep`, `infra/main.bicepparam` reads `ER_SQL_ENTRA_ADMIN_LOGIN`, `ER_SQL_ENTRA_ADMIN_OBJECT_ID`, and `ER_SQL_SERVER_NAME` from the local process environment. The staging preview script obtains the admin values from the active CLI user and generates a server name without writing them to a tracked parameter file.
+For direct resource-group deployments of `main.bicep`, `infra/main.bicepparam` reads `ER_SQL_ENTRA_ADMIN_LOGIN`, `ER_SQL_ENTRA_ADMIN_OBJECT_ID`, `ER_SQL_SERVER_NAME`, `ER_AI_RESOURCE_GROUP`, and `ER_AI_RESOURCE_NAME` from the local process environment. The staging preview script obtains the admin values from the active CLI user and requires explicit AI account coordinates; it does not write them to a tracked parameter file.
 
 ## Preview behavior
 
-`scripts/preview-staging-network.ps1` reads the active Azure CLI subscription and signed-in Entra user's display name/object ID, then passes those values directly to subscription-scope `what-if`. It does not write the values to files and does not submit a deployment. SQL contained users and runtime role assignments are not created by this preview.
+`scripts/preview-staging-network.ps1` reads the active Azure CLI subscription and signed-in Entra user's display name/object ID, then passes those values and explicit AI account coordinates directly to subscription-scope `what-if`. It does not write the values to files and does not submit a deployment. SQL contained users and runtime role assignments are not created by this preview. Never provide credentials or keys as Bicep parameters.
