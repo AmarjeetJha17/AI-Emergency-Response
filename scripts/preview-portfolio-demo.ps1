@@ -7,17 +7,21 @@ param(
     [string] $AiResourceGroupName,
     [Parameter(Mandatory = $true)]
     [string] $AiResourceName,
+    [string] $ExpectedSubscriptionName = 'Azure subscription 1',
     [string] $ImageTag = 'preflight-0000000',
     [bool] $GrantAiInferenceRole = $false
 )
 
 $ErrorActionPreference = 'Stop'
 
-$accountJson = & az account show --query '{name:name,id:id}' --output json
+$accountJson = & az account show --query '{name:name,state:state}' --output json
 if ($LASTEXITCODE -ne 0) {
     throw 'Azure CLI has no usable active subscription. Run az login and select the intended subscription first.'
 }
 $account = $accountJson | ConvertFrom-Json
+if ($account.name -ne $ExpectedSubscriptionName -or $account.state -ne 'Enabled') {
+    throw "Active subscription must be enabled '$ExpectedSubscriptionName'; found '$($account.name)' with state '$($account.state)'."
+}
 
 $principalJson = & az ad signed-in-user show --query '{displayName:displayName,id:id}' --output json
 if ($LASTEXITCODE -ne 0) {

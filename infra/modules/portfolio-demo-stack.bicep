@@ -35,6 +35,17 @@ param deployApi bool = false
 param deployWeb bool = false
 param webOrigin string = ''
 param apiBaseUrl string = ''
+param webDataProtectionKeyUri string = ''
+@description('Use unwrapped Blob-persisted Data Protection keys only in the explicit synthetic PortfolioDemo environment.')
+param webDataProtectionUsePortfolioDemoUnwrappedKeys bool = false
+@description('Use Azure Container Apps native secrets instead of Key Vault references only for this isolated portfolio demo deployment.')
+param usePortfolioDemoContainerAppSecrets bool = false
+@secure()
+param apiJwtSigningKey string = ''
+@secure()
+param apiAdminSeedPassword string = ''
+@secure()
+param webSyncfusionLicenseKey string = ''
 
 @minValue(0)
 @maxValue(1)
@@ -64,6 +75,18 @@ var apiAppName = 'ca-er-api-portfolio'
 var webAppName = 'ca-er-web-portfolio'
 var apiIdentityName = 'id-er-portfolio-api'
 var webIdentityName = 'id-er-portfolio-web'
+var effectiveWebDataProtectionKeyUri = deployWeb && !webDataProtectionUsePortfolioDemoUnwrappedKeys
+  ? (!empty(webDataProtectionKeyUri) ? webDataProtectionKeyUri : fail('Set webDataProtectionKeyUri to the verified versioned Key Vault key URI before deploying Web.'))
+  : ''
+var effectiveApiJwtSigningKey = deployApi && usePortfolioDemoContainerAppSecrets
+  ? (!empty(apiJwtSigningKey) ? apiJwtSigningKey : fail('Provide apiJwtSigningKey through a secure parameter when deploying API with Container Apps secrets.'))
+  : ''
+var effectiveApiAdminSeedPassword = deployApi && usePortfolioDemoContainerAppSecrets
+  ? (!empty(apiAdminSeedPassword) ? apiAdminSeedPassword : fail('Provide apiAdminSeedPassword through a secure parameter when deploying API with Container Apps secrets.'))
+  : ''
+var effectiveWebSyncfusionLicenseKey = deployWeb && usePortfolioDemoContainerAppSecrets
+  ? (!empty(webSyncfusionLicenseKey) ? webSyncfusionLicenseKey : fail('Provide webSyncfusionLicenseKey through a secure parameter when deploying Web with Container Apps secrets.'))
+  : ''
 
 resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
   name: vnetName
@@ -281,26 +304,6 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-resource webDataProtectionKey 'Microsoft.KeyVault/vaults/keys@2023-07-01' = {
-  parent: keyVault
-  name: 'web-data-protection'
-  properties: {
-    kty: 'RSA'
-    keySize: 2048
-    keyOps: [
-      'encrypt'
-      'decrypt'
-      'wrapKey'
-      'unwrapKey'
-      'sign'
-      'verify'
-    ]
-    attributes: {
-      enabled: true
-    }
-  }
-}
-
 resource apiKeyVaultSecretsRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(keyVault.id, apiIdentity.id, 'Key Vault Secrets User')
   scope: keyVault
@@ -318,16 +321,6 @@ resource webKeyVaultSecretsRole 'Microsoft.Authorization/roleAssignments@2022-04
     principalId: webIdentity.properties.principalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
-  }
-}
-
-resource webKeyVaultCryptoRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, webIdentity.id, 'Key Vault Crypto User')
-  scope: keyVault
-  properties: {
-    principalId: webIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'e147488a-f6f5-4113-8e2d-b22465e65bf6')
   }
 }
 
@@ -447,7 +440,16 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApi) {
           identity: apiIdentity.id
         }
       ]
-      secrets: [
+      secrets: usePortfolioDemoContainerAppSecrets ? [
+        {
+          name: 'jwt-signing-key'
+          value: effectiveApiJwtSigningKey
+        }
+        {
+          name: 'admin-seed-password'
+          value: effectiveApiAdminSeedPassword
+        }
+      ] : [
         {
           name: 'jwt-signing-key'
           keyVaultUrl: '${keyVault.properties.vaultUri}secrets/jwt-signing-key'
@@ -565,7 +567,12 @@ resource webApp 'Microsoft.App/containerApps@2024-03-01' = if (deployWeb) {
           identity: webIdentity.id
         }
       ]
-      secrets: [
+      secrets: usePortfolioDemoContainerAppSecrets ? [
+        {
+          name: 'syncfusion-license-key'
+          value: effectiveWebSyncfusionLicenseKey
+        }
+      ] : [
         {
           name: 'syncfusion-license-key'
           keyVaultUrl: '${keyVault.properties.vaultUri}secrets/syncfusion-license-key'
@@ -596,13 +603,14 @@ resource webApp 'Microsoft.App/containerApps@2024-03-01' = if (deployWeb) {
             memory: '1Gi'
           }
           env: [
-            { name: 'ASPNETCORE_ENVIRONMENT', value: 'Staging' }
+            { name: 'ASPNETCORE_ENVIRONMENT', value: webDataProtectionUsePortfolioDemoUnwrappedKeys ? 'PortfolioDemo' : 'Staging' }
             { name: 'ASPNETCORE_HTTP_PORTS', value: '8080' }
             { name: 'AZURE_CLIENT_ID', value: webIdentity.properties.clientId }
             { name: 'ApiSettings__BaseUrl', value: apiBaseUrl }
             { name: 'Syncfusion__LicenseKey', secretRef: 'syncfusion-license-key' }
             { name: 'DataProtection__BlobUri', value: 'https://${storage.name}.${environment().suffixes.storage}/${dataProtectionContainer.name}/keys.xml' }
-            { name: 'DataProtection__KeyIdentifier', value: webDataProtectionKey.properties.keyUriWithVersion }
+            { name: 'DataProtection__UsePortfolioDemoUnwrappedKeys', value: string(webDataProtectionUsePortfolioDemoUnwrappedKeys) }
+            { name: 'DataProtection__KeyIdentifier', value: effectiveWebDataProtectionKeyUri }
           ]
           probes: [
             {
@@ -636,7 +644,6 @@ resource webApp 'Microsoft.App/containerApps@2024-03-01' = if (deployWeb) {
   dependsOn: [
     webAcrPullRole
     webKeyVaultSecretsRole
-    webKeyVaultCryptoRole
     webDataProtectionRole
   ]
 }

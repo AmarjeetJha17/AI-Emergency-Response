@@ -48,6 +48,24 @@ param webOrigin string = ''
 @description('API HTTPS base URL for Web server-side and browser calls. Required when deployWeb is true.')
 param apiBaseUrl string = ''
 
+@description('Verified versioned Key Vault key URI for Web Data Protection. Required when deployWeb is true unless webDataProtectionUsePortfolioDemoUnwrappedKeys is explicitly enabled.')
+param webDataProtectionKeyUri string = ''
+
+@description('Opt in to the reduced-security, Blob-persisted unwrapped Data Protection key ring for synthetic PortfolioDemo data only.')
+param webDataProtectionUsePortfolioDemoUnwrappedKeys bool = false
+
+@description('Use Azure Container Apps native secrets instead of Key Vault references only for this isolated portfolio demo deployment.')
+param usePortfolioDemoContainerAppSecrets bool = false
+
+@secure()
+param apiJwtSigningKey string = ''
+
+@secure()
+param apiAdminSeedPassword string = ''
+
+@secure()
+param webSyncfusionLicenseKey string = ''
+
 @description('Minimum API replicas. Zero lowers idle compute but process-local queued background work can be lost after scale-down.')
 @minValue(0)
 @maxValue(1)
@@ -91,6 +109,12 @@ module portfolioDemo './modules/portfolio-demo-stack.bicep' = {
     deployWeb: deployWeb
     webOrigin: webOrigin
     apiBaseUrl: apiBaseUrl
+    webDataProtectionKeyUri: webDataProtectionKeyUri
+    webDataProtectionUsePortfolioDemoUnwrappedKeys: webDataProtectionUsePortfolioDemoUnwrappedKeys
+    usePortfolioDemoContainerAppSecrets: usePortfolioDemoContainerAppSecrets
+    apiJwtSigningKey: apiJwtSigningKey
+    apiAdminSeedPassword: apiAdminSeedPassword
+    webSyncfusionLicenseKey: webSyncfusionLicenseKey
     apiMinReplicas: apiMinReplicas
     grantAiInferenceRole: grantAiInferenceRole
     aiDeploymentAvailabilityVerified: aiDeploymentAvailabilityVerified
