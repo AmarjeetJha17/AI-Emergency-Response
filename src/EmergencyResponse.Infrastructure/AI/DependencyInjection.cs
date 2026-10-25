@@ -52,6 +52,10 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        var aiEnabled = configuration
+            .GetSection(AIOptions.SectionName)
+            .Get<AIOptions>()?.Enabled ?? true;
+
         services.AddMemoryCache();
         services.AddSingleton<IAISecurityPolicy, AISecurityPolicy>();
         services.AddSingleton<IPromptShieldClient, DeterministicPromptShieldClient>();
@@ -111,8 +115,16 @@ public static class DependencyInjection
         services.AddSingleton<IKnowledgeDocumentQueue,
             InMemoryKnowledgeDocumentQueue>();
         services.AddHostedService<KnowledgeDocumentBackgroundWorker>();
-        services.AddScoped<IEmergencyCopilotService,
-            EmergencyCopilotService>();
+        if (aiEnabled)
+        {
+            services.AddScoped<IEmergencyCopilotService,
+                EmergencyCopilotService>();
+        }
+        else
+        {
+            services.AddScoped<IEmergencyCopilotService,
+                DisabledEmergencyCopilotService>();
+        }
         services.AddScoped<ICitationValidator, CitationValidator>();
         services.AddScoped<ICopilotPolicyValidator, CopilotPolicyValidator>();
         services.AddScoped<IConversationMemoryService, ConversationMemoryService>();
@@ -144,29 +156,36 @@ public static class DependencyInjection
             IncidentExternalContextService>();
         services.AddHostedService<ExternalContextBackgroundWorker>();
 
-        // Resolve the final host configuration after WebApplicationFactory and
-        // environment providers have applied their overrides. Test substitutes
-        // must not depend on a real endpoint in the repository's appsettings.
-        services.AddSingleton(sp =>
+        if (aiEnabled)
         {
-            var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
-            return !string.IsNullOrWhiteSpace(options.ApiKey)
-                ? new AzureOpenAIClient(new Uri(options.Endpoint),
-                    new System.ClientModel.ApiKeyCredential(options.ApiKey))
-                : new AzureOpenAIClient(new Uri(options.Endpoint),
-                    new DefaultAzureCredential());
-        });
+            // Resolve the final host configuration after WebApplicationFactory and
+            // environment providers have applied their overrides. Test substitutes
+            // must not depend on a real endpoint in the repository's appsettings.
+            services.AddSingleton(sp =>
+            {
+                var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
+                return !string.IsNullOrWhiteSpace(options.ApiKey)
+                    ? new AzureOpenAIClient(new Uri(options.Endpoint),
+                        new System.ClientModel.ApiKeyCredential(options.ApiKey))
+                    : new AzureOpenAIClient(new Uri(options.Endpoint),
+                        new DefaultAzureCredential());
+            });
 
-        services.AddChatClient(sp =>
+            services.AddChatClient(sp =>
+            {
+                var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
+                return sp.GetRequiredService<AzureOpenAIClient>()
+                    .GetChatClient(options.Deployment).AsIChatClient();
+            });
+
+            services.AddScoped<
+                IIncidentAnalysisService,
+                IncidentAnalysisService>();
+        }
+        else
         {
-            var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
-            return sp.GetRequiredService<AzureOpenAIClient>()
-                .GetChatClient(options.Deployment).AsIChatClient();
-        });
-
-        services.AddScoped<
-            IIncidentAnalysisService,
-            IncidentAnalysisService>();
+            services.AddScoped<IIncidentAnalysisService, DisabledIncidentAnalysisService>();
+        }
 
         services.AddScoped<
             IAIAnalysisRepository,
@@ -202,32 +221,32 @@ public static class DependencyInjection
             IAIReviewPolicy,
             AIReviewPolicy>();
 
-        services.AddSingleton<
-            IEmbeddingGenerator<string, Embedding<float>>
-        >(sp =>
+        if (aiEnabled)
         {
-            var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
-            return sp.GetRequiredService<AzureOpenAIClient>()
-                .GetEmbeddingClient(options.EmbeddingDeployment).AsIEmbeddingGenerator();
-        });
+            services.AddSingleton<
+                IEmbeddingGenerator<string, Embedding<float>>
+            >(sp =>
+            {
+                var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
+                return sp.GetRequiredService<AzureOpenAIClient>()
+                    .GetEmbeddingClient(options.EmbeddingDeployment).AsIEmbeddingGenerator();
+            });
+            services.AddScoped<IIncidentEmbeddingService, IncidentEmbeddingService>();
+            services.AddScoped<IDuplicateIncidentService, IncidentDuplicateService>();
+            services.AddHttpClient<IIncidentVisualAnalysisService, IncidentVisualAnalysisService>();
+            services.AddScoped<ISituationAnalysisService, SituationAnalysisService>();
+        }
+        else
+        {
+            services.AddScoped<IIncidentEmbeddingService, DisabledIncidentEmbeddingService>();
+            services.AddScoped<IDuplicateIncidentService, DisabledDuplicateIncidentService>();
+            services.AddScoped<IIncidentVisualAnalysisService, DisabledIncidentVisualAnalysisService>();
+            services.AddScoped<ISituationAnalysisService, DisabledSituationAnalysisService>();
+        }
 
-        services.AddScoped<IIncidentEmbeddingService, IncidentEmbeddingService>();
+        services.AddScoped<IIncidentConsolidationService, IncidentConsolidationService>();
 
-        services.AddScoped<
-            IDuplicateIncidentService,
-            IncidentDuplicateService>();
-
-        services.AddScoped<
-            IIncidentConsolidationService,
-            IncidentConsolidationService>();
-
-        services.AddHttpClient<
-            IIncidentVisualAnalysisService,
-            IncidentVisualAnalysisService>();
-
-        services.AddScoped<
-            IVisualReviewPolicy,
-            VisualReviewPolicy>();
+        services.AddScoped<IVisualReviewPolicy, VisualReviewPolicy>();
 
         services.AddSingleton<
             IVisualAnalysisQueue,
@@ -287,13 +306,7 @@ public static class DependencyInjection
         services.Configure<VideoFrameExtractionOptions>(
             configuration.GetSection("VideoFrameExtraction"));
 
-        services.AddScoped<
-            IVideoFrameExtractor,
-            FfmpegVideoFrameExtractor>();
-
-        services.AddScoped<
-            ISituationAnalysisService,
-            SituationAnalysisService>();
+        services.AddScoped<IVideoFrameExtractor, FfmpegVideoFrameExtractor>();
 
         return services;
     }

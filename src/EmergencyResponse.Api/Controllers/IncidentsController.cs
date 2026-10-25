@@ -7,6 +7,7 @@ using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.AI.Jobs;
 using EmergencyResponse.Application.AI.VisualAnalysis;
 using EmergencyResponse.Application.Common.Roles;
+using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Domain.Enums;
 using EmergencyResponse.Application.DTOs.Incidents;
 using EmergencyResponse.Application.Events;
@@ -27,6 +28,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 
 namespace EmergencyResponse.Api.Controllers;
 
@@ -46,6 +48,7 @@ public class IncidentsController : ControllerBase
     private readonly IAIAnalysisQueue? _aiAnalysisQueue;
     private readonly IEscalationRiskPredictionService _predictionService;
     private readonly IPredictiveAnalysisQueue? _predictiveAnalysisQueue;
+    private readonly bool _aiEnabled;
 
     public IncidentsController(
         IIncidentService incidentService,
@@ -59,7 +62,8 @@ public class IncidentsController : ControllerBase
         IIncidentMediaStorage mediaStorage,
         IAIAnalysisQueue? aiAnalysisQueue = null,
         IEscalationRiskPredictionService? predictionService = null,
-        IPredictiveAnalysisQueue? predictiveAnalysisQueue = null)
+        IPredictiveAnalysisQueue? predictiveAnalysisQueue = null,
+        IOptions<AIOptions>? aiOptions = null)
     {
         _incidentService = incidentService;
         _duplicateIncidentService = duplicateIncidentService;
@@ -74,6 +78,7 @@ public class IncidentsController : ControllerBase
         _predictionService = predictionService
             ?? throw new ArgumentNullException(nameof(predictionService));
         _predictiveAnalysisQueue = predictiveAnalysisQueue;
+        _aiEnabled = aiOptions?.Value.Enabled ?? true;
     }
 
     [Authorize]
@@ -255,6 +260,7 @@ public class IncidentsController : ControllerBase
 
     [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
     [HttpGet("{incidentId:guid}/duplicates")]
+    [ServiceFilter(typeof(AIEnabledActionFilter))]
     public async Task<
         ActionResult<ApiResponse<IReadOnlyList<DuplicateIncidentCandidate>>>>
         GetDuplicates(
@@ -630,11 +636,14 @@ public class IncidentsController : ControllerBase
             file.Length,
             cancellationToken);
 
-        await _visualAnalysisQueue.EnqueueAsync(
-            new VisualAnalysisJob { IncidentMediaId = mediaId, IsVideo = false },
-            cancellationToken);
+        if (_aiEnabled)
+        {
+            await _visualAnalysisQueue.EnqueueAsync(
+                new VisualAnalysisJob { IncidentMediaId = mediaId, IsVideo = false },
+                cancellationToken);
+        }
 
-        return Ok(new { mediaId });
+        return Ok(new { mediaId, analysisStatus = _aiEnabled ? "Queued" : "Disabled" });
     }
 
     [Authorize]
@@ -667,11 +676,14 @@ public class IncidentsController : ControllerBase
             file.Length,
             cancellationToken);
 
-        await _visualAnalysisQueue.EnqueueAsync(
-            new VisualAnalysisJob { IncidentMediaId = mediaId, IsVideo = true },
-            cancellationToken);
+        if (_aiEnabled)
+        {
+            await _visualAnalysisQueue.EnqueueAsync(
+                new VisualAnalysisJob { IncidentMediaId = mediaId, IsVideo = true },
+                cancellationToken);
+        }
 
-        return Ok(new { mediaId });
+        return Ok(new { mediaId, analysisStatus = _aiEnabled ? "Queued" : "Disabled" });
     }
 
     [Authorize(Roles = "Operator,EmergencyAdmin,SystemAdmin")]
@@ -980,6 +992,7 @@ public class IncidentsController : ControllerBase
 
     [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
     [HttpPost("{id:guid}/ai/reprocess")]
+    [ServiceFilter(typeof(AIEnabledActionFilter))]
     public async Task<IActionResult> ReprocessAI(
         Guid id,
         CancellationToken cancellationToken)
@@ -1000,6 +1013,7 @@ public class IncidentsController : ControllerBase
 
     [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
     [HttpPost("{id:guid}/duplicates/reprocess")]
+    [ServiceFilter(typeof(AIEnabledActionFilter))]
     public async Task<IActionResult> ReprocessDuplicates(
         Guid id,
         CancellationToken cancellationToken)
@@ -1046,6 +1060,7 @@ public class IncidentsController : ControllerBase
 
     [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
     [HttpPost("{id:guid}/visual/reprocess")]
+    [ServiceFilter(typeof(AIEnabledActionFilter))]
     public async Task<IActionResult> ReprocessVisual(
         Guid id,
         CancellationToken cancellationToken)

@@ -3,7 +3,10 @@ using Azure.Identity;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Models;
+using EmergencyResponse.Application.Common.Configuration;
+using EmergencyResponse.Application.Exceptions;
 using EmergencyResponse.Application.Knowledge;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,7 +16,8 @@ namespace EmergencyResponse.Infrastructure.Knowledge;
 public sealed class KnowledgeSearchService : IKnowledgeSearchService
 {
     private readonly KnowledgeSearchOptions _options;
-    private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddings;
+    private readonly IServiceProvider _services;
+    private readonly AIOptions _aiOptions;
     private readonly KnowledgeSearchIndexBuilder _indexBuilder;
     private readonly ILogger<KnowledgeSearchService> _logger;
     private readonly SearchIndexClient? _indexClient;
@@ -21,12 +25,14 @@ public sealed class KnowledgeSearchService : IKnowledgeSearchService
 
     public KnowledgeSearchService(
         IOptions<KnowledgeSearchOptions> options,
-        IEmbeddingGenerator<string, Embedding<float>> embeddings,
+        IOptions<AIOptions> aiOptions,
+        IServiceProvider services,
         KnowledgeSearchIndexBuilder indexBuilder,
         ILogger<KnowledgeSearchService> logger)
     {
         _options = options.Value;
-        _embeddings = embeddings;
+        _aiOptions = aiOptions.Value;
+        _services = services;
         _indexBuilder = indexBuilder;
         _logger = logger;
 
@@ -48,12 +54,19 @@ public sealed class KnowledgeSearchService : IKnowledgeSearchService
         KnowledgeAccessContext accessContext,
         CancellationToken cancellationToken = default)
     {
+        if (!_aiOptions.Enabled)
+        {
+            throw new AIFeatureDisabledException();
+        }
+
         if (_searchClient is null || _indexClient is null)
         {
             return [];
         }
 
-        var vector = await _embeddings.GenerateAsync(
+        var embeddings = _services.GetRequiredService<
+            IEmbeddingGenerator<string, Embedding<float>>>();
+        var vector = await embeddings.GenerateAsync(
             question,
             cancellationToken: cancellationToken);
         if (_options.CreateIndexIfMissing)

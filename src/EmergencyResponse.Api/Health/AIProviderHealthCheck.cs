@@ -17,6 +17,12 @@ public sealed class AIProviderHealthCheck : IHealthCheck
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
+        if (!_options.Enabled)
+        {
+            return Task.FromResult(HealthCheckResult.Degraded(
+                "AI is disabled for this deployment; provider checks are not applicable."));
+        }
+
         if (_options.DeploymentAvailabilityVerified == false)
         {
             return Task.FromResult(HealthCheckResult.Degraded(

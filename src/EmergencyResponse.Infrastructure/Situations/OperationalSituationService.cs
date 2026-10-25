@@ -1,6 +1,7 @@
 using System.Text.Json;
 using EmergencyResponse.Application.AI.Common;
 using EmergencyResponse.Application.Common.Configuration;
+using EmergencyResponse.Application.Exceptions;
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Application.Observability;
 using EmergencyResponse.Application.Realtime;
@@ -849,6 +850,13 @@ public sealed class OperationalSituationService : IOperationalSituationService, 
 
             situation.Analyses.Add(analysisRecord);
             _db.OperationalSituationAnalyses.Add(analysisRecord);
+        }
+        catch (AIFeatureDisabledException)
+        {
+            if (string.IsNullOrWhiteSpace(situation.Title))
+            {
+                situation.Title = $"Situation Cluster ({situation.IncidentCount} incidents)";
+            }
         }
         catch (Exception ex)
         {

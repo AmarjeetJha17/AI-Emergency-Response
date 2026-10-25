@@ -1,4 +1,5 @@
 using EmergencyResponse.Application.Copilot;
+using EmergencyResponse.Api.Common;
 using EmergencyResponse.Application.Security.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +9,7 @@ namespace EmergencyResponse.Api.Controllers;
 
 [ApiController]
 [Route("api/copilot")]
+[ServiceFilter(typeof(AIEnabledActionFilter))]
 [Authorize(Policy = Permissions.CopilotUse)]
 public sealed class CopilotController : ControllerBase
 {

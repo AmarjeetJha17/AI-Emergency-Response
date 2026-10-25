@@ -4,6 +4,9 @@ public sealed class AIOptions
 {
     public const string SectionName = "AI";
 
+    /// <summary>Controls whether provider-backed AI services are registered and available.</summary>
+    public bool Enabled { get; set; } = true;
+
     public string Provider { get; set; } = null!;
 
     public string Endpoint { get; set; } = null!;
