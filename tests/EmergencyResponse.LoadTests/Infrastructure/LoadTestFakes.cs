@@ -5,12 +5,14 @@ using EmergencyResponse.Application.AI.DTOs;
 using EmergencyResponse.Application.AI.Interfaces;
 using EmergencyResponse.Application.AI.VisualAnalysis;
 using EmergencyResponse.Application.Copilot;
+using EmergencyResponse.Application.Common.Configuration;
 using EmergencyResponse.Application.ExternalContext;
 using EmergencyResponse.Application.Knowledge;
 using EmergencyResponse.Application.Media;
 using EmergencyResponse.Application.Situations;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace EmergencyResponse.LoadTests.Infrastructure;
 
@@ -253,12 +255,15 @@ public sealed class LoadTestChatClient(LoadTestFaultController faults) : IChatCl
     public void Dispose() { }
 }
 
-public sealed class LoadTestApplicationMessageBus(IServiceScopeFactory scopes, LoadTestFaultController faults) : EmergencyResponse.Application.Reliability.IApplicationMessageBus
+public sealed class LoadTestApplicationMessageBus(
+    IServiceScopeFactory scopes,
+    LoadTestFaultController faults,
+    IOptions<AIOptions> aiOptions) : EmergencyResponse.Application.Reliability.IApplicationMessageBus
 {
     public Task PublishAsync<T>(string messageType, T message, string messageId, CancellationToken cancellationToken = default)
     {
         if (faults.PublishUnavailable) throw new HttpRequestException("Injected load-test message-bus outage.");
-        return new EmergencyResponse.Infrastructure.BackgroundJobs.InMemoryApplicationMessageBus(scopes)
+        return new EmergencyResponse.Infrastructure.BackgroundJobs.InMemoryApplicationMessageBus(scopes, aiOptions)
             .PublishAsync(messageType, message, messageId, cancellationToken);
     }
 }
