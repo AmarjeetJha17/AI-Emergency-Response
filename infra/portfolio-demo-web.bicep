@@ -134,5 +134,3 @@ resource webApp 'Microsoft.App/containerApps@2024-03-01' = {
     }
   }
 }
-
-\n

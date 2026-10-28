@@ -301,5 +301,3 @@ try {
         Remove-Item -LiteralPath $compiledTemplatePath -Force -ErrorAction SilentlyContinue
     }
 }
-
-\n
