@@ -56,6 +56,10 @@ public sealed class EmergencyResponseWebApplicationFactory
                 ["AdminSeed:FirstName"] = "Test",
                 ["AdminSeed:LastName"]  = "Admin",
 
+                // Exercise AI workflows through the deterministic fakes below.
+                // The portfolio's disabled setting would otherwise short-circuit
+                // these requests with 503 before their database-backed actions run.
+                ["AI:Enabled"]             = "true",
                 ["AI:Provider"]            = "AzureOpenAI",
                 ["AI:Endpoint"]            = "https://test.openai.azure.com/",
                 ["AI:Deployment"]          = "test-deployment",
