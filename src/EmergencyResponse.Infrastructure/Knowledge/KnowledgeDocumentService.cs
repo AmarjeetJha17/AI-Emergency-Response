@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using EmergencyResponse.Application.Knowledge;
+using EmergencyResponse.Application.Common.Configuration;
+using EmergencyResponse.Application.Exceptions;
 using EmergencyResponse.Application.AISecurity;
 using EmergencyResponse.Application.Security.FileSecurity;
 using EmergencyResponse.Domain.Entities;
@@ -8,6 +10,7 @@ using EmergencyResponse.Domain.Knowledge;
 using EmergencyResponse.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -20,7 +23,8 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
     private readonly IKnowledgeDocumentNumberGenerator _numbers;
     private readonly IKnowledgeDocumentParser _parser;
     private readonly IKnowledgeDocumentChunker _chunker;
-    private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddings;
+    private readonly IServiceProvider _services;
+    private readonly AIOptions _aiOptions;
     private readonly IKnowledgeSearchService _search;
     private readonly KnowledgeDocumentOptions _options;
     private readonly ILogger<KnowledgeDocumentService> _logger;
@@ -33,8 +37,9 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
         IKnowledgeDocumentNumberGenerator numbers,
         IKnowledgeDocumentParser parser,
         IKnowledgeDocumentChunker chunker,
-        IEmbeddingGenerator<string, Embedding<float>> embeddings,
+        IServiceProvider services,
         IKnowledgeSearchService search,
+        IOptions<AIOptions> aiOptions,
         IOptions<KnowledgeDocumentOptions> options,
         ILogger<KnowledgeDocumentService> logger,
         IFileSecurityService fileSecurity,
@@ -45,7 +50,8 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
         _numbers = numbers;
         _parser = parser;
         _chunker = chunker;
-        _embeddings = embeddings;
+        _services = services;
+        _aiOptions = aiOptions.Value;
         _search = search;
         _options = options.Value;
         _logger = logger;
@@ -143,6 +149,11 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
         Guid documentId,
         CancellationToken cancellationToken = default)
     {
+        if (!_aiOptions.Enabled)
+        {
+            throw new AIFeatureDisabledException();
+        }
+
         var document = await _db.KnowledgeDocuments
             .SingleOrDefaultAsync(x => x.Id == documentId, cancellationToken)
             ?? throw new KeyNotFoundException(
@@ -203,7 +214,8 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
             var departments = DeserializeList(document.AllowedDepartmentsJson);
             foreach (var chunk in chunks)
             {
-                var embeddingResult = await _embeddings.GenerateAsync(
+                var embeddingResult = await _services.GetRequiredService<
+                    IEmbeddingGenerator<string, Embedding<float>>>().GenerateAsync(
                     [chunk.Content],
                     cancellationToken: cancellationToken);
                 if (embeddingResult.Count == 0)
@@ -279,6 +291,11 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
         Guid documentId,
         CancellationToken cancellationToken = default)
     {
+        if (!_aiOptions.Enabled)
+        {
+            throw new AIFeatureDisabledException();
+        }
+
         var document = await _db.KnowledgeDocuments
             .SingleOrDefaultAsync(x => x.Id == documentId, cancellationToken)
             ?? throw new KeyNotFoundException(
@@ -305,7 +322,8 @@ public sealed class KnowledgeDocumentService : IKnowledgeDocumentService
         var departments = DeserializeList(document.AllowedDepartmentsJson);
         foreach (var chunk in chunks)
         {
-            var embedding = await _embeddings.GenerateAsync(
+            var embedding = await _services.GetRequiredService<
+                IEmbeddingGenerator<string, Embedding<float>>>().GenerateAsync(
                 [chunk.Content],
                 cancellationToken: cancellationToken);
             if (embedding.Count == 0)

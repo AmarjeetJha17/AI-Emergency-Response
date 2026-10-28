@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 
 using EmergencyResponse.Application.Dashboard;
+using EmergencyResponse.Application.Predictive.Forecasting;
+using EmergencyResponse.Application.Predictive.Hotspots;
 
 namespace EmergencyResponse.Web.Services;
 
@@ -35,6 +37,20 @@ public sealed class DashboardApiClient : IDashboardApiClient
         return await response.Content
             .ReadFromJsonAsync<DashboardSummary>(cancellationToken)
             ?? new DashboardSummary();
+    }
+
+    public Task<ForecastResult> GetIncidentVolumeAsync(CancellationToken cancellationToken = default) =>
+        GetForecastPayloadAsync<ForecastResult>("api/predictive/incident-volume?horizon=24", cancellationToken);
+
+    public async Task<IReadOnlyList<HotspotResult>> GetHotspotsAsync(CancellationToken cancellationToken = default) =>
+        await GetForecastPayloadAsync<List<HotspotResult>>("api/predictive/hotspots?hours=24", cancellationToken);
+
+    private async Task<T> GetForecastPayloadAsync<T>(string path, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient.GetAsync(path, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<T>(cancellationToken)
+            ?? throw new System.Text.Json.JsonException("Forecast response was empty.");
     }
 
     public async Task<IReadOnlyList<DashboardIncidentItem>> GetIncidentsAsync(

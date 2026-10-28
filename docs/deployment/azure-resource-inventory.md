@@ -6,7 +6,7 @@ Environment boundaries and target roles are defined in the [environment matrix](
 
 ## Bicep foundation resources
 
-`infra/main.bicep` generates names from the resource-group ID and the `staging`/`pilot` environment parameter. `infra/staging-preview.bicep` wraps the foundation in a subscription-scope preview for `rg-er-staging-eastus`, with East US as the preview region. The preview script uses the active CLI subscription and signed-in Entra user without writing their identifiers into tracked files. Region availability, network overlap, global name availability, and pricing still require review before deployment.
+`infra/main.bicep` generates names from the resource-group ID and the `staging`/`pilot` environment parameter. `infra/staging-preview.bicep` wraps the foundation in a subscription-scope preview. Resource group, region, and existing Azure AI account coordinates are deployment inputs; there are no defaults for an account in a presumed subscription. The current portfolio preflight target is East US 2 and the user-provided existing AI resource in `modelgpt123`; see [portfolio Azure preflight](portfolio-azure-preflight.md). These are not resource-existence or quota claims. Region availability, network overlap, global name availability, provider registration, quota, permissions, and pricing still require review before deployment.
 
 | Bicep resource | Purpose | Intended identity access | Environment |
 |---|---|---|---|
@@ -40,7 +40,7 @@ All four queues are included because the current Azure Service Bus publisher and
 | Worker Container App, e.g. `ca-er-worker-staging` | Dedicated persistent queue consumer | Deferred until all job producers/consumers use a verified durable transport and a Worker host exists |
 | Web/API runtime identities and scoped data roles | Web gets Data Protection Blob and Key Vault rights; the pre-created API identity gets Blob, Search, Foundry, Key Vault, and four queue sender/receiver roles | Defined in `infra/main.bicep`; SQL contained users remain a separate DBA bootstrap step |
 | Application Insights | Application telemetry and alerts | Not declared; current app exporters and Azure Monitor integration need configuration |
-| Existing Foundry account | Reused low-volume for synthetic staging requests through managed identity; must confirm model endpoint role assignment | API OpenAI User assignment is defined in `infra/apps.bicep`; account remains in its existing resource group |
+| Existing Foundry account | Reused low-volume for synthetic staging requests through managed identity; must confirm account, model deployments, quota, and endpoint role assignment | API OpenAI User assignment is defined in `infra/apps.bicep`; account remains in the explicitly passed existing resource group |
 | Azure SignalR Service | Optional SignalR scale-out | Not declared; evaluate after staging topology/load testing |
 
 ## Pilot examples
@@ -53,4 +53,4 @@ The Bicep foundation applies `project`, `environment`, and `managedBy` tags. Add
 
 ## Provisioning status
 
-Phase 17.4 implementation now includes Web/API and temporary-runner Bicep definitions, but none have been provisioned. Provider-level preflight previously reported the subscription's one-Container-Apps-environment quota was already used; recheck the quota before provisioning and request an increase if still blocked. The `10.40.0.0/16` range, East US region, SQL SKU, Search SKU, and Bastion SKU need current availability, overlap, and cost review. See [staging verification](staging-verification.md) for actual status and pending checks.
+Phase 17.4 implementation now includes Web/API and temporary-runner Bicep definitions, but none have been provisioned by this repository work. Provider-level preflight previously reported the subscription's one-Container-Apps-environment quota was already used; recheck it in the intended subscription before provisioning. The `10.40.0.0/16` range, East US 2 region, SQL SKU, Search SKU, and any temporary Bastion/VM SKU need current availability, overlap, quota, and cost review. See [staging verification](staging-verification.md) for dated historical status and [portfolio Azure preflight](portfolio-azure-preflight.md) for pending checks.

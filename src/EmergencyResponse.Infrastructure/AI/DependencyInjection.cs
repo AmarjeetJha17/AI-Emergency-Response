@@ -52,6 +52,10 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        var aiEnabled = configuration
+            .GetSection(AIOptions.SectionName)
+            .Get<AIOptions>()?.Enabled ?? true;
+
         services.AddMemoryCache();
         services.AddSingleton<IAISecurityPolicy, AISecurityPolicy>();
         services.AddSingleton<IPromptShieldClient, DeterministicPromptShieldClient>();
@@ -111,8 +115,16 @@ public static class DependencyInjection
         services.AddSingleton<IKnowledgeDocumentQueue,
             InMemoryKnowledgeDocumentQueue>();
         services.AddHostedService<KnowledgeDocumentBackgroundWorker>();
-        services.AddScoped<IEmergencyCopilotService,
-            EmergencyCopilotService>();
+        if (aiEnabled)
+        {
+            services.AddScoped<IEmergencyCopilotService,
+                EmergencyCopilotService>();
+        }
+        else
+        {
+            services.AddScoped<IEmergencyCopilotService,
+                DisabledEmergencyCopilotService>();
+        }
         services.AddScoped<ICitationValidator, CitationValidator>();
         services.AddScoped<ICopilotPolicyValidator, CopilotPolicyValidator>();
         services.AddScoped<IConversationMemoryService, ConversationMemoryService>();
@@ -144,49 +156,36 @@ public static class DependencyInjection
             IncidentExternalContextService>();
         services.AddHostedService<ExternalContextBackgroundWorker>();
 
-        var options =
-            configuration
-                .GetSection(AIOptions.SectionName)
-                .Get<AIOptions>()
-            ?? throw new InvalidOperationException(
-                "AI configuration is missing.");
-
-        if (string.IsNullOrWhiteSpace(options.Endpoint))
+        if (aiEnabled)
         {
-            throw new InvalidOperationException(
-                "AI endpoint is not configured.");
-        }
+            // Resolve the final host configuration after WebApplicationFactory and
+            // environment providers have applied their overrides. Test substitutes
+            // must not depend on a real endpoint in the repository's appsettings.
+            services.AddSingleton(sp =>
+            {
+                var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
+                return !string.IsNullOrWhiteSpace(options.ApiKey)
+                    ? new AzureOpenAIClient(new Uri(options.Endpoint),
+                        new System.ClientModel.ApiKeyCredential(options.ApiKey))
+                    : new AzureOpenAIClient(new Uri(options.Endpoint),
+                        new DefaultAzureCredential());
+            });
 
-        if (string.IsNullOrWhiteSpace(options.Deployment))
+            services.AddChatClient(sp =>
+            {
+                var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
+                return sp.GetRequiredService<AzureOpenAIClient>()
+                    .GetChatClient(options.Deployment).AsIChatClient();
+            });
+
+            services.AddScoped<
+                IIncidentAnalysisService,
+                IncidentAnalysisService>();
+        }
+        else
         {
-            throw new InvalidOperationException(
-                "AI deployment is not configured.");
+            services.AddScoped<IIncidentAnalysisService, DisabledIncidentAnalysisService>();
         }
-        var azureClient = !string.IsNullOrWhiteSpace(options.ApiKey)
-            ? new AzureOpenAIClient(
-                new Uri(options.Endpoint),
-                new System.ClientModel.ApiKeyCredential(options.ApiKey))
-            : new AzureOpenAIClient(
-                new Uri(options.Endpoint),
-                new DefaultAzureCredential());
-
-        services.AddSingleton(azureClient);
-
-        var chatClient =
-            azureClient
-                .GetChatClient(options.Deployment)
-                .AsIChatClient();
-
-        var embeddingGenerator =
-            azureClient
-                .GetEmbeddingClient(options.EmbeddingDeployment)
-                .AsIEmbeddingGenerator();
-
-        services.AddChatClient(chatClient);
-
-        services.AddScoped<
-            IIncidentAnalysisService,
-            IncidentAnalysisService>();
 
         services.AddScoped<
             IAIAnalysisRepository,
@@ -222,27 +221,32 @@ public static class DependencyInjection
             IAIReviewPolicy,
             AIReviewPolicy>();
 
-        services.AddSingleton<
-            IEmbeddingGenerator<string, Embedding<float>>
-        >(embeddingGenerator);
+        if (aiEnabled)
+        {
+            services.AddSingleton<
+                IEmbeddingGenerator<string, Embedding<float>>
+            >(sp =>
+            {
+                var options = ReadAIOptions(sp.GetRequiredService<IConfiguration>());
+                return sp.GetRequiredService<AzureOpenAIClient>()
+                    .GetEmbeddingClient(options.EmbeddingDeployment).AsIEmbeddingGenerator();
+            });
+            services.AddScoped<IIncidentEmbeddingService, IncidentEmbeddingService>();
+            services.AddScoped<IDuplicateIncidentService, IncidentDuplicateService>();
+            services.AddHttpClient<IIncidentVisualAnalysisService, IncidentVisualAnalysisService>();
+            services.AddScoped<ISituationAnalysisService, SituationAnalysisService>();
+        }
+        else
+        {
+            services.AddScoped<IIncidentEmbeddingService, DisabledIncidentEmbeddingService>();
+            services.AddScoped<IDuplicateIncidentService, DisabledDuplicateIncidentService>();
+            services.AddScoped<IIncidentVisualAnalysisService, DisabledIncidentVisualAnalysisService>();
+            services.AddScoped<ISituationAnalysisService, DisabledSituationAnalysisService>();
+        }
 
-        services.AddScoped<IIncidentEmbeddingService, IncidentEmbeddingService>();
+        services.AddScoped<IIncidentConsolidationService, IncidentConsolidationService>();
 
-        services.AddScoped<
-            IDuplicateIncidentService,
-            IncidentDuplicateService>();
-
-        services.AddScoped<
-            IIncidentConsolidationService,
-            IncidentConsolidationService>();
-
-        services.AddHttpClient<
-            IIncidentVisualAnalysisService,
-            IncidentVisualAnalysisService>();
-
-        services.AddScoped<
-            IVisualReviewPolicy,
-            VisualReviewPolicy>();
+        services.AddScoped<IVisualReviewPolicy, VisualReviewPolicy>();
 
         services.AddSingleton<
             IVisualAnalysisQueue,
@@ -302,15 +306,22 @@ public static class DependencyInjection
         services.Configure<VideoFrameExtractionOptions>(
             configuration.GetSection("VideoFrameExtraction"));
 
-        services.AddScoped<
-            IVideoFrameExtractor,
-            FfmpegVideoFrameExtractor>();
-
-        services.AddScoped<
-            ISituationAnalysisService,
-            SituationAnalysisService>();
+        services.AddScoped<IVideoFrameExtractor, FfmpegVideoFrameExtractor>();
 
         return services;
+    }
+
+    private static AIOptions ReadAIOptions(IConfiguration configuration)
+    {
+        var options = configuration.GetSection(AIOptions.SectionName).Get<AIOptions>()
+            ?? throw new InvalidOperationException("AI configuration is missing.");
+        if (string.IsNullOrWhiteSpace(options.Endpoint))
+            throw new InvalidOperationException("AI endpoint is not configured.");
+        if (string.IsNullOrWhiteSpace(options.Deployment))
+            throw new InvalidOperationException("AI deployment is not configured.");
+        if (string.IsNullOrWhiteSpace(options.EmbeddingDeployment))
+            throw new InvalidOperationException("AI embedding deployment is not configured.");
+        return options;
     }
 }
 

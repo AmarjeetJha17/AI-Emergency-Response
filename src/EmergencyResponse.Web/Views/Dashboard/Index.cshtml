@@ -1,286 +1,90 @@
 @model EmergencyResponse.Web.Models.Dashboard.DashboardViewModel
-
 @{
-    ViewData["Title"] = "Emergency Operations Dashboard";
+    ViewData["Title"] = "Emergency Operations Center";
 }
+<div id="emergencyDashboard" class="er-dashboard" data-selected-incident-id="@Model.SelectedIncidentId">
+    <header class="er-page-header">
+        <div>
+            <div class="er-eyebrow">Operations overview</div>
+            <h1>Emergency Operations Center</h1>
+            <p class="er-page-subtitle">Monitor incident reports, coordinate resources, and prioritize human review.</p>
+            <div class="er-data-status">
+                <span id="dashboardConnectionIndicator" class="er-status" role="status" aria-live="polite">Connecting...</span>
+                <span id="dashboardLastUpdated">Page data retrieved @DateTime.UtcNow.ToString("dd MMM yyyy HH:mm:ss") UTC</span>
+            </div>
+            <div id="dashboardRefreshStatus" class="er-data-status" role="status" aria-live="polite" data-state="initial">Live refresh has not yet been verified. Counts below reflect the retrieved data.</div>
+        </div>
+        <div class="er-page-actions">
+            <a asp-controller="Map" asp-action="Index" class="btn btn-outline-primary">Open live map</a>
+            <button id="refreshDashboardButton" type="button" class="btn btn-primary">Refresh overview</button>
+        </div>
+    </header>
 
-<div id="emergencyDashboard"
-     class="container-fluid py-4"
-     data-selected-incident-id="@Model.SelectedIncidentId">
+    <section class="er-kpi-grid" aria-label="Incident overview">
+        <div class="er-panel er-metric er-metric-critical">
+            <span class="er-metric-label">Critical incidents</span>
+            <strong id="criticalIncidentCount" class="er-metric-value">@Model.Summary.CriticalIncidents</strong>
+            <span class="er-metric-note">Critical severity · all reported incidents</span>
+        </div>
+        <div class="er-panel er-metric er-metric-high">
+            <span class="er-metric-label">High-priority incidents</span>
+            <strong id="highPriorityIncidentCount" class="er-metric-value">@Model.GridItems.Count(x => x.Priority == "High")</strong>
+            <span class="er-metric-note">High priority in the displayed queue (up to 100)</span>
+            <span class="er-metric-note">High severity overall: <span id="highIncidentCount">@Model.Summary.HighIncidents</span></span>
+        </div>
+        <div class="er-panel er-metric">
+            <span class="er-metric-label">Active incidents</span>
+            <strong id="activeIncidentCount" class="er-metric-value">@Model.Summary.ActiveIncidents</strong>
+            <span class="er-metric-note">Excludes closed and rejected reports</span>
+        </div>
+        <div class="er-panel er-metric">
+            <span class="er-metric-label">Unassigned incidents</span>
+            <strong id="unassignedIncidentCount" class="er-metric-value">@Model.Summary.UnassignedIncidents</strong>
+            <span class="er-metric-note">Reports without a responder assignment</span>
+        </div>
+    </section>
 
-    <div class="mb-4">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
-            <h1 class="h3 mb-0">Emergency Operations Dashboard</h1>
-            <div class="d-flex align-items-center gap-2">
-                <span id="dashboardConnectionIndicator" class="badge bg-secondary">
-                    Connecting...
-                </span>
-                <span id="dashboardLastUpdated" class="small text-muted">
-                </span>
+    <section class="er-panel mb-4" aria-labelledby="operationalReviewHeading">
+        <div class="er-section-header"><h2 id="operationalReviewHeading" class="er-section-title">Operational review</h2><p class="small text-muted mb-0">Persisted review queues and alerts. Zero pending items does not confirm that analysis has run.</p></div>
+        <div class="er-review-grid">
+            <div class="er-review-group"><h3>Human review</h3>
+                <div class="er-summary-line"><span>AI review</span><strong id="aiReviewCount">@Model.Summary.AwaitingAIReview</strong></div>
+                <div class="er-summary-line"><span>Duplicate review</span><strong id="duplicateReviewCount">@Model.Summary.AwaitingDuplicateReview</strong></div>
+                <div class="er-summary-line"><span>Visual review</span><strong id="visualReviewCount">@Model.Summary.AwaitingVisualReview</strong></div>
+            </div>
+            <div class="er-review-group"><h3>Escalations</h3>
+                <div class="er-summary-line"><span>Open Escalation Alerts</span><strong id="openEscalationsCount">@Model.Summary.OpenEscalations</strong></div>
+                <div class="er-summary-line"><span>Critical</span><strong id="criticalEscalationsCount">@Model.Summary.CriticalEscalations</strong></div>
+                <div class="er-summary-line"><span>Awaiting acknowledgement</span><strong id="unacknowledgedEscalationsCount">@Model.Summary.UnacknowledgedEscalations</strong></div>
+            </div>
+            <div class="er-review-group"><h3>Situations</h3>
+                <a class="er-summary-line" asp-controller="Situations" asp-action="Index" ><span>Open situations</span><strong id="openSituationsCount">@Model.Summary.OpenSituations</strong></a>
+                <a class="er-summary-line" asp-controller="Situations" asp-action="Index" asp-route-level="Critical"><span>Critical</span><strong id="criticalSituationsCount">@Model.Summary.CriticalSituations</strong></a>
+                <a class="er-summary-line" asp-controller="Situations" asp-action="Index" asp-route-resourceShortage="true"><span>Resource shortage</span><strong id="situationsWithResourceShortageCount">@Model.Summary.SituationsWithResourceShortage</strong></a>
+            </div>
+            <div class="er-review-group"><h3>Notifications</h3>
+                <a class="er-summary-line" asp-controller="Notifications" asp-action="Index" asp-route-status="Unread"><span>Unread alerts</span><strong id="unreadNotificationsCount">@Model.Summary.UnreadNotifications</strong></a>
+                <a class="er-summary-line" asp-controller="Notifications" asp-action="Index" asp-route-priority="Critical"><span>Critical</span><strong id="criticalNotificationsCount">@Model.Summary.CriticalNotifications</strong></a>
+                <a class="er-summary-line" asp-controller="Notifications" asp-action="Index" asp-route-priority="Urgent"><span>Urgent</span><strong id="urgentNotificationsCount">@Model.Summary.UrgentNotifications</strong></a>
             </div>
         </div>
-        <p class="text-muted mb-0">Live operational overview of emergency incidents.</p>
-        <div class="small text-muted">
-            Data retrieved:
-            @DateTime.Now.ToString("dd MMM yyyy HH:mm:ss")
-        </div>
-    </div>
+        <p class="small text-muted px-4 pb-3 mb-0">Notification totals reflect the operational summary; the bell and inbox use your authorized recipient scope.</p>
+    </section>
 
-    @* Primary KPI cards *@
-    <div class="row g-3 mb-4">
-
-        <div class="col-sm-6 col-xl-3">
-            <div class="card shadow-sm border-start border-danger border-4">
-                <div class="card-body">
-                    <div class="text-muted small">Critical</div>
-                    <div class="display-6 fw-bold text-danger" id="criticalIncidentCount">
-                        @Model.Summary.CriticalIncidents
-                    </div>
-                    <div class="text-muted small mt-1">Incidents</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-sm-6 col-xl-3">
-            <div class="card shadow-sm border-start border-warning border-4">
-                <div class="card-body">
-                    <div class="text-muted small">High</div>
-                    <div class="display-6 fw-bold text-warning" id="highIncidentCount">
-                        @Model.Summary.HighIncidents
-                    </div>
-                    <div class="text-muted small mt-1">Incidents</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-sm-6 col-xl-3">
-            <div class="card shadow-sm border-start border-primary border-4">
-                <div class="card-body">
-                    <div class="text-muted small">Active</div>
-                    <div class="display-6 fw-bold text-primary" id="activeIncidentCount">
-                        @Model.Summary.ActiveIncidents
-                    </div>
-                    <div class="text-muted small mt-1">Open incidents</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-sm-6 col-xl-3">
-            <div class="card shadow-sm border-start border-secondary border-4">
-                <div class="card-body">
-                    <div class="text-muted small">Unassigned</div>
-                    <div class="display-6 fw-bold" id="unassignedIncidentCount">
-                        @Model.Summary.UnassignedIncidents
-                    </div>
-                    <div class="text-muted small mt-1">No responder</div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    @* Review queue cards *@
-    <div class="row g-3 mb-4">
-
-        <div class="col-md-4">
-            <div class="card shadow-sm @(Model.Summary.AwaitingAIReview > 0 ? "border-warning" : "")">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <div class="fs-2 text-warning">&#9888;</div>
-                    <div>
-                        <div class="text-muted small">Awaiting AI Review</div>
-                        <div class="fs-3 fw-bold" id="aiReviewCount">@Model.Summary.AwaitingAIReview</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card shadow-sm @(Model.Summary.AwaitingDuplicateReview > 0 ? "border-info" : "")">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <div class="fs-2 text-info">&#8645;</div>
-                    <div>
-                        <div class="text-muted small">Awaiting Duplicate Review</div>
-                        <div class="fs-3 fw-bold" id="duplicateReviewCount">@Model.Summary.AwaitingDuplicateReview</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card shadow-sm @(Model.Summary.AwaitingVisualReview > 0 ? "border-secondary" : "")">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <div class="fs-2 text-secondary">&#128247;</div>
-                    <div>
-                        <div class="text-muted small">Awaiting Visual Review</div>
-                        <div class="fs-3 fw-bold" id="visualReviewCount">@Model.Summary.AwaitingVisualReview</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    @* Escalation & Situation Awareness KPI cards *@
-    <div class="row g-3 mb-4">
-
-        <div class="col-md-4">
-            <div class="card shadow-sm @(Model.Summary.OpenEscalations > 0 ? "border-danger" : "")">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <div class="fs-2 text-danger">&#9888;</div>
-                    <div>
-                        <div class="text-muted small">Open Escalation Alerts</div>
-                        <div class="fs-3 fw-bold text-danger" id="openEscalationsCount">@Model.Summary.OpenEscalations</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card shadow-sm @(Model.Summary.CriticalEscalations > 0 ? "border-danger border-2" : "")">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <div class="fs-2 text-danger">&#128680;</div>
-                    <div>
-                        <div class="text-muted small">Critical Escalations</div>
-                        <div class="fs-3 fw-bold text-danger" id="criticalEscalationsCount">@Model.Summary.CriticalEscalations</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card shadow-sm @(Model.Summary.UnacknowledgedEscalations > 0 ? "border-warning" : "")">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <div class="fs-2 text-warning">&#9200;</div>
-                    <div>
-                        <div class="text-muted small">Awaiting Acknowledge</div>
-                        <div class="fs-3 fw-bold text-warning" id="unacknowledgedEscalationsCount">@Model.Summary.UnacknowledgedEscalations</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    @* Operational Situations KPI cards (Phase 12 Part 3) *@
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <a asp-controller="Situations" asp-action="Index" class="text-decoration-none">
-                <div class="card shadow-sm border-start border-4 border-warning h-100">
-                    <div class="card-body d-flex align-items-center gap-3">
-                        <div class="fs-2 text-warning"><i class="bi bi-diagram-3"></i></div>
-                        <div>
-                            <div class="text-muted small">Open Situations</div>
-                            <div class="fs-3 fw-bold text-dark" id="openSituationsCount">@Model.Summary.OpenSituations</div>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <div class="col-md-4">
-            <a asp-controller="Situations" asp-action="Index" asp-route-level="Critical" class="text-decoration-none">
-                <div class="card shadow-sm border-start border-4 border-danger h-100 @(Model.Summary.CriticalSituations > 0 ? "border-danger border-2" : "")">
-                    <div class="card-body d-flex align-items-center gap-3">
-                        <div class="fs-2 text-danger"><i class="bi bi-fire"></i></div>
-                        <div>
-                            <div class="text-muted small">Critical Situations</div>
-                            <div class="fs-3 fw-bold text-danger" id="criticalSituationsCount">@Model.Summary.CriticalSituations</div>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <div class="col-md-4">
-            <a asp-controller="Situations" asp-action="Index" asp-route-resourceShortage="true" class="text-decoration-none">
-                <div class="card shadow-sm border-start border-4 border-danger h-100 @(Model.Summary.SituationsWithResourceShortage > 0 ? "border-danger border-2" : "")">
-                    <div class="card-body d-flex align-items-center gap-3">
-                        <div class="fs-2 text-danger"><i class="bi bi-shield-slash"></i></div>
-                        <div>
-                            <div class="text-muted small">Situations with Resource Shortage</div>
-                            <div class="fs-3 fw-bold text-danger" id="situationsWithResourceShortageCount">@Model.Summary.SituationsWithResourceShortage</div>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
-
-    @* Operational Notifications & Alerts KPI cards (Phase 12 Part 4) *@
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <a asp-controller="Notifications" asp-action="Index" asp-route-status="Unread" class="text-decoration-none">
-                <div class="card shadow-sm border-start border-4 border-info h-100 @(Model.Summary.UnreadNotifications > 0 ? "border-info" : "")">
-                    <div class="card-body d-flex align-items-center gap-3">
-                        <div class="fs-2 text-info"><i class="bi bi-bell"></i></div>
-                        <div>
-                            <div class="text-muted small">Unread Operator Alerts</div>
-                            <div class="fs-3 fw-bold text-dark" id="unreadNotificationsCount">@Model.Summary.UnreadNotifications</div>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <div class="col-md-4">
-            <a asp-controller="Notifications" asp-action="Index" asp-route-priority="Critical" class="text-decoration-none">
-                <div class="card shadow-sm border-start border-4 border-danger h-100 @(Model.Summary.CriticalNotifications > 0 ? "border-danger border-2" : "")">
-                    <div class="card-body d-flex align-items-center gap-3">
-                        <div class="fs-2 text-danger"><i class="bi bi-exclamation-diamond-fill"></i></div>
-                        <div>
-                            <div class="text-muted small">Critical Alert Notifications</div>
-                            <div class="fs-3 fw-bold text-danger" id="criticalNotificationsCount">@Model.Summary.CriticalNotifications</div>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <div class="col-md-4">
-            <a asp-controller="Notifications" asp-action="Index" asp-route-priority="Urgent" class="text-decoration-none">
-                <div class="card shadow-sm border-start border-4 border-warning h-100 @(Model.Summary.UrgentNotifications > 0 ? "border-warning border-2" : "")">
-                    <div class="card-body d-flex align-items-center gap-3">
-                        <div class="fs-2 text-warning"><i class="bi bi-shield-exclamation"></i></div>
-                        <div>
-                            <div class="text-muted small">Urgent Alert Notifications</div>
-                            <div class="fs-3 fw-bold text-warning" id="urgentNotificationsCount">@Model.Summary.UrgentNotifications</div>
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
-
-    @* Incident Command Grid *@
-    @if (!Model.GridItems.Any())
+    @if (Model.SelectedIncidentId.HasValue)
     {
-        <div class="alert alert-success m-3">
-            No incidents currently require operational attention.
+        <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div><strong>Incident selected from the map.</strong><div class="small">The matching row is focused when it is present in the current grid page.</div></div>
+            <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Clear Selection</a>
         </div>
     }
-    else
-    {
-        @if (Model.SelectedIncidentId.HasValue)
-        {
-            <div class="alert alert-info d-flex justify-content-between align-items-center mt-3 mb-0">
-                <div>
-                    <strong>Incident selected from the map.</strong>
-                    <div class="small">The command grid has been focused on the selected incident.</div>
-                </div>
-                <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
-                    Clear Selection
-                </a>
-            </div>
-        }
-
-        <div class="card shadow-sm mt-3">
-            <div class="card-header">
-                <div class="fw-semibold">Active Incident Queue</div>
-                <div class="small text-muted">Latest operational incidents</div>
-            </div>
-
-            <div class="card-body p-0">
-
+    <section class="card mb-4" aria-labelledby="incidentQueueHeading">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div><h2 id="incidentQueueHeading" class="er-section-title">Active Incident Queue</h2><p class="small text-muted mb-0">Latest 100 reports, including terminal states. Filter Status to focus on active work.</p></div>
+            <a asp-controller="Incidents" asp-action="Index" class="btn btn-sm btn-outline-primary">All incidents</a>
+        </div>
+        <div id="incidentQueueEmpty" class="er-empty-state @(Model.GridItems.Any() ? "d-none" : "")"><strong>No incident reports in this queue.</strong>New reports will appear after a successful refresh.</div>
+        <div class="er-grid-region" role="region" aria-label="Incident queue, horizontally scrollable" tabindex="0">
                 <ejs-grid id="incidentGrid"
                           dataSource="@Model.GridItems"
                           toolbar="@(new List<string>() { "Search", "ColumnChooser" })"
@@ -360,21 +164,19 @@
                     </e-grid-columns>
 
                 </ejs-grid>
-
-            </div>
         </div>
-    }
-
+        <p class="er-grid-hint px-4 py-2 mb-0">Search, filter, sort, or choose columns from the toolbar. On smaller screens, scroll within the queue to reach review states and actions.</p>
+    </section>
     @* Operational Analytics Section *@
     <div class="row g-4 mt-1">
 
         <div class="col-xl-5">
-            <div class="card shadow-sm h-100">
+            <div class="card h-100">
 
                 <div class="card-header">
-                    <div class="fw-semibold">
+                    <h2 class="er-section-title">
                         Incidents by Severity
-                    </div>
+                    </h2>
 
                     <div class="small text-muted">
                         Current incident distribution
@@ -382,15 +184,8 @@
                 </div>
 
                 <div class="card-body">
-                    @if (Model.SeverityDistribution.Sum(x => x.Value) == 0)
-                    {
-                        <div class="text-muted text-center py-5">
-                            No incident data available.
-                        </div>
-                    }
-                    else
-                    {
-                        <ejs-accumulationchart id="severityChart"
+                    <div id="severityChartEmpty" class="er-empty-state @(Model.SeverityDistribution.Sum(x => x.Value) == 0 ? "" : "d-none")">No incident data available.</div>
+                    <ejs-accumulationchart id="severityChart"
                                                height="320"
                                                enableSmartLabels="true">
 
@@ -413,19 +208,18 @@
                             </e-accumulation-series-collection>
 
                         </ejs-accumulationchart>
-                    }
                 </div>
 
             </div>
         </div>
 
         <div class="col-xl-7">
-            <div class="card shadow-sm h-100">
+            <div class="card h-100">
 
                 <div class="card-header">
-                    <div class="fw-semibold">
+                    <h2 class="er-section-title">
                         Incident Volume
-                    </div>
+                    </h2>
 
                     <div class="small text-muted">
                         Daily reports over the last 7 days
@@ -433,15 +227,8 @@
                 </div>
 
                 <div class="card-body">
-                    @if (Model.IncidentTrend.Sum(x => x.Count) == 0)
-                    {
-                        <div class="text-muted text-center py-5">
-                            No incidents reported during this period.
-                        </div>
-                    }
-                    else
-                    {
-                        <ejs-chart id="incidentTrendChart"
+                    <div id="incidentTrendEmpty" class="er-empty-state @(Model.IncidentTrend.Sum(x => x.Count) == 0 ? "" : "d-none")">No incidents reported during this period.</div>
+                    <ejs-chart id="incidentTrendChart"
                                    height="320">
 
                             <e-chart-primaryxaxis
@@ -470,7 +257,6 @@
                             </e-series-collection>
 
                         </ejs-chart>
-                    }
                 </div>
 
             </div>
@@ -481,12 +267,12 @@
     <div class="row g-4 mt-1 mb-4">
 
         <div class="col-xl-6">
-            <div class="card shadow-sm h-100">
+            <div class="card h-100">
 
                 <div class="card-header">
-                    <div class="fw-semibold">
+                    <h2 class="er-section-title">
                         Review Queue
-                    </div>
+                    </h2>
 
                     <div class="small text-muted">
                         Items waiting for human review
@@ -494,15 +280,8 @@
                 </div>
 
                 <div class="card-body">
-                    @if (Model.ReviewQueue.Sum(x => x.Count) == 0)
-                    {
-                        <div class="text-muted text-center py-5">
-                            No pending reviews.
-                        </div>
-                    }
-                    else
-                    {
-                        <ejs-chart id="reviewQueueChart"
+                    <div id="reviewQueueEmpty" class="er-empty-state @(Model.ReviewQueue.Sum(x => x.Count) == 0 ? "" : "d-none")">No pending reviews.</div>
+                    <ejs-chart id="reviewQueueChart"
                                    height="320">
 
                             <e-chart-primaryxaxis
@@ -530,19 +309,18 @@
                             </e-series-collection>
 
                         </ejs-chart>
-                    }
                 </div>
 
             </div>
         </div>
 
         <div class="col-xl-6">
-            <div class="card shadow-sm h-100">
+            <div class="card h-100">
 
                 <div class="card-header">
-                    <div class="fw-semibold">
+                    <h2 class="er-section-title">
                         Operational Notes
-                    </div>
+                    </h2>
                 </div>
 
                 <div class="card-body">
@@ -570,7 +348,7 @@
 
                         <div>
                             <div class="small text-muted">
-                                Total pending review items
+                                Pending review items (may overlap)
                             </div>
 
                             <div class="fs-5 fw-semibold" id="notesPendingReviewCount">
@@ -588,55 +366,33 @@
 
     </div>
 
-    <section class="card shadow-sm mb-4 border-start border-4 border-primary">
+
+    <section class="card mb-4" aria-labelledby="predictiveHeading">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div><h2 id="predictiveHeading" class="er-section-title">Predictive Outlook</h2><p class="small text-muted mb-0">Advisory forecasts only; operational commands remain human-controlled.</p></div>
+            <button id="refreshPredictiveOutlook" type="button" class="btn btn-sm btn-outline-primary">Refresh forecasts</button>
+        </div>
         <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <h2 class="h5 mb-1">Predictive Outlook</h2>
-                    <div class="small text-muted">
-                        Advisory forecasts only; operational commands remain human-controlled.
-                    </div>
-                </div>
-                <button id="refreshPredictiveOutlook" class="btn btn-sm btn-outline-primary">
-                    Refresh
-                </button>
-            </div>
-            <div id="predictiveOutlookStatus" class="small text-muted mb-2">
-                Loading forecast data...
-            </div>
+            <div id="predictiveOutlookStatus" class="er-data-status mb-3" role="status" aria-live="polite">Forecast data has not yet been checked.</div>
             <div class="row g-3">
-                <div class="col-md-4">
-                    <div class="border rounded p-3 h-100">
-                        <div class="text-muted small">Incident volume next 24h</div>
-                        <div id="forecastIncidentVolume" class="fs-3 fw-bold">--</div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="border rounded p-3 h-100">
-                        <div class="text-muted small">Potential resource shortages</div>
-                        <div id="forecastShortageCount" class="fs-3 fw-bold text-warning">--</div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="border rounded p-3 h-100">
-                        <div class="text-muted small">Increasing forecast hotspots</div>
-                        <div id="forecastHotspotCount" class="fs-3 fw-bold text-danger">--</div>
-                    </div>
-                </div>
+                <div class="col-md-4"><div class="border rounded p-3 h-100"><div class="text-muted small">Incident volume next 24h</div><div id="forecastIncidentVolume" class="fs-3 fw-bold">Not checked</div></div></div>
+                <div class="col-md-4"><div class="border rounded p-3 h-100"><div class="text-muted small">Potential resource shortages</div><div id="forecastShortageCount" class="fs-3 fw-bold">Not checked</div></div></div>
+                <div class="col-md-4"><div class="border rounded p-3 h-100"><div class="text-muted small">Hotspots with increasing recent activity</div><div id="forecastHotspotCount" class="fs-3 fw-bold">Not checked</div><div class="small text-muted">Report-based trend, not a model forecast</div></div></div>
             </div>
         </div>
     </section>
-
     @* Grid cell templates *@
     <script id="severityTemplate" type="text/x-template">
         ${if(Severity === 'Critical')}
-            <span class="badge bg-danger">Critical</span>
+            <span class="er-severity er-severity-critical">Critical</span>
         ${else if(Severity === 'High')}
-            <span class="badge bg-warning text-dark">High</span>
+            <span class="er-severity er-severity-high">High</span>
         ${else if(Severity === 'Moderate')}
-            <span class="badge bg-info text-dark">Moderate</span>
+            <span class="er-severity er-severity-moderate">Moderate</span>
+        ${else if(Severity === 'Low')}
+            <span class="er-severity er-severity-low">Low</span>
         ${else}
-            <span class="badge bg-secondary">Low</span>
+            <span class="er-status">Unknown</span>
         ${/if}
     </script>
 
@@ -652,87 +408,24 @@
 
     <script id="alertTemplate" type="text/x-template">
         ${if(HasDuplicateCandidates)}
-            <span class="badge bg-warning text-dark me-1" title="Duplicate review required">Duplicate</span>
+            <span class="er-severity er-review-tag er-review-tag-duplicate me-1" title="Duplicate review required">Duplicate review</span>
         ${/if}
         ${if(HasVisualReview)}
-            <span class="badge bg-info text-dark me-1" title="Visual review required">Visual</span>
+            <span class="er-severity er-review-tag er-review-tag-visual me-1" title="Visual review required">Visual review</span>
         ${/if}
         ${if(RequiresAIReview)}
-            <span class="badge bg-secondary" title="AI review required">AI</span>
+            <span class="er-severity er-review-tag" title="AI review required">AI review</span>
         ${/if}
     </script>
 
     <script id="incidentActions" type="text/x-template">
         <div class="btn-group btn-group-sm">
-            <a href="${DetailsUrl}" class="btn btn-outline-primary py-0 px-2">View</a>
-            <a href="/Map?incidentId=${Id}" class="btn btn-outline-secondary py-0 px-2" title="View on Map">Map</a>
+            <a href="${DetailsUrl}" class="btn btn-outline-primary py-0 px-2" aria-label="View incident ${IncidentNumber}">View</a>
+            <a href="/Map?incidentId=${Id}" class="btn btn-outline-secondary py-0 px-2" title="View on Map" aria-label="Map incident ${IncidentNumber}">Map</a>
         </div>
     </script>
 
 </div>
-
 @section Scripts {
-    <script>
-        function focusSelectedIncident() {
-            var dashboard = document.getElementById("emergencyDashboard");
-            var id = dashboard?.dataset?.selectedIncidentId;
-            if (!id) return;
-
-            var element = document.getElementById("incidentGrid");
-            var grid = element?.ej2_instances?.[0];
-            if (!grid || !grid.currentViewData) return;
-
-            var index = grid.currentViewData.findIndex(function (item) {
-                return String(item.Id).toLowerCase() === String(id).toLowerCase();
-            });
-
-            if (index >= 0) {
-                grid.selectRow(index);
-                var row = grid.getRowByIndex(index);
-                row?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-        }
-
-        document.addEventListener("DOMContentLoaded", function () {
-            setTimeout(focusSelectedIncident, 300);
-            setTimeout(focusSelectedIncident, 800);
-
-            async function loadPredictiveOutlook() {
-                var status = document.getElementById("predictiveOutlookStatus");
-                try {
-                    var responses = await Promise.all([
-                        fetch("/api/predictive/incident-volume?horizon=24"),
-                        fetch("/api/predictive/hotspots?hours=24")
-                    ]);
-                    if (!responses[0].ok || !responses[1].ok) {
-                        throw new Error("Forecast API unavailable");
-                    }
-
-                    var volume = await responses[0].json();
-                    var hotspots = await responses[1].json();
-                    var total = Array.isArray(volume.points)
-                        ? volume.points.reduce(function (sum, point) {
-                            return sum + (Number(point.forecast) || 0);
-                        }, 0)
-                        : 0;
-                    document.getElementById("forecastIncidentVolume").textContent =
-                        volume.isAvailable === false ? "Unavailable" : Math.round(total);
-                    document.getElementById("forecastHotspotCount").textContent =
-                        Array.isArray(hotspots)
-                            ? hotspots.filter(function (item) {
-                                return item.trend === "Increasing";
-                            }).length
-                            : 0;
-                    document.getElementById("forecastShortageCount").textContent = "Review demand";
-                    status.textContent = "Updated " + new Date().toLocaleTimeString();
-                } catch (error) {
-                    status.textContent = "Forecast data is currently unavailable.";
-                }
-            }
-
-            document.getElementById("refreshPredictiveOutlook")
-                ?.addEventListener("click", loadPredictiveOutlook);
-            loadPredictiveOutlook();
-        });
-    </script>
+    <script src="~/js/dashboard-outlook.js" asp-append-version="true"></script>
 }

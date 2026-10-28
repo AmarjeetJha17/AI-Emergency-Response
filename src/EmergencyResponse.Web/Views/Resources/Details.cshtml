@@ -17,16 +17,21 @@
     }
 }
 
-<div class="container-fluid py-3">
+<div class="container-fluid py-3 resource-details-page">
     @Html.AntiForgeryToken()
 
     <!-- Top Navigation / Breadcrumb -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-        <div class="d-flex align-items-center gap-2">
-            <a asp-action="Index" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1">
-                <i class="bi bi-arrow-left"></i> Command Center
-            </a>
-            <h2 class="h4 mb-0 fw-bold">@Model.Name</h2>
+    <header class="er-page-header mb-4">
+        <div class="er-page-heading">
+            <nav aria-label="Breadcrumb">
+                <ol class="breadcrumb small mb-2">
+                    <li class="breadcrumb-item"><a asp-action="Index">Resource Command Center</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Resource details</li>
+                </ol>
+            </nav>
+            <p class="er-eyebrow mb-1">Resource details</p>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <h1 class="er-page-title mb-0">@Model.Name</h1>
             @switch (Model.Status)
             {
                 case EmergencyResponse.Domain.Enums.ResourceStatus.Available:
@@ -59,7 +64,10 @@
             }
         </div>
 
-        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+        <div class="er-page-actions">
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1">
+                <i class="bi bi-arrow-left"></i> Command Center
+            </a>
             @switch (Model.Status)
             {
                 case EmergencyResponse.Domain.Enums.ResourceStatus.Assigned:
@@ -102,7 +110,7 @@
                 </a>
             }
         </div>
-    </div>
+    </header>
 
     <div class="row g-4">
         <!-- Left: Unit Profile & Telemetry -->
@@ -123,7 +131,7 @@
                         <dd class="col-sm-7">@Model.ResourceType</dd>
 
                         <dt class="col-sm-5 text-muted">Department</dt>
-                        <dd class="col-sm-7">@(Model.DepartmentName ?? "General Dispatch")</dd>
+                        <dd class="col-sm-7">@(Model.DepartmentName ?? "Unknown")</dd>
 
                         <dt class="col-sm-5 text-muted">Crew Capacity</dt>
                         <dd class="col-sm-7">@(Model.Capacity.HasValue ? $"{Model.Capacity.Value} personnel" : "Not specified")</dd>

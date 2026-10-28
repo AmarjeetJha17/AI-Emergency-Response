@@ -1,4 +1,6 @@
 @model IReadOnlyList<EmergencyResponse.Application.Situations.DTOs.SituationCommandCenterItem>
+@using System.Security.Claims
+@using EmergencyResponse.Application.Security.Authorization
 
 @{
     ViewData["Title"] = "Situation Command Center";
@@ -13,10 +15,23 @@
     var activeLevel = ViewBag.ActiveLevelFilter as string;
     var activeShortage = ViewBag.ActiveResourceShortageFilter as bool?;
     var isFiltered = !string.IsNullOrWhiteSpace(activeLevel) || activeShortage == true;
+    var roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value);
+    var canManageSituations = RolePermissions.HasPermission(roles, Permissions.SituationsAcknowledge);
+    var snapshotUnavailable = ViewBag.ErrorMessage is not null;
 }
 
-<div class="container-fluid py-3" id="situationCommandCenterPage">
+<div class="container-fluid py-3" id="situationCommandCenterPage" data-active-level="@activeLevel" data-active-shortage="@(activeShortage == true)">
     @Html.AntiForgeryToken()
+    <script>
+        var canManageSituations = @(canManageSituations ? "true" : "false");
+        function isSituationEvaluated(value) {
+            return Boolean(value) && new Date(value).getUTCFullYear() > 1;
+        }
+    </script>
+    <div class="alert alert-warning" role="note" id="situationCountCaveat">
+        Totals sum linked reports; unknown counts are excluded and overlapping reports may double-count people.
+        A zero total does not confirm no casualties. Verify each incident before coordinating resources.
+    </div>
 
     @if (ViewBag.ErrorMessage != null)
     {
@@ -27,21 +42,22 @@
     }
 
     <!-- Header -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-        <div>
-            <div class="d-flex align-items-center gap-2">
-                <h2 class="h4 mb-0 fw-bold">Situation Command Center</h2>
-                <span id="situationLiveStatus" class="badge bg-success d-inline-flex align-items-center gap-1 px-2 py-1">
-                    <span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true" style="width: 0.5rem; height: 0.5rem;"></span> Live
-                </span>
-            </div>
-            <div class="text-muted small">Unified operational awareness, cross-incident escalation clustering, and real-time oversight</div>
+    <div class="er-page-header">
+        <div class="er-page-heading">
+            <div class="er-eyebrow">Operational awareness</div>
+            <h1 class="er-page-title">Situation Command Center</h1>
+            <p class="er-page-subtitle">Review linked incident clusters, evaluation state, and resource-shortage indicators.</p>
+            <span id="situationLiveStatus" class="er-status" role="status" aria-live="polite">@(snapshotUnavailable ? "Snapshot unavailable" : $"Snapshot loaded · {DateTimeOffset.UtcNow:HH:mm:ss} UTC")</span>
         </div>
-        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
-            <button id="btnEvaluate" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">
+        <div class="er-page-actions">
+            <button id="btnRefreshSnapshot" type="button" class="btn btn-outline-secondary btn-sm">Refresh snapshot</button>
+            @if (canManageSituations)
+            {
+            <button id="btnEvaluate" type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">
                 <span id="evaluatingSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                 <i class="bi bi-cpu me-1"></i>Re-evaluate Clusters
             </button>
+            }
             <a asp-controller="Map" asp-action="Index" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-geo-alt me-1"></i>Live Map
             </a>
@@ -66,7 +82,7 @@
                 {
                     <span class="badge bg-danger me-2">Resource Shortage: Yes</span>
                 }
-                Showing <strong>@Model.Count</strong> of <strong>@allItems.Count</strong> operational situations.
+                Showing <strong>@(Model?.Count ?? 0)</strong> of <strong>@allItems.Count</strong> operational situations.
             </div>
             <a asp-action="Index" class="btn btn-sm btn-outline-dark">
                 Clear Filters
@@ -74,6 +90,12 @@
         </div>
     }
 
+    @if (snapshotUnavailable)
+    {
+        <div class="er-empty-state er-panel"><strong>Situation snapshot unavailable</strong>Operational counts and situation rows are not available. Refresh the snapshot to try again.</div>
+    }
+    else
+    {
     <!-- Operational KPI Cards (Clickable operational entry points) -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
@@ -139,8 +161,8 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="text-uppercase small text-muted fw-semibold">Human Impact</div>
-                            <div class="fs-2 fw-bold text-dark" id="kpiHumanImpact">@totalPeople <span class="fs-6 fw-normal text-danger">(@totalCasualties casualties)</span></div>
-                            <div class="small text-muted">Across @totalIncidents member incidents</div>
+                                <div class="fs-2 fw-bold text-dark" id="kpiHumanImpact">@totalPeople <span class="fs-6 fw-normal text-muted">people reported</span></div>
+                                <div class="small text-muted">@totalCasualties casualties reported across @totalIncidents linked incidents</div>
                         </div>
                         <div class="rounded-circle p-3 bg-secondary-subtle text-dark">
                             <i class="bi bi-people fs-4"></i>
@@ -156,7 +178,7 @@
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
             <div>
                 <span class="fw-bold text-dark fs-6"><i class="bi bi-layers-fill me-2 text-primary"></i>Operational Situations Queue</span>
-                <span class="text-muted small ms-2 d-none d-md-inline">Authoritative operational queue with real-time state synchronization</span>
+                <span class="text-muted small ms-2 d-none d-md-inline">Operational situation snapshot; refresh to request current data.</span>
             </div>
             <div class="small text-muted">
                 Advisory awareness grouping &bull; Member incidents remain independent
@@ -206,7 +228,7 @@
 
                     <e-grid-column field="SituationScore"
                                    headerText="Score"
-                                   format="N1"
+                                   template="#scoreTemplate"
                                    width="90">
                     </e-grid-column>
 
@@ -244,7 +266,7 @@
 
                     <e-grid-column field="LastEvaluatedAtUtc"
                                    headerText="Last Evaluated"
-                                   format="yyyy-MM-dd HH:mm"
+                                   template="#evaluatedAtTemplate"
                                    width="150">
                     </e-grid-column>
 
@@ -257,6 +279,7 @@
             </ejs-grid>
         </div>
     </div>
+    }
 </div>
 
 <!-- Grid Templates -->
@@ -290,11 +313,29 @@
     ${/if}
 </script>
 
+<script id="scoreTemplate" type="text/x-template">
+    ${if(isSituationEvaluated(LastEvaluatedAtUtc))}
+        <span>${SituationScore}</span>
+    ${else}
+        <span class="text-muted">Not evaluated</span>
+    ${/if}
+</script>
+
+<script id="evaluatedAtTemplate" type="text/x-template">
+    ${if(isSituationEvaluated(LastEvaluatedAtUtc))}
+        <span>${new Date(LastEvaluatedAtUtc).toLocaleString()}</span>
+    ${else}
+        <span class="text-muted">Not evaluated</span>
+    ${/if}
+</script>
+
 <script id="shortageTemplate" type="text/x-template">
-    ${if(ResourceShortageDetected)}
+    ${if(!isSituationEvaluated(LastEvaluatedAtUtc))}
+        <span class="badge bg-light text-muted border px-2 py-1">Not evaluated</span>
+    ${else if(ResourceShortageDetected)}
         <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1"><i class="bi bi-exclamation-circle me-1"></i>Shortage</span>
     ${else}
-        <span class="badge bg-light text-muted border px-2 py-1">Adequate</span>
+        <span class="badge bg-light text-muted border px-2 py-1">No shortage detected</span>
     ${/if}
 </script>
 
@@ -302,7 +343,7 @@
     ${if(RequiresHumanReview)}
         <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-clock-history me-1"></i>Pending</span>
     ${else}
-        <span class="badge bg-success px-2 py-1"><i class="bi bi-check2-circle me-1"></i>Reviewed</span>
+        <span class="badge bg-light text-muted border px-2 py-1">No review pending</span>
     ${/if}
 </script>
 
@@ -311,7 +352,7 @@
         <a href="/Situations/Details/${Id}" class="btn btn-sm btn-outline-primary" title="View Situation">
             <i class="bi bi-eye"></i>
         </a>
-        ${if(Status === 1 || Status === 'Open')}
+        ${if(canManageSituations && (Status === 1 || Status === 'Open'))}
             <button type="button" class="btn btn-sm btn-outline-info" onclick="acknowledgeSituation('${Id}')" title="Acknowledge Situation">
                 <i class="bi bi-check2"></i> Ack
             </button>
@@ -322,20 +363,31 @@
 @section Scripts {
     <script>
         const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        const page = document.getElementById('situationCommandCenterPage');
+        const activeLevelFilter = page?.dataset.activeLevel || '';
+        const activeShortageFilter = page?.dataset.activeShortage === 'True';
 
         // Authoritative snapshot refresh
         window.refreshSituationCommandCenter = async function () {
+            const status = document.getElementById('situationLiveStatus');
+            if (status) status.textContent = 'Refreshing snapshot…';
             try {
                 const response = await fetch('/Situations/Snapshot', { credentials: 'same-origin' });
                 if (!response.ok) {
+                    if (status) status.textContent = 'Refresh unavailable · showing last loaded snapshot';
                     console.error('Failed to refresh situations snapshot:', response.status);
                     return;
                 }
 
                 const data = await response.json();
                 const gridObj = document.getElementById('situationGrid')?.ej2_instances?.[0];
+                const levelValues = { Advisory: [1, 'Advisory'], Elevated: [2, 'Elevated'], High: [3, 'High'], Critical: [4, 'Critical'] };
+                const visibleSituations = data.filter(situation => {
+                    const matchesLevel = !activeLevelFilter || (levelValues[activeLevelFilter] || [activeLevelFilter]).includes(situation.level);
+                    return matchesLevel && (!activeShortageFilter || situation.resourceShortageDetected);
+                });
                 if (gridObj) {
-                    gridObj.dataSource = data;
+                    gridObj.dataSource = visibleSituations;
                     gridObj.refresh();
                 }
 
@@ -350,7 +402,9 @@
                 if (elCrit) elCrit.innerText = critCount;
                 const elShort = document.getElementById('kpiResourceShortages');
                 if (elShort) elShort.innerText = shortCount;
+                if (status) status.textContent = `Snapshot refreshed · ${new Date().toLocaleTimeString()} (local time)`;
             } catch (err) {
+                if (status) status.textContent = 'Refresh unavailable · showing last loaded snapshot';
                 console.error('Error refreshing situation command center:', err);
             }
         };
@@ -381,6 +435,7 @@
         };
 
         document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('btnRefreshSnapshot')?.addEventListener('click', window.refreshSituationCommandCenter);
             const btnEvaluate = document.getElementById('btnEvaluate');
             const spinner = document.getElementById('evaluatingSpinner');
 

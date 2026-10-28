@@ -12,6 +12,9 @@ public sealed class OperationalSituationAnalysisConfiguration
     {
         builder.HasKey(x => x.Id);
 
+        builder.Property(x => x.PortfolioDemoOwnershipKey)
+            .HasMaxLength(100);
+
         builder.Property(x => x.ModelName)
             .HasMaxLength(100)
             .IsRequired();

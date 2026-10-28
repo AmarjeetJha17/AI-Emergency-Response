@@ -2,6 +2,7 @@ using EmergencyResponse.Application.Common.Roles;
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Application.Knowledge;
 using EmergencyResponse.Application.Security.SecurityAudit;
+using EmergencyResponse.Api.Common;
 using EmergencyResponse.Domain.Entities;
 using EmergencyResponse.Domain.Knowledge;
 using EmergencyResponse.Application.Security.Authorization;
@@ -41,6 +42,7 @@ public sealed class KnowledgeController : ControllerBase
     }
 
     [HttpPost("documents")]
+    [ServiceFilter(typeof(AIEnabledActionFilter))]
     [Authorize(Roles = $"{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
     [Authorize(Policy = Permissions.KnowledgeManage)]
     [EnableRateLimiting("admin-api")]
@@ -95,6 +97,7 @@ public sealed class KnowledgeController : ControllerBase
     }
 
     [HttpPost("documents/{id:guid}/publish")]
+    [ServiceFilter(typeof(AIEnabledActionFilter))]
     [Authorize(Roles = $"{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
     [Authorize(Policy = Permissions.KnowledgeManage)]
     [EnableRateLimiting("admin-api")]
@@ -119,6 +122,7 @@ public sealed class KnowledgeController : ControllerBase
     }
 
     [HttpGet("search")]
+    [ServiceFilter(typeof(AIEnabledActionFilter))]
     [Authorize(Roles =
         $"{ApplicationRoles.Responder},{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
     [Authorize(Policy = Permissions.KnowledgeRead)]

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Data.SqlClient;
 
 namespace EmergencyResponse.Infrastructure.Persistence;
 
@@ -16,10 +17,21 @@ public sealed class DesignTimeApplicationDbContextFactory
             Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection") ??
             "Server=localhost;Database=EmergencyResponse_DesignTime;Trusted_Connection=True;TrustServerCertificate=True";
 
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseSqlServer(connectionString)
-            .Options;
+        var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+        var accessToken = Environment.GetEnvironmentVariable("PORTFOLIO_SQL_ACCESS_TOKEN");
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            optionsBuilder.UseSqlServer(connectionString);
+        }
+        else
+        {
+            var connection = new SqlConnection(connectionString)
+            {
+                AccessToken = accessToken
+            };
+            optionsBuilder.UseSqlServer(connection);
+        }
 
-        return new ApplicationDbContext(options);
+        return new ApplicationDbContext(optionsBuilder.Options);
     }
 }

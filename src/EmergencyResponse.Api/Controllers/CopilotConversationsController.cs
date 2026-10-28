@@ -1,4 +1,5 @@
 using EmergencyResponse.Application.Common.Roles;
+using EmergencyResponse.Api.Common;
 using EmergencyResponse.Application.Copilot;
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Domain.Copilot;
@@ -124,6 +125,7 @@ public sealed class CopilotConversationsController : ControllerBase
     }
 
     [HttpPost("{conversationId:guid}/messages")]
+    [ServiceFilter(typeof(AIEnabledActionFilter))]
     public async Task<ActionResult<CopilotResponse>> Message(
         Guid conversationId,
         AddCopilotMessageRequest request,

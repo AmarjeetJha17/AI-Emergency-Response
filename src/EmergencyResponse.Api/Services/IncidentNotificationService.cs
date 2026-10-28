@@ -5,7 +5,9 @@ using EmergencyResponse.Application.Events;
 using EmergencyResponse.Application.Interfaces;
 using EmergencyResponse.Application.Realtime;
 using EmergencyResponse.Domain.Entities;
+using EmergencyResponse.Infrastructure.Persistence;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace EmergencyResponse.Api.Services;
 
@@ -13,19 +15,32 @@ public sealed class IncidentNotificationService
     : IIncidentNotificationService
 {
     private readonly IHubContext<IncidentHub> _hubContext;
+    private readonly ApplicationDbContext _db;
 
     public IncidentNotificationService(
-        IHubContext<IncidentHub> hubContext)
+        IHubContext<IncidentHub> hubContext,
+        ApplicationDbContext db)
     {
         _hubContext = hubContext;
+        _db = db;
     }
 
     public async Task NotifyIncidentUpdatedAsync(
         IncidentUpdatedEvent notification,
         CancellationToken cancellationToken = default)
     {
+        var reporterId = await _db.Incidents.AsNoTracking()
+            .Where(x => x.Id == notification.IncidentId)
+            .Select(x => x.ReporterUserId)
+            .SingleOrDefaultAsync(cancellationToken);
+        List<string> recipients = [SignalRGroups.DashboardOperators];
+        if (!string.IsNullOrWhiteSpace(reporterId))
+        {
+            recipients.Add($"user:{reporterId}");
+        }
+
         await _hubContext.Clients
-            .All
+            .Groups(recipients)
             .SendAsync(
                 "IncidentUpdated",
                 notification,

@@ -24,16 +24,16 @@ jobs:
       ASPNETCORE_ENVIRONMENT: Test
       Test__RelaxRateLimits: "true"
       ConnectionStrings__TestDatabase: >-
-        Server=127.0.0.1,1433;Database=EmergencyResponse_IntegrationTests;User Id=sa;Password=CITest!Only2026_A;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True
+        Server=127.0.0.1,1433;Database=EmergencyResponse_IntegrationTests;User Id=sa;Password=CiTest!${{ github.run_id }}_${{ github.run_attempt }}_A;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True
       ConnectionStrings__LoadTestDatabase: >-
-        Server=127.0.0.1,1433;Database=EmergencyResponse_LoadTests;User Id=sa;Password=CITest!Only2026_A;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True
+        Server=127.0.0.1,1433;Database=EmergencyResponse_LoadTests;User Id=sa;Password=CiTest!${{ github.run_id }}_${{ github.run_attempt }}_A;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True
 
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2025-latest
         env:
           ACCEPT_EULA: Y
-          MSSQL_SA_PASSWORD: CITest!Only2026_A
+          MSSQL_SA_PASSWORD: CiTest!${{ github.run_id }}_${{ github.run_attempt }}_A
         ports:
           - 1433:1433
         options: >-
@@ -126,10 +126,63 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  containers:
+    name: Container Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Build and inspect Web and API images
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p TestResults/Packaging
+          for workload in web api; do
+            image="emergencyresponse-${workload}:ci"
+            docker build --file "docker/Dockerfile.${workload}" --tag "$image" . 2>&1 | tee "TestResults/Packaging/${workload}-build.log"
+            runtime_user=$(docker image inspect --format '{{.Config.User}}' "$image")
+            if [[ -z "$runtime_user" || "$runtime_user" == "root" || "$runtime_user" == "root:"* || "$runtime_user" == "0" || "$runtime_user" == "0:"* ]]; then
+              echo "Image must declare a non-root runtime user: $image" >&2
+              exit 1
+            fi
+            docker image inspect --format '{{json .Config}}' "$image" > "TestResults/Packaging/${workload}-runtime.json"
+            docker image inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$image" | grep -Fx 'ASPNETCORE_HTTP_PORTS=8080'
+          done
+      - name: Upload packaging diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: packaging-reports-${{ github.run_number }}
+          path: TestResults/Packaging/
+          retention-days: 14
+          if-no-files-found: warn
+
+  infrastructure:
+    name: Bicep Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Install Bicep CLI
+        run: az bicep install
+      - name: Compile tracked infrastructure templates
+        shell: pwsh
+        run: ./scripts/validate-infrastructure.ps1
+      - name: Upload compilation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: infrastructure-reports-${{ github.run_number }}
+          path: artifacts/infrastructure/
+          retention-days: 14
+          if-no-files-found: warn
+
   publish:
     name: Publish Release Artifacts
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: quality
+    needs: [quality, containers, infrastructure]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

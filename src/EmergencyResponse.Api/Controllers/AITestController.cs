@@ -1,5 +1,6 @@
 ﻿using EmergencyResponse.Application.AI.DTOs;
 using EmergencyResponse.Application.AI.Interfaces;
+using EmergencyResponse.Api.Common;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +9,7 @@ namespace EmergencyResponse.Api.Controllers;
 
 [ApiController]
 [Route("api/ai-test")]
+[ServiceFilter(typeof(AIEnabledActionFilter))]
 [Authorize(Roles = "SystemAdmin")]
 public class AITestController : ControllerBase
 {

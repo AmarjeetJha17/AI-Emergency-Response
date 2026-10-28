@@ -663,6 +663,11 @@ public sealed class ResourceServiceTests : IAsyncDisposable
         var details = await _service.GetByIdAsync(resource.Id);
         Assert.NotNull(details);
         Assert.Equal(ResourceStatus.Available, details!.Status);
+        Assert.Null(details.ActiveIncidentId);
+        Assert.Null(details.ActiveIncidentNumber);
+        Assert.Null(details.ActiveIncidentTitle);
+        Assert.Null(details.AssignedAtUtc);
+        Assert.Null(details.AssignedByUserId);
         Assert.NotNull(details.OperationalTiming);
         Assert.NotNull(details.OperationalTiming.AssignmentToDispatch);
         Assert.NotNull(details.OperationalTiming.DispatchToEnRoute);

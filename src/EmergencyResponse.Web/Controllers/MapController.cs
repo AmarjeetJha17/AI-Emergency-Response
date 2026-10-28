@@ -49,6 +49,7 @@ public sealed class MapController : Controller
             Departments = await deptsTask,
             SelectedIncidentId = incidentId,
             SelectedResourceId = resourceId,
+            RetrievedAtUtc = DateTime.UtcNow,
             TileUrl = _mapOptions.TileUrl,
             Attribution = _mapOptions.Attribution,
             DefaultLatitude = _mapOptions.DefaultLatitude,

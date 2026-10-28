@@ -1,0 +1,370 @@
+# Phase 18 Parts 2.3.1–2.3.2 — Operations shell and dashboard
+
+## Phase 18 Part 2.3.4 — Live map and resource command center (2026-10-16)
+
+**Implementation checkpoint: code changes complete; visual and authorized runtime verification blocked.** No screenshots, commit, push, merge, or deployment were made.
+
+### Changes
+
+- The map and resource command center now show the server-retrieved UTC snapshot time. Manual refresh reports loading, success, and failure; failed refreshes retain the last successful values and timestamp.
+- The map no longer advertises a live connection by default. Its connection badge follows SignalR start, reconnect, and close outcomes. Empty/no-coordinate results and an unavailable map configuration have explicit messages. The Leaflet map height adapts across viewport sizes, its legend includes the situation marker, the incident drawer expands to the mobile viewport, and map animation respects reduced-motion preferences.
+- The resource grid remains Syncfusion-backed with its original fields, paging, sorting, filters, column chooser, and operational actions. Resource names and departments are HTML-encoded in templates; action buttons use escaped data attributes and delegated handlers instead of inline JavaScript. API error messages now render as text.
+- Resource details now have a breadcrumb, a clearer resource heading/status/action layout, and display an unknown department as `Unknown` when missing. Role rules, antiforgery tokens, lifecycle commands, and server-side transition checks were not changed.
+
+### Files changed
+
+`src/EmergencyResponse.Web/Controllers/MapController.cs`, `src/EmergencyResponse.Web/Controllers/ResourcesController.cs`, `src/EmergencyResponse.Web/Models/Map/EmergencyMapViewModel.cs`, `src/EmergencyResponse.Web/Models/Resources/ResourceCommandCenterViewModel.cs`, `src/EmergencyResponse.Web/Views/Map/Index.cshtml`, `src/EmergencyResponse.Web/Views/Resources/Index.cshtml`, `src/EmergencyResponse.Web/Views/Resources/Details.cshtml`, `src/EmergencyResponse.Web/wwwroot/css/emergency-map.css`, `src/EmergencyResponse.Web/wwwroot/css/site.css`, `src/EmergencyResponse.Web/wwwroot/js/emergency-map.js`, `src/EmergencyResponse.Web/wwwroot/js/incident-realtime.js`, and `scripts/tests/resource-command-center.test.cjs`.
+
+### Checks actually run
+
+| Check | Result |
+|---|---|
+| `dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore` | Passed, 0 errors, 18 warnings (existing NuGet vulnerability advisories and nullable warnings). |
+| `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build` | Passed: 569 passed, 0 failed, 0 skipped. |
+| `node --test scripts/tests/resource-command-center.test.cjs scripts/tests/dashboard-ui.test.cjs` | Passed: 28 checks after the final resource rendering assertion. |
+| `node --check` for `emergency-map.js` and `incident-realtime.js` | Passed. |
+| `git diff --check` | Passed; Git printed line-ending normalization notices only. |
+
+The focused resource test first reproduced three failures before the resource fixes: a false initial refresh timestamp, no visible failed-refresh status, and raw model interpolation into the Syncfusion templates.
+
+### Unverified / blocked
+
+- Browser policy denied access to the open `https://localhost:7201/` page and required no retries through alternate surfaces. Therefore no visual or responsive inspection was completed at 1440×900, 1024×768, or 390×844. Map filters/layers, drawer interactions, grid sorting/filtering/paging, keyboard focus, console/network behavior, and actual SignalR recovery were not browser-verified. No screenshots were captured.
+- Authorized MVC/snapshot checks were not run because they require a reachable local application and authorized demo session; accessing the denied app URL through another route was not attempted.
+- SQL integration tests were not run: `ConnectionStrings__TestDatabase` is unset in this environment. The integration harness requires the isolated `EmergencyResponse_IntegrationTests` database.
+- No live resource lifecycle action was issued, so lifecycle outcomes remain unverified in this pass.
+
+Recommended commit after the outstanding runtime checks: `feat: polish live map and resource command center`.
+
+Date: 2026-10-15. Branch: `docs/phase18-portfolio-release`; existing PR #17.
+
+**Status: COMPLETE — engineering checkpoint accepted by the project owner on 2026-10-15, with browser verification explicitly deferred.** Implementation and local regression results are recorded below. Browser rendering and responsive acceptance have not been verified; their execution status remains BLOCKED.
+
+## Checkpoint acceptance
+
+The owner requested: “mark this phase parts as complete and make the necessary git commit and push.” This closes Parts 2.3.1–2.3.2 as the accepted development checkpoint and authorizes publication to the existing PR #17 branch. It does not convert pending visual, keyboard/touch, chart/grid interaction or SignalR recovery checks into passing results.
+
+The browser/viewport checklist and remaining issues below are carried forward to the next verification pass. No screenshots or Azure deployments occurred. PR #17 remains a review checkpoint; no merge or operational launch is authorized by this closure.
+
+## Baseline and scope
+
+The local branch started clean at `7cf818f` (`fix: stabilize demo workflows and record phase 2.2 verification`). Git status, recent commits, the relevant views/styles/scripts, dashboard service/model/client, role rules and existing authorized MVC checks were inspected. Earlier DEMO18 work remains intact. Local configuration and passwords were neither replaced nor included in evidence.
+
+This pass changes the shared shell, reusable styles and dashboard. Incident details, maps, resource management and Copilot have not received a screen redesign. Shared typography, surfaces and form styles also apply to those existing pages, so their visual compatibility still needs browser review.
+
+## Files changed
+
+| Area | Files |
+|---|---|
+| Shared theme | `src/EmergencyResponse.Web/wwwroot/css/site.css`, `src/EmergencyResponse.Web/Views/Shared/_Layout.cshtml.css` |
+| Application shell | `src/EmergencyResponse.Web/Views/Shared/_Layout.cshtml` |
+| Dashboard view | `src/EmergencyResponse.Web/Views/Dashboard/Index.cshtml` |
+| Client behavior | `src/EmergencyResponse.Web/wwwroot/js/incident-realtime.js`, `notifications.js`, new `dashboard-outlook.js` in the same directory |
+| Existing authenticated client/bridge | `src/EmergencyResponse.Web/Controllers/DashboardController.cs`, `src/EmergencyResponse.Web/Services/DashboardApiClient.cs`, `IDashboardApiClient.cs` |
+| Regression checks | `scripts/verify-demo-pages.ps1`, new `scripts/tests/dashboard-ui.test.cjs`, new `tests/EmergencyResponse.UnitTests/Web/DashboardForecastTests.cs` |
+| Verification report | `docs/portfolio/ui-ux-verification.md` |
+
+All local orchestration scripts, logs, TRX and runtime-result files are under ignored `artifacts/` or `TestResults/`. No local `.env` or secret file is part of this change.
+
+## Design system and conventions
+
+- `--er-*` CSS tokens define navy brand colors, canvas/surfaces, text, borders, spacing, corner radii, focus rings and restrained semantic severity colors.
+- System fonts, a light canvas, white cards and small shadows. No image/font service is required for the dashboard. The shell's shield and bell are inline SVG; the existing Bootstrap Icons CDN reference remains for other pages.
+- `er-page-header`, `er-page-actions`, `er-section-title`, `er-panel`, `er-metric`, `er-summary-line`, `er-empty-state` and `er-severity-*` provide reusable components.
+- Severity and review tags include text; critical severity, high severity/priority and AI/duplicate/visual review remain distinct.
+- Existing Bootstrap assets and Syncfusion Fluent 2 are retained. Custom tokens load after the vendor theme. Existing component scripts, `ejs-scripts`, jQuery, Bootstrap, SignalR, notifications and page sections retain their order.
+- The absolute-positioned template footer and isolated template color overrides were removed. A flex page shell keeps the footer in normal document flow.
+
+## Application shell
+
+The visible product name is **Emergency Response**. Navigation has an active state and `aria-current="page"` derived from controller/action. Incident details/review routes select Incidents; Create and My Reports retain their own states.
+
+The Bootstrap navigation collapses below 1200px, with one matching `primaryNavigation` target, labelled toggle, wrapping auth controls and a viewport-bounded notification dropdown. The existing role conditions for Citizen, Responder, Operator, EmergencyAdmin and SystemAdmin are retained. No custom navigation JavaScript was introduced.
+
+A skip link targets the main landmark. Focus outlines remain visible. Notifications have an accessible bell name that includes the actual unread count or explicitly says the count is unavailable. HTTP failures in the dropdown now leave a failure message rather than an endless loading state. Logout, antiforgery, login/register, flash messages, unread badge and notification actions remain in place.
+
+## Dashboard structure and data semantics
+
+1. **Emergency Operations Center:** heading, explanatory subtitle, live-map link, explicit overview refresh, separate connection and snapshot status.
+2. **Four primary metrics:** Critical incidents, High-priority incidents, Active incidents and Unassigned incidents.
+3. **Operational review:** four compact groups for human review, escalations, situations and notifications. All fifteen previous secondary metric IDs/counts and existing links are retained.
+4. **Incident queue:** existing Syncfusion grid, search, column chooser, filter menus, paging, sorting, resizing, reordering, frozen incident column, detail/map actions and selected-incident hook. A keyboard-focusable scroll region contains the wide grid on mobile.
+5. **Secondary insights:** existing severity distribution, seven-day incident trend, review queue, operational notes and predictive outlook.
+
+Important boundaries:
+
+- `Summary.HighIncidents` means **high severity**, not high priority. The primary high-priority card counts `Priority == High` in the authoritative displayed queue, explicitly labelled **up to 100 reports**. High severity overall remains visible and keeps `highIncidentCount`. This is not a new global API aggregate.
+- The current queue source returns the latest reports, including terminal states. Its subtitle says so and directs the operator to filter Status. Critical/high severity summary counts also include all reported incidents; Active excludes Closed/Rejected. No API query semantics were changed.
+- Notification dashboard totals come from the existing operational summary. They are not presented as the signed-in user's inbox count; the bell/inbox retain recipient authorization. A recipient-scoped dashboard aggregate would be separate work.
+- A zero pending review count does not establish that analysis ran. Pending-review item totals may overlap. DEMO18 severity/priority values remain intake defaults; this pass does not fabricate triage.
+- There is no reliable application-wide demo-mode flag in the inspected dashboard contract. No demo badge is inferred from incident titles.
+- Connection success is separate from snapshot freshness. Failed/incomplete snapshots retain prior data, label it stale and do not invent a new retrieval timestamp. Manual refresh works independently of a live SignalR connection.
+- Grid/chart components remain instantiated when empty so later valid snapshots can populate them. No-incidents/no-reviews messages are neutral rather than green success alerts.
+
+## Direct functional fixes
+
+The former forecast widget fetched `/api/predictive/...` from the **Web** origin, which has no corresponding controller or reverse proxy. Two role-protected Web routes now reuse the existing `IDashboardApiClient` registration and its bearer-token handler:
+
+- `/Dashboard/IncidentVolume` → existing API incident-volume endpoint, 24-hour horizon.
+- `/Dashboard/Hotspots` → existing API hotspot endpoint, 24-hour window.
+
+Responses are not cached. Authorization failures remain failures; network/JSON failures return a sanitized unavailable response. The forecast widget's bearer token stays in the server-side Web handler. Separately, the SignalR client uses its authenticated browser access-token flow; its logger is covered in the later Part 2.4 follow-up below. API business logic and permissions were not changed in this dashboard-widget pass.
+
+The widget validates forecast availability, numeric points, generation time and hotspot trend data. Failure clears stale forecast numbers; resource shortages show **Not assessed** because no resource-demand query was made. A real hotspot trend can remain visible when the volume model is unavailable. Hotspots are labelled as recent report activity, **not a model forecast**.
+
+The existing API forecast GET can persist forecast snapshots. This is existing application behavior, not DEMO18 fixture ownership; demo cleanup safeguards remain unchanged.
+
+## Executed checks and results
+
+| Check | Actual result | Local evidence |
+|---|---|---|
+| Initial Release build | PASS, 0 errors, 18 existing warnings | `artifacts/portfolio/local-e2e/ui-build.log` |
+| Final Release solution build | PASS, 0 errors, 15 existing warnings | `artifacts/portfolio/local-e2e/ui-complete-build.log` |
+| Full unit suite | PASS, 569 passed, 0 failed/skipped; includes 12 new forecast client/controller cases | `TestResults/PortfolioUI/UnitComplete/unit-tests.trx` |
+| UI JavaScript logic/DOM contracts | PASS, 22 passed, 0 failed/skipped | `artifacts/portfolio/local-e2e/ui-js-tests.log` |
+| SQL suite on retained test DB | FAIL, 88 passed, 1 situation-worker timeout | `TestResults/PortfolioUI/Integration/integration-tests.trx` |
+| SQL suite on fresh isolated test DB | PASS, 89 passed, 0 failed/skipped | `TestResults/PortfolioUI/IntegrationFresh/integration-tests.trx` |
+| Authorized MVC/snapshot/access checks | PASS, 30 checks using actual cookies, CSRF and Web-to-API JWT | `artifacts/portfolio/local-e2e/ui-mvc.json` |
+| Runtime routes/health/assets | PASS, 10 checks; all HTTP 200, payload details below | `artifacts/portfolio/local-e2e/ui-runtime.json` |
+| `git diff --check` | PASS | Final working-tree check |
+
+The initial SQL failure was a 30-second timeout waiting for exactly three situation members on a database containing prior test records. A clean run passed. This supports a retained-fixture interference explanation; it does not prove restart/durable-worker recovery. The failed result is retained. Only the disposable `EmergencyResponse_IntegrationTests` database on the verified local SQL Server 2025 container was recreated. `EmergencyResponse_PortfolioDemo`, LOADTEST data and other databases were not reset. An initial harness target guard refused to reset anything until its PowerShell connection-string parser was corrected.
+
+Build warnings include existing cryptography package advisories and unrelated nullable warnings. Dependency remediation was not expanded into this UI pass.
+
+### Observed server responses
+
+- Citizen, Operator and SystemAdmin real-cookie sessions passed the existing demo checks. Operator/SystemAdmin dashboard HTML contains the new shell, selected navigation, KPI IDs, grid region and all chart hooks.
+- Citizen is denied at `/Dashboard`, `/Dashboard/Snapshot`, `/Dashboard/IncidentVolume` and `/Dashboard/Hotspots`. Existing anonymous login and Citizen resource restrictions still pass.
+- SystemAdmin dashboard snapshot contains at least the six DEMO18 reports, the summary and a real retrieval timestamp. Anonymous login HTML has login/register navigation and no notification bell.
+- API `/health/live` and `/health/ready`: HTTP 200.
+- Real volume endpoint: HTTP 200, `isAvailable=false`, zero points, reason **at least 336 observations and 20 non-zero observations are required**. This is an explicit unavailable model, not a forecast of zero incidents.
+- Real hotspot endpoint: HTTP 200, one Increasing cluster. Source inspection shows this is a deterministic recent/historical report heuristic, not a successfully trained volume model.
+- Custom CSS/JS, local Bootstrap bundle, Syncfusion Fluent 2 CSS and grid script are served successfully. Delivery does not verify component rendering.
+
+The JavaScript suite executes failure/success behavior in a small DOM harness: independent priority/severity counts, retained grid instance, selected-row restoration, reduced-motion scrolling, invalid snapshots, stale values, partial forecast availability, missing demand assessment, notification error states, script order and all legacy IDs. Seven design-token foreground/background pairs meet the calculated WCAG AA 4.5:1 normal-text threshold. This is **not** a browser contrast or complete accessibility audit.
+
+Execution used `dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore`, full `dotnet test` runs with `--configuration Release --no-build` and TRX output, `node --test scripts/tests/dashboard-ui.test.cjs`, the existing `scripts/verify-demo-pages.ps1` with the optional Operator checks, and `git diff --check`. The runtime harness made real-cookie requests to the two forecast bridges, health routes and local assets; it did not substitute test authentication. Test/host orchestration scripts are saved locally as `validate-ui-pass.ps1`, `rerun-ui-sql.ps1`, `finalize-ui-pass.ps1`, `restart-ui.ps1` and `check-ui-runtime.ps1` under the evidence directory.
+
+## Reproduction
+
+Prerequisites: .NET 10, existing restored packages, Node (tested with v24.12.0; no npm packages added), SQL Server 2025 with the native-vector schema, the exact isolated integration database, and existing private local configuration. Follow [the local setup](demo-script.md) and [DEMO18 prerequisites](synthetic-demo-data.md). Do not print credentials or use shared/production databases.
+
+```powershell
+dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore
+dotnet test tests/EmergencyResponse.UnitTests --configuration Release --no-build
+# Configure ConnectionStrings__TestDatabase privately for the isolated test DB first.
+dotnet test tests/EmergencyResponse.IntegrationTests --configuration Release --no-build
+node --test scripts/tests/dashboard-ui.test.cjs
+git diff --check
+
+# Start the normal local API/Web with documented configuration and private credentials.
+$reporterPassword = Read-Host 'Synthetic Citizen password' -AsSecureString
+$reviewerPassword = Read-Host 'Synthetic SystemAdmin password' -AsSecureString
+$operatorPassword = Read-Host 'Synthetic Operator password' -AsSecureString
+./scripts/verify-demo-pages.ps1 -WebUrl https://localhost:7201 `
+  -ReporterPassword $reporterPassword -ReviewerEmail portfolio-admin@test.local `
+  -ReviewerPassword $reviewerPassword -OperatorPassword $operatorPassword `
+  -SeedResultPath artifacts/portfolio/local-e2e/seed-restored.json `
+  -OutputPath artifacts/portfolio/ui-mvc.json
+```
+
+Use the seed-result path produced by your own documented import. No new seeding or cleanup was required for this UI pass. On Windows, stop only the verified development host processes if their loaded DLLs prevent rebuilding. The local verification hosts were restarted after the final build.
+
+## Browser and viewport acceptance
+
+The connected Chrome inventory failed with **`Codex auth token is unavailable`**. No existing repository Playwright/browser-testing setup was found. No browser dependency was installed or global browser configuration changed. No rendering, console/network observation, interactive grid/chart action or screenshot from this UI pass is claimed.
+
+| Viewport | Intended layout | Observed result |
+|---|---|---|
+| 1440 × 900 | Expanded top navigation, four KPIs, four review groups, balanced insights | BLOCKED — browser unavailable |
+| 1024 × 768 | Collapsed navigation, four KPIs, two review groups, stacked insights | BLOCKED — browser unavailable |
+| 390 × 844 | Collapsed navigation, two KPIs per row, two review groups, queue scroll region | BLOCKED — browser unavailable |
+
+Precise manual checks, without capturing portfolio screenshots:
+
+1. Open `https://localhost:7201/Account/Login` in Chrome. Sign in with an existing synthetic account and its privately stored password. API health URLs are `https://localhost:7191/health/live` and `/health/ready`; ports are from the repository HTTPS launch profiles.
+2. At each viewport above, use keyboard Tab/Shift+Tab: skip link, mobile toggle, visible navigation, bell, logout and dashboard actions. Check that the toggle opens/closes the matching menu, Escape closes notifications, focus is visible and content does not overlap or overflow the page.
+3. For Operator/SystemAdmin, open `/Dashboard`. Verify active navigation, four readable KPI cards and the queue-scope caveat. Citizen must receive AccessDenied; Responder and EmergencyAdmin navigation still need browser review with those existing roles.
+4. In the queue, search `DEMO18-`, filter Status and Severity, sort, resize, reorder, choose columns and page. Scroll inside the mobile queue to View/Map actions; confirm no horizontal **page** overflow. Follow View and Map, and test `/Dashboard?incidentId=07cca8ac-89d8-721f-5559-3a42230bbfa7`. Selection should restore only when the row is on the current page.
+5. Check chart legends/tooltips and empty-to-populated refresh behavior. Use a separate disposable database if you need an empty dataset; do not delete the exercised demo records to make an empty screenshot.
+6. Verify initial connection versus snapshot status. Click Refresh overview; disconnect/reconnect through DevTools and ensure old values are labelled stale after failed requests and recovery uses a fresh snapshot.
+7. Refresh forecasts. In this local dataset, volume must read Unavailable, resource shortages Not assessed, and the valid hotspot result must be described as report-based. No green success claim or fake generation time should appear for unavailable data.
+8. Open notifications, inspect unread accessibility naming and real recipient scope; exercise read actions only on synthetic reminders. Inspect Console and Network for failed assets, invalid JSON, JavaScript exceptions and unexpected authorization responses.
+
+## Remaining issues and boundaries
+
+- All actual browser/layout/keyboard/touch observations remain blocked, including Syncfusion frozen columns, popups, chart resizing and narrow-screen scrolling. CSS intent and HTML checks are not substitutes.
+- Live SignalR delivery, reconnect/snapshot recovery and multi-user recipient isolation were not exercised in a browser here.
+- The three existing unassociated Map filter heading labels from Phase 2.2 remain a deferred map accessibility issue; this pass does not redesign Map.
+- Shared tokens may interact with existing per-page styles. Check the other screens when their dedicated UI passes begin.
+- The global notification-summary scope, latest-100 queue cap, terminal-state inclusion and default DEMO18 severity values remain existing data-contract limitations, explicitly disclosed above.
+- No genuine available volume forecast, resource-demand forecast, live AI/Copilot, media processing or Azure workflow is verified by this pass.
+
+Recommended commit: `feat: polish operations shell and dashboard design system`.
+
+## Phase 18 Part 2.3.3 — Incident reporting and details UI
+
+Date: 2026-10-16. Branch: `docs/phase18-portfolio-release`; PR #17 remains open and unchanged.
+
+## Implementation status
+
+The existing incident UI changes cover Report Emergency, the paged incident queue, My Reports, and Incident Details. The list and My Reports share the same incident table and pagination partials. The create action reloads incident types when a failed create returns the form. Incident details retain the existing escalation, situation, impact, prediction, status, resource, duplicate, history, and visual-evidence sections and their role-gated actions. Unknown impact counts are shown as `Unknown`; zero remains a distinct value. A Release build exposed a Razor parsing issue in the new pagination partial (`page` conflicted with the Razor directive); the loop variable is now `pageNumber`.
+
+Files changed for this part: `src/EmergencyResponse.Web/Controllers/IncidentsController.cs`, the four incident views under `src/EmergencyResponse.Web/Views/Incidents/`, `src/EmergencyResponse.Web/wwwroot/css/site.css`, and the new `_IncidentTable.cshtml` / `_IncidentPagination.cshtml` partials.
+
+## Build and test results
+
+- `dotnet build AI-Emergency-Response.slnx -c Release`: **passed**, 0 errors, 29 warnings. Warnings include existing NuGet vulnerability advisories for `System.Security.Cryptography.Pkcs` 9.0.18 and `System.Security.Cryptography.Xml` 8.0.4, plus existing nullable-reference warnings.
+- `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-restore`: **passed**, 569 passed, 0 failed, 0 skipped.
+- SQL integration suite: **blocked at fixture setup**. The run reported 89 failures and 0 passes because `ConnectionStrings:TestDatabase` is unset. `SqlServerReadiness` requires the dedicated `EmergencyResponse_IntegrationTests` database and refuses other database names; no database was changed.
+- `git diff --check`: passed with no whitespace errors.
+
+## Browser and responsive verification
+
+The requested visual checks at 1440 × 900, 1024 × 768, and 390 × 844 remain **blocked**. Navigating the available browser to `https://localhost:7201/Incidents` returned `net::ERR_CONNECTION_REFUSED`; the local Web/API hosts were not running. No layout, keyboard, touch, validation rendering, or screenshot inspection is claimed. Screenshot capture remains pending until genuine application screens can be opened and inspected.
+
+## Remaining verification
+
+Configure `ConnectionStrings:TestDatabase` for the isolated `EmergencyResponse_IntegrationTests` SQL database, then rerun the integration suite and the authorized MVC page check with the existing synthetic DEMO18 seed and accounts. Start the Web and API against that isolated environment and inspect all four incident pages at each requested viewport. Verify keyboard focus and validation-message association on the form; search, severity/status filters, clear-filter behavior and pagination on the queue; empty and paged states on My Reports; and operator/citizen visibility, alert actions, and navigation on Details. Check mobile overflow and action wrapping. Capture screenshots only after viewing the actual rendered screens.
+
+Recommended commit after remaining checks: `feat: polish incident reporting and details UI`.
+
+## Phase 18 Part 2.3.5 — Copilot, situations, and notifications
+
+Date: 2026-10-17. Branch: `docs/phase18-portfolio-release`; PR #17. The UI changes were committed and pushed as `005a7ea`; subsequent SQL validation and the test-isolation follow-up are recorded below.
+
+### Implementation
+
+- Copilot now uses the shared page heading and panels, keeps the question/context/antiforgery bindings, and presents the answer, grounding state, citations, evidence gaps, and response-specific verification notes separately. Empty citations are explicitly described as unverified. Provider and empty-response failures preserve the submitted question and show an unavailable state.
+- Proposal cards show their actual type and summary, expiration, approval requirement, and separate antiforgery-protected approval/rejection forms with labeled comments. Only proposals marked as requiring approval expose those controls; server routes and API revalidation remain authoritative.
+- Situation Command Center no longer claims a permanent Live connection. It labels the initial data as a snapshot, offers a manual snapshot refresh with success/failure status, and preserves active server filters when refreshing. If the initial request fails, it shows unavailable rather than zero-valued KPIs. Scores/evaluation time and shortage state show Not evaluated when no evaluation timestamp exists. Review state no longer claims an item was reviewed merely because no review is pending.
+- Situation evaluation, acknowledge, review, resolve, and dismiss controls follow the existing role permission map and endpoint role requirements. Linked-report caveat remains visible; aggregate values are labeled as reported totals and a zero casualty count is not presented as proof of no casualties.
+- Notification Center now has five clearly labeled summary cards, GET filters for priority/read status/type, visible active filters, a clear action, and a distinct data-unavailable state. Empty filtered results no longer say all notifications are caught up. Summary authorization failures are no longer converted to fake zero counts; a missing summary is calculated from the recipient-scoped loaded set and only unread rows contribute to the priority metrics. Reading remains an explicit user action. Arbitrary external `ActionUrl` values are not used as notification links; the existing incident/situation destination is used when the action URL is not local.
+- Added small-screen layout rules using existing design tokens. No new dependencies, fake response data, or live-connection claims were added.
+
+### Validation performed
+
+- `dotnet build AI-Emergency-Response.slnx -c Release --no-restore`: passed, 0 errors, 14 warnings. The warnings are existing package vulnerability advisories (including `System.Security.Cryptography.Pkcs` and `System.Security.Cryptography.Xml`); no new nullable Razor warning remains in the touched situation view.
+- `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-restore`: passed, 572 passed, 0 failed, 0 skipped.
+- `node --test scripts/tests/dashboard-ui.test.cjs scripts/tests/resource-command-center.test.cjs`: passed, 28 passed, 0 failed.
+- `git diff --check`: passed after the final edits.
+- At the initial UI pass, `ConnectionStrings__TestDatabase` was unset, so SQL integration tests were not run then. After configuring the dedicated `EmergencyResponse_IntegrationTests` database, the complete SQL integration suite passed: 89 passed, 0 failed, 0 skipped.
+- The first configured run exposed that the situation-evaluation integration test reused a fixed coordinate while leaving rows in the persistent test database. The test now gives each run a distinct geographic origin, preserving a tight cluster within each run and preventing stale rows from joining it. The focused test passed (1/1), followed by the full SQL suite (89/89).
+- No focused MVC/browser snapshot test was available for these Razor views. Situation and notification API integration coverage did run as part of the full SQL suite.
+
+### Browser and responsive verification
+
+Visual rendering, keyboard interaction, and the requested 1440 × 900, 1024 × 768, and 390 × 844 viewport checks remain blocked. The available browser automation was denied access to the local application URL by its security policy, and no alternate browser route was used. Build and source inspection do not count as visual verification.
+
+Manual verification once browser access is available:
+
+1. Sign in with existing synthetic Responder, Operator, EmergencyAdmin, and SystemAdmin accounts. Confirm unauthorized users do not see Copilot, situation mutation, evaluation, or resolution actions they cannot execute.
+2. Submit a Copilot question with and without hidden incident/situation context. Check validation, preserved question after provider error, grounded/partial/insufficient/unavailable states, citation metadata, absent-citation messaging, and response-specific verification notes. Check proposal types, expiration, approval requirement, comments, separate approval/rejection forms, and confirmation that approval is a server-authorized workflow.
+3. At each viewport, inspect situation filters and manual refresh. Verify a successful snapshot preserves active filters, a failed refresh retains prior rows with a stale/unavailable label, default evaluation timestamps show Not evaluated, and the linked-report caveat remains visible. Test the existing modal/state transitions with the appropriate role.
+4. Inspect notification priority/status/type filtering and clear behavior, all five metric meanings, long-message wrapping, empty and unavailable states, unread/read controls, and mark-all behavior. Confirm displaying a notification does not change its read state. Check keyboard focus and horizontal page overflow.
+
+Recommended commit: `feat: polish copilot situations and notifications UI`.
+
+## CI follow-up — portfolio demo cleanup ownership
+
+The CI error about `OperationalSituationAnalysis` was verified against the current code. The portfolio seeder owns the situation through its audit manifest; analysis rows are created later by `OperationalSituationService`, and previously had no ownership marker. Cleanup correctly rejected those unowned dependents.
+
+The fix adds nullable `PortfolioDemoOwnershipKey` fields to situations and analyses. The demo situation carries `DEMO18-v1`; generated analyses inherit that key. Cleanup queries analyses only through the manifest-owned situation IDs, refuses any row whose key does not match, and includes only explicitly owned analyses in the deletion set. A regression test confirms unmarked analyses still block deletion; owned analyses are counted in dry-run output and removed before their parent.
+
+The EF migration is `20261016170848_AddPortfolioDemoOwnership`. A focused regression test first failed because the analysis entity had no ownership field; after the fix, all 20 portfolio seeder unit tests passed. The complete unit suite then passed 572 tests. The Release solution build passed with 14 warnings and no errors, and the CI EF pending-model-changes check reported no model changes after the migration. SQL Server integration execution remains unavailable locally because `ConnectionStrings__TestDatabase` is unset; the integration test now explicitly reanalyzes the seeded situation and asserts that the generated record inherits the demo ownership key before testing cleanup.
+
+## Phase 18 Part 2.3.6 — UI regression and responsive verification
+
+Date: 2026-10-17. Branch: `docs/phase18-portfolio-release`; PR #17. This checkpoint consolidates Parts 2.3.1–2.3.5. No source code, configuration, fixtures, or screenshots were changed in this verification pass. The worktree was clean at the start; no commit, push, merge, or deployment was made.
+
+### In-scope screen and interaction inventory
+
+| Screen | Source surfaces inspected | Interaction coverage / status |
+|---|---|---|
+| Shared shell | `Views/Shared/_Layout.cshtml`, `_Layout.cshtml.css`, `wwwroot/css/site.css`, `notifications.js` | Navigation state, role-conditioned links, responsive nav, skip/focus styles, notification bell, unread label, logout and script/CSRF wiring reviewed in source and UI tests. Browser interaction remains blocked. |
+| Dashboard | `Views/Dashboard/Index.cshtml`, `dashboard-outlook.js`, `incident-realtime.js` | KPI definitions, snapshot/refresh and stale behavior, queue/grid hooks, charts, forecast/hotspot availability, selected incident and reduced-motion behavior covered by source and JS regression checks. Actual chart/grid rendering remains blocked. |
+| Incident reporting | `Views/Incidents/Create.cshtml`, `IncidentsController.cs` | Form bindings, validation and failed-submit behavior reviewed; validation rendering and submission remain blocked. |
+| Incident list and My Reports | `Views/Incidents/Index.cshtml`, `MyReports.cshtml`, `_IncidentTable.cshtml`, `_IncidentPagination.cshtml` | Search, severity/status filters, clear/reset, paging and details links reviewed in implementation; browser interaction remains blocked. |
+| Incident details and review | `Views/Incidents/Details.cshtml`, `Duplicates.cshtml`, `DuplicateReview.cshtml`, `VisualReview.cshtml` | Status/impact/assessment/history sections and role-gated review/action controls reviewed. Live data/state transitions remain unverified. |
+| Live map | `Views/Map/Index.cshtml`, `emergency-map.js`, `emergency-map.css` | Filters, layers, markers/popups, selection/drawer, refresh/stale states, and reduced motion reviewed in source; actual map and SignalR interactions remain blocked. |
+| Resource command center and details | `Views/Resources/Index.cshtml`, `Details.cshtml`, `Recommendations.cshtml`, resource UI regression tests | Grid search/sort/filter/page, encoded templates, details, lifecycle action wiring and stale/error treatment reviewed; live component and authorized action behavior remain blocked. |
+| Copilot | `Views/Copilot/Index.cshtml`, `CopilotController.cs` | Question/context/antiforgery bindings, answer/citation/grounding/unavailable states, and approval-required proposal forms reviewed. Provider responses and live approval workflows were not invoked. |
+| Situations | `Views/Situations/Index.cshtml`, `Details.cshtml`, `SituationsController.cs` | Filters, snapshot refresh, unavailable/evaluation states, linked reports and role-guarded review/resolve controls reviewed. Modal and live workflow behavior remain blocked. |
+| Notifications | `Views/Notifications/Index.cshtml`, `NotificationsController.cs`, shared dropdown | Priority/read/type filters, clear, empty/unavailable states, explicit read behavior, and recipient scoping reviewed in source and existing tests; authenticated browser actions remain blocked. |
+
+Controller authorization attributes were reviewed: dashboard/map/resources are limited to operational roles; Copilot includes Responder/Operator/EmergencyAdmin/SystemAdmin; Situations separates read and mutation roles; Notifications and incident reports require authentication, with incident review routes further role-gated. This source review does not establish rendered role-specific screens.
+
+### Actual checks run in this pass
+
+| Check | Result |
+|---|---|
+| `dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore` | Passed: 0 errors, 14 NuGet vulnerability advisory warnings. The sandboxed attempt failed before compilation due host Service Control Manager access; rerun with permitted host access completed successfully. |
+| `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build` | Passed: 572 passed, 0 failed, 0 skipped. |
+| SQL integration suite against `EmergencyResponse_IntegrationTests` on local SQL Server | Passed: 89 passed, 0 failed, 0 skipped, 36 seconds. The temporary command environment targeted only this dedicated integration database; no production/shared database was used. |
+| `node --test scripts/tests/dashboard-ui.test.cjs scripts/tests/resource-command-center.test.cjs` | Passed: 28 passed, 0 failed. |
+| `node --check` for `dashboard-outlook.js`, `emergency-map.js`, `incident-realtime.js`, and `notifications.js` | Passed for all four scripts. |
+| `git diff --check` | Passed. |
+
+No schema changes were made, so no pending-model check was needed. The existing authorized MVC/API script requires private synthetic-account credentials, a DEMO18 seed-result file, and running local Web/API hosts; those prerequisites were not available for a new run. No credentials were read or changed. MVC/API evidence in earlier sections is historical, not a result from this pass.
+
+### Viewport/browser and live interaction results
+
+| Viewport | Result |
+|---|---|
+| 1440 × 900 | Not visually inspected. |
+| 1024 × 768 | Not visually inspected. |
+| 390 × 844 | Not visually inspected. |
+
+The browser automation security policy previously denied access to the local application URL. Per the phase instructions, no alternate browser route or policy workaround was attempted. Thus this pass does not claim rendered layout, overflow, keyboard/touch, console/network, role-session, modal/drawer, SignalR recovery, or live workflow acceptance. No screenshots were captured or added to the screenshot index. Existing manual captures and their limits remain documented in [the screenshot index](screenshots/README.md) and [local demo verification](local-demo-verification.md).
+
+### Findings, blockers, and phase status
+
+- No new critical/high defect was observed in the source and automated checks exercised by this pass; no targeted code fix was indicated.
+- **High acceptance blocker:** actual browser inspection at all three required viewports and interactive cross-page checks remain outstanding because the supported browser cannot access the local app under its security policy.
+- **Medium verification blocker:** fresh authenticated MVC/API checks across all five named roles were not run because private credentials, a seeded result file, and live host prerequisites were unavailable. Authorization attributes and automated suites passed, but do not establish rendered role-specific behavior.
+- Existing limitations documented above remain open and were not expanded in this consolidation pass.
+
+**Completion criteria: PARTIAL / NOT READY TO CLOSE.** Required build, unit, isolated SQL integration, JS, syntax, and diff checks passed. Browser/responsive and fresh authenticated cross-page acceptance remain pending; full responsive acceptance is not claimed. Recommended commit message when the owner chooses to record this documentation checkpoint: `docs: record phase 18 UI regression verification`.
+
+## Phase 18 Part 2.4 follow-up — startup schema exception
+
+On 2026-10-17 the owner supplied a Visual Studio exception screenshot: SQL Server error 207, `Invalid column name 'DataClassification'`, thrown at `AdminSeeder.SeedAsync` while `UserManager.FindByEmailAsync` reads `AspNetUsers`. Source inspection confirms migration `20261008095318_AddDataClassification` adds that column (and the same property on eleven other tables). Follow-up commit `c841c40` changes API startup to apply pending migrations in Development and Test before running seeders; Production remains explicit. This fixes the startup ordering for a stale development schema, but it also means the API can change whichever database the Development connection string selects.
+
+The original exception is consistent with an old schema or a mismatch between the database being migrated and the database used by the running API. The actual configured database name and `__EFMigrationsHistory` were not inspected, and the agent did not run the updated startup against the user's database. Before restarting, verify the effective connection target and review/backup retained local data. If EF reports the migration applied while the column is absent, stop and investigate schema drift or a wrong connection target; do not hand-add the column or edit migration history.
+
+The current shell did not have `ConnectionStrings__DefaultConnection`, and the API User Secrets file did not contain that key. Visual Studio may receive the connection from another private environment source. The configured server/database and migration history therefore remain unknown; no attempt was made to query or update an assumed database.
+
+### Owner-provided browser evidence and token logging follow-up
+
+The owner supplied two Chrome screenshots on 2026-10-17. `/Map` shows an authenticated Test Operator session at a responsive-emulation viewport of 1230 × 1285, a retrieved snapshot, 12 filtered incidents, zero resources, and the visible status “Live updates connected.” `/Account/Login` shows the login layout. These images confirm only the states visible in those captures; they do not prove six-screen coverage, responsive acceptance, or the full demo workflow. The Map image's open Console shows the SignalR WebSocket URL with an `access_token` query value. Do not add or circulate that image. Treat the displayed token as exposed if the capture left the owner's trusted environment; sign out and allow the token to expire, and revoke/rotate it if it was shared beyond that environment. Updated `incident-realtime.js` filters informational SignalR logs and redacts token query values in warning/error logs. Post-fix browser confirmation remains pending.
+
+The same Console shows a blocked `apis.google.com/js/api.js` request attributed to `general.js`. No Google API load was found in application source; the map uses Leaflet/OpenStreetMap. The request's source remains unverified, so CSP was not loosened. Browser Link and ASP.NET browser-refresh messages are Visual Studio tooling.
+
+### Phase 18 Part 2.4 validation run — 2026-10-17
+
+| Check | Actual result |
+|---|---|
+| `dotnet build AI-Emergency-Response.slnx --configuration Release --no-restore` | Passed, 0 errors, 49 warnings. Warnings include existing package vulnerability advisories and nullable-reference warnings. |
+| `dotnet test tests/EmergencyResponse.UnitTests/EmergencyResponse.UnitTests.csproj --configuration Release --no-build` | Passed: 572 passed, 0 failed, 0 skipped. |
+| `$env:ConnectionStrings__TestDatabase='Server=localhost;Database=EmergencyResponse_IntegrationTests;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'; dotnet test tests/EmergencyResponse.IntegrationTests/EmergencyResponse.IntegrationTests.csproj --configuration Release --no-build` | Passed: 89 passed, 0 failed, 0 skipped. Only the designated local integration database was targeted. |
+| `node --test scripts/tests/dashboard-ui.test.cjs scripts/tests/resource-command-center.test.cjs` | Passed: 28 passed. |
+| `node --check` on `dashboard-outlook.js`, `emergency-map.js`, `incident-realtime.js`, and `notifications.js` | Passed for all four scripts. |
+| Six-slide portfolio deck validation and render review | Package/layout validation passed with 0 findings. All six rendered previews were inspected. The actual map image failed to embed and diagram arrows pointed backward in a first draft; both were corrected before finalization. This does not claim testing in PowerPoint. |
+| `git diff --check` | Run after final documentation/assets review; see current Phase 2.4 report. |
+
+The authorized MVC/API script was not run: the required private synthetic account credentials, seed-result file, and known running Web/API hosts were unavailable. The browser remained blocked by its existing local-URL security policy. The demo walkthrough was not executed and no screenshot was captured in this run.
+
+After this baseline, the user-provided screenshots were inspected and the startup migration/logging fixes were added. `node --test scripts/tests/dashboard-ui.test.cjs scripts/tests/resource-command-center.test.cjs` passed 28/28 after the response and logger adjustments. `node --check` on `dashboard-outlook.js`, `emergency-map.js`, `incident-realtime.js`, and `notifications.js`, plus `git diff --check`, passed. The API-only Release build failed during project-reference/workload SDK resolution, reporting NU1902/NU1903 advisories and no compiler errors; the latest C# source has not received a successful Release build. The user's local API session shows successful SignalR connectivity, but the updated logger has not yet been confirmed in a restarted browser session.
+
+### Additional manual screenshots and Copilot exception — 2026-10-18
+
+The owner supplied screenshots captured between 13:57 and 14:31 from a local signed-in Test Operator session. Fifteen original PNGs are stored and described in [the screenshot index](screenshots/README.md). The screenshot pixel dimensions are approximately 1858–1899 wide; browser viewport, source revision, and seed identity were not provided. These images support only the visible desktop UI states; they do not establish 1440 × 900, 1024 × 768, or 390 × 844 responsive acceptance.
+
+Observed views include the incident queue (12 matching reports), the report form, a dashboard with 12 active/unassigned reports and eight critical items, map tiles/clusters/filter controls and a “Live updates connected” badge, duplicate comparison/review forms, and an eight-unread notification panel. They do not demonstrate report submission, a saved duplicate decision, notification delivery, recipient isolation, map layer interaction, or reconnection. The Resource Command Center remains at “Loading eligible incidents…” and shows zero tracked units; the Situation Center shows zero active situations and no detail view. The Copilot capture contains a question form but no answer or citation.
+
+The owner also supplied a Visual Studio exception showing `ConversationMemoryService.AddMessageAsync` failing at `CopilotConversations.Update(conversation)` because a second `CopilotConversation` with the same key was already tracked. The fix uses a tracked query for AddMessage/Archive/Rename, avoids reattaching tracked entities, and saves a new message and activity timestamp together. A SQLite regression test covers the repeated `GetOrCreateAsync` then `AddMessageAsync` sequence. The focused build/test command exited before C# compilation: diagnostic output shows the project-reference framework-resolution target failed while the installed .NET SDK could not resolve its workload auto-import SDK directory. It logged package-audit warnings but no C# compiler errors or test results. The bug fix is therefore **not yet runtime-verified**.
+
+One incident detail screenshot also shows a mismatch between report and visual-review content: the report describes trapped passengers and the assessment records 18 people/four vehicles affected, while the image analysis says no people or vehicles are visible. Those statements remain unverified claims and must be reconciled by a human reviewer before operational use.
+
+**Current status:** screenshot indexing is complete for this supplied batch. The walkthrough, three specified viewport checks, successful Copilot response, ready Resource Command Center, active situation details, role-specific workflows, and current C# build/regression test remain pending. Do not infer phase completion from screenshots alone.

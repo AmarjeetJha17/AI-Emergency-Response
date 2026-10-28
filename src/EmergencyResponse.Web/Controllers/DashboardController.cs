@@ -18,6 +18,27 @@ public sealed class DashboardController : Controller
     }
 
     [HttpGet]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public Task<IActionResult> IncidentVolume(CancellationToken cancellationToken) =>
+        GetForecastAsync(() => _dashboardApiClient.GetIncidentVolumeAsync(cancellationToken), cancellationToken);
+
+    [HttpGet]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public Task<IActionResult> Hotspots(CancellationToken cancellationToken) =>
+        GetForecastAsync(() => _dashboardApiClient.GetHotspotsAsync(cancellationToken), cancellationToken);
+
+    // Reuse the existing bearer-token HTTP client; never send an API token to page scripts.
+    private async Task<IActionResult> GetForecastAsync<T>(Func<Task<T>> request, CancellationToken cancellationToken)
+    {
+        try { return Json(await request()); }
+        catch (HttpRequestException error) when (error.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+        { return StatusCode((int)error.StatusCode.Value); }
+        catch (Exception error) when (error is HttpRequestException or System.Text.Json.JsonException ||
+            error is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+        { return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Forecast data is unavailable." }); }
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Index(
         [FromQuery] Guid? incidentId,
         CancellationToken cancellationToken)

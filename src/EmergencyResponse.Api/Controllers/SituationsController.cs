@@ -157,6 +157,7 @@ public sealed class SituationsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/reanalyze")]
+    [ServiceFilter(typeof(AIEnabledActionFilter))]
     [Authorize(Roles = $"{ApplicationRoles.Operator},{ApplicationRoles.EmergencyAdmin},{ApplicationRoles.SystemAdmin}")]
     public async Task<IActionResult> Reanalyze(
         Guid id,

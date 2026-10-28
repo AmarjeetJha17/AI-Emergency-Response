@@ -24,6 +24,8 @@
     function updateBadge(totalUnread) {
         const badge = document.getElementById('notificationBadge');
         if (!badge) return;
+        const bell = document.getElementById('notificationBell');
+        bell?.setAttribute('aria-label', totalUnread > 0 ? `Notifications, ${totalUnread} unread` : 'Notifications, no unread alerts');
 
         if (totalUnread && totalUnread > 0) {
             badge.textContent = totalUnread > 99 ? '99+' : totalUnread;
@@ -35,11 +37,20 @@
 
     async function loadSummary() {
         try {
-            const resp = await fetch('/Notifications/Summary');
-            if (!resp.ok) return;
+            const resp = await fetch('/Notifications/Summary', {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            const contentType = resp.headers?.get?.('content-type') || '';
+            if (resp.redirected || (contentType && !contentType.includes('application/json'))) {
+                document.getElementById('notificationBell')?.setAttribute('aria-label', 'Notifications, unread count unavailable');
+                return;
+            }
+            if (!resp.ok) throw new Error('Notification summary unavailable');
             const data = await resp.json();
             updateBadge(data.totalUnread);
         } catch (err) {
+            document.getElementById('notificationBell')?.setAttribute('aria-label', 'Notifications, unread count unavailable');
             console.warn('Failed to load notification summary:', err);
         }
     }
@@ -47,11 +58,13 @@
     async function loadDropdown() {
         const list = document.getElementById('notificationList');
         if (!list) return;
+        list.setAttribute('aria-busy', 'true');
 
         try {
             const resp = await fetch('/Notifications/Snapshot?take=7');
-            if (!resp.ok) return;
+            if (!resp.ok) throw new Error('Notification list unavailable');
             const items = await resp.json();
+            if (!Array.isArray(items)) throw new Error('Invalid notification list');
 
             if (!items || items.length === 0) {
                 list.innerHTML = '<div class="text-center text-muted p-3 small">No notifications</div>';
@@ -86,6 +99,7 @@
         } catch (err) {
             list.innerHTML = '<div class="text-center text-danger p-3 small">Error loading alerts</div>';
         }
+        finally { list.setAttribute('aria-busy', 'false'); }
     }
 
     function showToast(notification) {

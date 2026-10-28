@@ -1,0 +1,1254 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.48.1.52935",
+      "templateHash": "15031667165437669481"
+    }
+  },
+  "parameters": {
+    "stagingResourceGroupName": {
+      "type": "string",
+      "defaultValue": "rg-er-staging-preview",
+      "metadata": {
+        "description": "Dedicated staging resource group name for the preview."
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure region for the staging resource group and resources."
+      }
+    },
+    "sqlEntraAdminLogin": {
+      "type": "string",
+      "metadata": {
+        "description": "Display name of the signed-in Microsoft Entra SQL administrator."
+      }
+    },
+    "sqlEntraAdminObjectId": {
+      "type": "string",
+      "metadata": {
+        "description": "Object ID of the signed-in Microsoft Entra SQL administrator."
+      }
+    },
+    "sqlDatabaseSkuName": {
+      "type": "string",
+      "defaultValue": "GP_S_Gen5_1",
+      "metadata": {
+        "description": "SQL Database SKU used for the initial infrastructure preview; review cost and regional availability before deployment."
+      }
+    },
+    "aiResourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Existing Azure AI resource group. Pass the value explicitly for each deployment."
+      }
+    },
+    "aiResourceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Existing Azure AI account name. Pass the value explicitly for each deployment."
+      }
+    }
+  },
+  "variables": {
+    "suffix": "[take(uniqueString(subscription().id, parameters('stagingResourceGroupName')), 8)]",
+    "sqlServerName": "[format('sql-er-staging-{0}', variables('suffix'))]",
+    "commonTags": {
+      "project": "AI-Emergency-Response",
+      "environment": "staging",
+      "managedBy": "Bicep"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2024-03-01",
+      "name": "[parameters('stagingResourceGroupName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('commonTags')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "er-staging-network-foundation",
+      "resourceGroup": "[parameters('stagingResourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "staging"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "sqlEntraAdminLogin": {
+            "value": "[parameters('sqlEntraAdminLogin')]"
+          },
+          "sqlEntraAdminObjectId": {
+            "value": "[parameters('sqlEntraAdminObjectId')]"
+          },
+          "sqlEntraAdminPrincipalType": {
+            "value": "User"
+          },
+          "sqlServerName": {
+            "value": "[variables('sqlServerName')]"
+          },
+          "sqlDatabaseName": {
+            "value": "EmergencyResponse"
+          },
+          "sqlDatabaseSkuName": {
+            "value": "[parameters('sqlDatabaseSkuName')]"
+          },
+          "aiResourceGroupName": {
+            "value": "[parameters('aiResourceGroupName')]"
+          },
+          "aiResourceName": {
+            "value": "[parameters('aiResourceName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.48.1.52935",
+              "templateHash": "8374876511005101827"
+            }
+          },
+          "parameters": {
+            "environmentName": {
+              "type": "string",
+              "defaultValue": "staging",
+              "allowedValues": [
+                "staging",
+                "pilot"
+              ],
+              "metadata": {
+                "description": "Environment identifier used in resource names and tags."
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region. Defaults to the resource group region."
+              }
+            },
+            "sqlEntraAdminLogin": {
+              "type": "string",
+              "metadata": {
+                "description": "Microsoft Entra administrator display name for Azure SQL."
+              }
+            },
+            "sqlEntraAdminObjectId": {
+              "type": "string",
+              "metadata": {
+                "description": "Object ID of the Microsoft Entra user or group administering Azure SQL."
+              }
+            },
+            "sqlEntraAdminPrincipalType": {
+              "type": "string",
+              "defaultValue": "User",
+              "allowedValues": [
+                "User",
+                "Group"
+              ],
+              "metadata": {
+                "description": "Principal type of the Microsoft Entra administrator."
+              }
+            },
+            "sqlServerName": {
+              "type": "string",
+              "metadata": {
+                "description": "Globally unique Azure SQL logical server name."
+              }
+            },
+            "sqlDatabaseName": {
+              "type": "string",
+              "defaultValue": "EmergencyResponse",
+              "metadata": {
+                "description": "Azure SQL database name."
+              }
+            },
+            "sqlDatabaseSkuName": {
+              "type": "string",
+              "defaultValue": "GP_S_Gen5_1",
+              "metadata": {
+                "description": "Initial Azure SQL database SKU for preview; confirm regional availability and cost before deployment."
+              }
+            },
+            "aiResourceGroupName": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource group containing the existing Foundry/Azure OpenAI resource."
+              }
+            },
+            "aiResourceName": {
+              "type": "string",
+              "metadata": {
+                "description": "Existing Azure AI account used by low-volume synthetic staging calls."
+              }
+            }
+          },
+          "variables": {
+            "suffix": "[take(uniqueString(resourceGroup().id), 8)]",
+            "commonTags": {
+              "project": "AI-Emergency-Response",
+              "environment": "[parameters('environmentName')]",
+              "managedBy": "Bicep"
+            },
+            "logAnalyticsName": "[format('log-er-{0}-{1}', parameters('environmentName'), variables('suffix'))]",
+            "containerAppsEnvironmentName": "[format('cae-er-{0}-vnet', parameters('environmentName'))]",
+            "registryName": "[format('acer{0}{1}', parameters('environmentName'), variables('suffix'))]",
+            "storageAccountName": "[format('ster{0}{1}', parameters('environmentName'), variables('suffix'))]",
+            "keyVaultName": "[format('kv-er-{0}-{1}', parameters('environmentName'), variables('suffix'))]",
+            "serviceBusName": "[format('sb-er-{0}-{1}', parameters('environmentName'), variables('suffix'))]",
+            "searchServiceName": "[format('srcher{0}{1}', parameters('environmentName'), variables('suffix'))]",
+            "vnetName": "[format('vnet-er-{0}', parameters('environmentName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-05-01",
+              "name": "[variables('vnetName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "10.40.0.0/16"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', variables('vnetName'), 'aca-infrastructure')]",
+              "properties": {
+                "addressPrefix": "10.40.0.0/23",
+                "delegations": [
+                  {
+                    "name": "aca-delegation",
+                    "properties": {
+                      "serviceName": "Microsoft.App/environments"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', variables('vnetName'), 'private-endpoints')]",
+              "properties": {
+                "addressPrefix": "10.40.2.0/24",
+                "privateEndpointNetworkPolicies": "Disabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', variables('vnetName'), 'migration-runner')]",
+              "properties": {
+                "addressPrefix": "10.40.3.0/24"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', variables('vnetName'), 'AzureBastionSubnet')]",
+              "properties": {
+                "addressPrefix": "10.40.4.0/26"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2022-10-01",
+              "name": "[variables('logAnalyticsName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30,
+                "features": {
+                  "enableLogAccessUsingOnlyResourcePermissions": true
+                }
+              }
+            },
+            {
+              "type": "Microsoft.App/managedEnvironments",
+              "apiVersion": "2024-03-01",
+              "name": "[variables('containerAppsEnvironmentName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "properties": {
+                "appLogsConfiguration": {
+                  "destination": "log-analytics",
+                  "logAnalyticsConfiguration": {
+                    "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName')), '2022-10-01').customerId]",
+                    "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName')), '2022-10-01').primarySharedKey]"
+                  }
+                },
+                "vnetConfiguration": {
+                  "infrastructureSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'aca-infrastructure')]",
+                  "internal": false
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'aca-infrastructure')]",
+                "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ContainerRegistry/registries",
+              "apiVersion": "2023-07-01",
+              "name": "[variables('registryName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "adminUserEnabled": false,
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[format('id-er-{0}-acr-pull', parameters('environmentName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]"
+            },
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[format('id-er-{0}-api', parameters('environmentName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]"
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ContainerRegistry/registries', variables('registryName'))]",
+              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', variables('registryName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-acr-pull', parameters('environmentName'))), 'AcrPull')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-acr-pull', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-acr-pull', parameters('environmentName')))]",
+                "[resourceId('Microsoft.ContainerRegistry/registries', variables('registryName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "accessTier": "Hot",
+                "allowBlobPublicAccess": false,
+                "allowSharedKeyAccess": false,
+                "supportsHttpsTrafficOnly": true,
+                "minimumTlsVersion": "TLS1_2",
+                "publicNetworkAccess": "Disabled"
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+              "properties": {
+                "deleteRetentionPolicy": {
+                  "enabled": true,
+                  "days": 7
+                },
+                "isVersioningEnabled": true
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'incident-media')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'knowledge-documents')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'web-data-protection')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'deployment-artifacts')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.blob.core.windows.net",
+              "location": "global",
+              "tags": "[variables('commonTags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.blob.core.windows.net', format('{0}-blob-link', variables('vnetName')))]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.blob.core.windows.net')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2024-05-01",
+              "name": "[format('pe-blob-er-{0}', parameters('environmentName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'private-endpoints')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "blob-storage-connection",
+                    "properties": {
+                      "privateLinkServiceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                      "groupIds": [
+                        "blob"
+                      ],
+                      "requestMessage": "Private incident and knowledge file storage."
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'private-endpoints')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', format('pe-blob-er-{0}', parameters('environmentName')), 'default')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "blob-private-dns",
+                    "properties": {
+                      "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.blob.core.windows.net')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.blob.core.windows.net')]",
+                "[resourceId('Microsoft.Network/privateEndpoints', format('pe-blob-er-{0}', parameters('environmentName')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Search/searchServices",
+              "apiVersion": "2023-11-01",
+              "name": "[variables('searchServiceName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "sku": {
+                "name": "basic"
+              },
+              "properties": {
+                "replicaCount": 1,
+                "partitionCount": 1,
+                "hostingMode": "default",
+                "publicNetworkAccess": "disabled",
+                "semanticSearch": "disabled"
+              }
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.search.windows.net",
+              "location": "global",
+              "tags": "[variables('commonTags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.search.windows.net', format('{0}-search-link', variables('vnetName')))]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.search.windows.net')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2024-05-01",
+              "name": "[format('pe-search-er-{0}', parameters('environmentName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'private-endpoints')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "search-service-connection",
+                    "properties": {
+                      "privateLinkServiceId": "[resourceId('Microsoft.Search/searchServices', variables('searchServiceName'))]",
+                      "groupIds": [
+                        "searchService"
+                      ],
+                      "requestMessage": "Private staging knowledge search."
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'private-endpoints')]",
+                "[resourceId('Microsoft.Search/searchServices', variables('searchServiceName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', format('pe-search-er-{0}', parameters('environmentName')), 'default')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "search-private-dns",
+                    "properties": {
+                      "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.search.windows.net')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.search.windows.net')]",
+                "[resourceId('Microsoft.Network/privateEndpoints', format('pe-search-er-{0}', parameters('environmentName')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[variables('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "properties": {
+                "tenantId": "[subscription().tenantId]",
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "enableRbacAuthorization": true,
+                "enablePurgeProtection": true,
+                "softDeleteRetentionInDays": 90,
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/keys",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/{1}', variables('keyVaultName'), 'web-data-protection')]",
+              "properties": {
+                "kty": "RSA",
+                "keySize": 2048,
+                "keyOps": [
+                  "encrypt",
+                  "decrypt",
+                  "wrapKey",
+                  "unwrapKey",
+                  "sign",
+                  "verify"
+                ],
+                "attributes": {
+                  "enabled": true
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ServiceBus/namespaces",
+              "apiVersion": "2022-10-01-preview",
+              "name": "[variables('serviceBusName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "sku": {
+                "name": "Standard",
+                "tier": "Standard",
+                "capacity": 0
+              },
+              "properties": {
+                "disableLocalAuth": true,
+                "publicNetworkAccess": "Enabled",
+                "zoneRedundant": false
+              }
+            },
+            {
+              "type": "Microsoft.ServiceBus/namespaces/queues",
+              "apiVersion": "2021-06-01-preview",
+              "name": "[format('{0}/{1}', variables('serviceBusName'), 'incident-ai')]",
+              "properties": {
+                "deadLetteringOnMessageExpiration": true,
+                "defaultMessageTimeToLive": "P14D",
+                "duplicateDetectionHistoryTimeWindow": "PT10M",
+                "enableBatchedOperations": true,
+                "enableExpress": false,
+                "enablePartitioning": true,
+                "maxDeliveryCount": 10,
+                "maxSizeInMegabytes": 1024,
+                "requiresDuplicateDetection": true,
+                "requiresSession": false,
+                "status": "Active"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ServiceBus/namespaces', variables('serviceBusName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ServiceBus/namespaces/queues",
+              "apiVersion": "2021-06-01-preview",
+              "name": "[format('{0}/{1}', variables('serviceBusName'), 'visual-analysis')]",
+              "properties": {
+                "deadLetteringOnMessageExpiration": true,
+                "defaultMessageTimeToLive": "P14D",
+                "duplicateDetectionHistoryTimeWindow": "PT10M",
+                "enableBatchedOperations": true,
+                "enableExpress": false,
+                "enablePartitioning": true,
+                "maxDeliveryCount": 10,
+                "maxSizeInMegabytes": 1024,
+                "requiresDuplicateDetection": true,
+                "requiresSession": false,
+                "status": "Active"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ServiceBus/namespaces', variables('serviceBusName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ServiceBus/namespaces/queues",
+              "apiVersion": "2021-06-01-preview",
+              "name": "[format('{0}/{1}', variables('serviceBusName'), 'duplicate-detection')]",
+              "properties": {
+                "deadLetteringOnMessageExpiration": true,
+                "defaultMessageTimeToLive": "P14D",
+                "duplicateDetectionHistoryTimeWindow": "PT10M",
+                "enableBatchedOperations": true,
+                "enableExpress": false,
+                "enablePartitioning": true,
+                "maxDeliveryCount": 10,
+                "maxSizeInMegabytes": 1024,
+                "requiresDuplicateDetection": true,
+                "requiresSession": false,
+                "status": "Active"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ServiceBus/namespaces', variables('serviceBusName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ServiceBus/namespaces/queues",
+              "apiVersion": "2021-06-01-preview",
+              "name": "[format('{0}/{1}', variables('serviceBusName'), 'external-context')]",
+              "properties": {
+                "deadLetteringOnMessageExpiration": true,
+                "defaultMessageTimeToLive": "P14D",
+                "duplicateDetectionHistoryTimeWindow": "PT10M",
+                "enableBatchedOperations": true,
+                "enableExpress": false,
+                "enablePartitioning": true,
+                "maxDeliveryCount": 10,
+                "maxSizeInMegabytes": 1024,
+                "requiresDuplicateDetection": true,
+                "requiresSession": false,
+                "status": "Active"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ServiceBus/namespaces', variables('serviceBusName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Sql/servers",
+              "apiVersion": "2023-08-01",
+              "name": "[parameters('sqlServerName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "properties": {
+                "administrators": {
+                  "administratorType": "ActiveDirectory",
+                  "login": "[parameters('sqlEntraAdminLogin')]",
+                  "principalType": "[parameters('sqlEntraAdminPrincipalType')]",
+                  "sid": "[parameters('sqlEntraAdminObjectId')]",
+                  "tenantId": "[subscription().tenantId]",
+                  "azureADOnlyAuthentication": true
+                },
+                "minimalTlsVersion": "1.2",
+                "publicNetworkAccess": "Disabled"
+              }
+            },
+            {
+              "type": "Microsoft.Sql/servers/azureADOnlyAuthentications",
+              "apiVersion": "2024-11-01-preview",
+              "name": "[format('{0}/{1}', parameters('sqlServerName'), 'Default')]",
+              "properties": {
+                "azureADOnlyAuthentication": true
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Sql/servers/databases",
+              "apiVersion": "2023-08-01",
+              "name": "[format('{0}/{1}', parameters('sqlServerName'), parameters('sqlDatabaseName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "sku": {
+                "name": "[parameters('sqlDatabaseSkuName')]"
+              },
+              "properties": {
+                "collation": "SQL_Latin1_General_CP1_CI_AS",
+                "maxSizeBytes": 34359738368,
+                "zoneRedundant": false
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/azureADOnlyAuthentications', parameters('sqlServerName'), 'Default')]",
+                "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.database.windows.net",
+              "location": "global",
+              "tags": "[variables('commonTags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.database.windows.net', format('{0}-sql-link', variables('vnetName')))]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.database.windows.net')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2024-05-01",
+              "name": "[format('pe-sql-er-{0}', parameters('environmentName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('commonTags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'private-endpoints')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "sql-server-connection",
+                    "properties": {
+                      "privateLinkServiceId": "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]",
+                      "groupIds": [
+                        "sqlServer"
+                      ],
+                      "requestMessage": "Private SQL connectivity for the emergency response application."
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'private-endpoints')]",
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('sqlServerName'), parameters('sqlDatabaseName'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', format('pe-sql-er-{0}', parameters('environmentName')), 'default')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "sql-private-dns",
+                    "properties": {
+                      "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.database.windows.net')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.database.windows.net')]",
+                "[resourceId('Microsoft.Network/privateEndpoints', format('pe-sql-er-{0}', parameters('environmentName')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', 'incident-media')]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', 'incident-media'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Storage Blob Data Contributor')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', 'incident-media')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', 'knowledge-documents')]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', 'knowledge-documents'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Storage Blob Data Contributor')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', 'knowledge-documents')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Search/searchServices', variables('searchServiceName'))]",
+              "name": "[guid(resourceId('Microsoft.Search/searchServices', variables('searchServiceName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Search Index Data Contributor')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8ebe5a00-799e-43f5-93ac-243d3dce84a7')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.Search/searchServices', variables('searchServiceName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Key Vault Secrets User')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'incident-ai')]",
+              "name": "[guid(resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'incident-ai'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Azure Service Bus Data Sender')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'incident-ai')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'visual-analysis')]",
+              "name": "[guid(resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'visual-analysis'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Azure Service Bus Data Sender')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'visual-analysis')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'duplicate-detection')]",
+              "name": "[guid(resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'duplicate-detection'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Azure Service Bus Data Sender')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'duplicate-detection')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'external-context')]",
+              "name": "[guid(resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'external-context'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Azure Service Bus Data Sender')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'external-context')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'incident-ai')]",
+              "name": "[guid(resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'incident-ai'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Azure Service Bus Data Receiver')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4f6d3b9b-027b-4f4c-9146-0e5a2a2247e0')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'incident-ai')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'visual-analysis')]",
+              "name": "[guid(resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'visual-analysis'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Azure Service Bus Data Receiver')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4f6d3b9b-027b-4f4c-9146-0e5a2a2247e0')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'visual-analysis')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'duplicate-detection')]",
+              "name": "[guid(resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'duplicate-detection'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Azure Service Bus Data Receiver')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4f6d3b9b-027b-4f4c-9146-0e5a2a2247e0')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'duplicate-detection')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'external-context')]",
+              "name": "[guid(resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'external-context'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), 'Azure Service Bus Data Receiver')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4f6d3b9b-027b-4f4c-9146-0e5a2a2247e0')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]",
+                "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusName'), 'external-context')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2025-04-01",
+              "name": "er-staging-api-ai-role",
+              "resourceGroup": "[parameters('aiResourceGroupName')]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "aiResourceName": {
+                    "value": "[parameters('aiResourceName')]"
+                  },
+                  "apiPrincipalId": {
+                    "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.48.1.52935",
+                      "templateHash": "2378907252481833614"
+                    }
+                  },
+                  "parameters": {
+                    "aiResourceName": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Existing Azure AI account name in this resource group."
+                      }
+                    },
+                    "apiPrincipalId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "System-assigned managed identity principal ID of the staging API."
+                      }
+                    }
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "scope": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('aiResourceName'))]",
+                      "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts', parameters('aiResourceName')), parameters('apiPrincipalId'), 'Cognitive Services OpenAI User')]",
+                      "properties": {
+                        "principalId": "[parameters('apiPrincipalId')]",
+                        "principalType": "ServicePrincipal",
+                        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')]"
+                      }
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "containerAppsEnvironmentId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppsEnvironmentName'))]"
+            },
+            "containerAppsEnvironmentName": {
+              "type": "string",
+              "value": "[variables('containerAppsEnvironmentName')]"
+            },
+            "registryName": {
+              "type": "string",
+              "value": "[variables('registryName')]"
+            },
+            "acrPullIdentityName": {
+              "type": "string",
+              "value": "[format('id-er-{0}-acr-pull', parameters('environmentName'))]"
+            },
+            "apiRuntimeIdentityName": {
+              "type": "string",
+              "value": "[format('id-er-{0}-api', parameters('environmentName'))]"
+            },
+            "apiRuntimeIdentityClientId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').clientId]"
+            },
+            "apiRuntimeIdentityPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-er-{0}-api', parameters('environmentName'))), '2023-01-31').principalId]"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[variables('storageAccountName')]"
+            },
+            "mediaContainerName": {
+              "type": "string",
+              "value": "incident-media"
+            },
+            "knowledgeContainerName": {
+              "type": "string",
+              "value": "knowledge-documents"
+            },
+            "dataProtectionContainerName": {
+              "type": "string",
+              "value": "web-data-protection"
+            },
+            "deploymentArtifactsContainerName": {
+              "type": "string",
+              "value": "deployment-artifacts"
+            },
+            "blobServiceUri": {
+              "type": "string",
+              "value": "[format('https://{0}.{1}', variables('storageAccountName'), environment().suffixes.storage)]"
+            },
+            "searchServiceName": {
+              "type": "string",
+              "value": "[variables('searchServiceName')]"
+            },
+            "searchEndpoint": {
+              "type": "string",
+              "value": "[format('https://{0}.search.windows.net', variables('searchServiceName'))]"
+            },
+            "searchIndexName": {
+              "type": "string",
+              "value": "emergency-knowledge-staging"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[variables('keyVaultName')]"
+            },
+            "keyVaultUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2023-07-01').vaultUri]"
+            },
+            "webDataProtectionKeyUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults/keys', variables('keyVaultName'), 'web-data-protection'), '2023-07-01').keyUriWithVersion]"
+            },
+            "serviceBusNamespaceName": {
+              "type": "string",
+              "value": "[variables('serviceBusName')]"
+            },
+            "logAnalyticsWorkspaceName": {
+              "type": "string",
+              "value": "[variables('logAnalyticsName')]"
+            },
+            "incidentAiQueueName": {
+              "type": "string",
+              "value": "incident-ai"
+            },
+            "visualAnalysisQueueName": {
+              "type": "string",
+              "value": "visual-analysis"
+            },
+            "duplicateDetectionQueueName": {
+              "type": "string",
+              "value": "duplicate-detection"
+            },
+            "externalContextQueueName": {
+              "type": "string",
+              "value": "external-context"
+            },
+            "sqlServerFqdn": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Sql/servers', parameters('sqlServerName')), '2023-08-01').fullyQualifiedDomainName]"
+            },
+            "sqlDatabaseNameOutput": {
+              "type": "string",
+              "value": "[parameters('sqlDatabaseName')]"
+            },
+            "privateVnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+            },
+            "sqlPrivateEndpointId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateEndpoints', format('pe-sql-er-{0}', parameters('environmentName')))]"
+            },
+            "blobPrivateEndpointId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateEndpoints', format('pe-blob-er-{0}', parameters('environmentName')))]"
+            },
+            "searchPrivateEndpointId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateEndpoints', format('pe-search-er-{0}', parameters('environmentName')))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('stagingResourceGroupName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "stagingResourceGroupId": {
+      "type": "string",
+      "value": "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('stagingResourceGroupName'))]"
+    },
+    "sqlServerName": {
+      "type": "string",
+      "value": "[variables('sqlServerName')]"
+    },
+    "containerAppsEnvironmentName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('stagingResourceGroupName')), 'Microsoft.Resources/deployments', 'er-staging-network-foundation'), '2025-04-01').outputs.containerAppsEnvironmentName.value]"
+    }
+  }
+}

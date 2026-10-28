@@ -42,7 +42,7 @@ public sealed class NotificationApiClient : INotificationApiClient
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
-            return new NotificationSummary();
+            throw new UnauthorizedAccessException();
         }
 
         response.EnsureSuccessStatusCode();

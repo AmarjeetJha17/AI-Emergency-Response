@@ -15,6 +15,7 @@ using EmergencyResponse.Infrastructure.Notifications;
 
 using EmergencyResponse.Api.Health;
 using EmergencyResponse.Api.Middleware;
+using EmergencyResponse.Api.Common;
 using EmergencyResponse.Application.Observability;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -425,9 +426,10 @@ else
 builder.Services.AddHostedService<OutboxPublisherBackgroundWorker>();
 builder.Services.Configure<ReliableMessagingOptions>(builder.Configuration.GetSection(ReliableMessagingOptions.SectionName));
 
-builder.Services.Configure<AIOptions>(
-    builder.Configuration.GetSection(
-        AIOptions.SectionName));
+builder.Services.AddSingleton<IValidateOptions<AIOptions>, AIOptionsValidator>();
+builder.Services.AddOptions<AIOptions>()
+    .Bind(builder.Configuration.GetSection(AIOptions.SectionName))
+    .ValidateOnStart();
 
 builder.Services.Configure<MapOptions>(
     builder.Configuration.GetSection(
@@ -464,6 +466,7 @@ builder.Services.AddCors(
     });
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddScoped<AIEnabledActionFilter>();
 
 builder.Services.AddProblemDetails();
 
@@ -527,8 +530,11 @@ using (var scope = app.Services.CreateScope())
     var userManager =
         services.GetRequiredService<UserManager<ApplicationUser>>();
 
-    if (app.Environment.IsEnvironment("Test"))
+    if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Test"))
     {
+        app.Logger.LogInformation(
+            "Applying pending EF Core migrations for the {Environment} database.",
+            app.Environment.EnvironmentName);
         await dbContext.Database.MigrateAsync();
     }
 

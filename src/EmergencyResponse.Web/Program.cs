@@ -8,8 +8,8 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Azure.Identity;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using EmergencyResponse.Web.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,24 +57,10 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     }
 });
 
-var dataProtectionBlobUri = builder.Configuration["DataProtection:BlobUri"];
-var dataProtectionKeyIdentifier = builder.Configuration["DataProtection:KeyIdentifier"];
-if (!string.IsNullOrWhiteSpace(dataProtectionBlobUri) ||
-    !string.IsNullOrWhiteSpace(dataProtectionKeyIdentifier))
-{
-    if (string.IsNullOrWhiteSpace(dataProtectionBlobUri) ||
-        string.IsNullOrWhiteSpace(dataProtectionKeyIdentifier))
-    {
-        throw new InvalidOperationException(
-            "Both DataProtection:BlobUri and DataProtection:KeyIdentifier must be configured together.");
-    }
-
-    var credential = new DefaultAzureCredential();
-    builder.Services.AddDataProtection()
-        .SetApplicationName("EmergencyResponse.Web")
-        .PersistKeysToAzureBlobStorage(new Uri(dataProtectionBlobUri), credential)
-        .ProtectKeysWithAzureKeyVault(new Uri(dataProtectionKeyIdentifier), credential);
-}
+var dataProtectionMode = DataProtectionConfiguration.Configure(
+    builder.Services,
+    builder.Configuration,
+    builder.Environment.EnvironmentName);
 
 builder.Services.AddAntiforgery(options =>
 {
@@ -222,6 +208,12 @@ Syncfusion.Licensing.SyncfusionLicenseProvider
     .RegisterLicense(syncfusionLicense);
 
 var app = builder.Build();
+
+if (dataProtectionMode == DataProtectionMode.PortfolioDemoUnwrappedBlob)
+{
+    app.Logger.LogWarning(
+        "ASP.NET Core Data Protection keys are persisted in Blob Storage without Azure Key Vault wrapping. This reduced-security mode is permitted only for synthetic PortfolioDemo data.");
+}
 
 // Configure the HTTP request pipeline.
 app.UseForwardedHeaders();

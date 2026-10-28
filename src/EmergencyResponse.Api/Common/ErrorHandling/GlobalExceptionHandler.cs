@@ -37,6 +37,10 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         {
             statusCode = StatusCodes.Status409Conflict;
         }
+        else if (exception is AIFeatureDisabledException)
+        {
+            statusCode = StatusCodes.Status503ServiceUnavailable;
+        }
         else if (HasDatabaseTransportFailure(exception))
         {
             statusCode = StatusCodes.Status503ServiceUnavailable;
@@ -45,10 +49,14 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         var problem = new ProblemDetails
         {
             Status = statusCode,
-            Title = statusCode == StatusCodes.Status503ServiceUnavailable
+            Title = exception is AIFeatureDisabledException
+                ? "AI feature is disabled."
+                : statusCode == StatusCodes.Status503ServiceUnavailable
                 ? "A required service is temporarily unavailable."
                 : "An error occurred.",
-            Detail = statusCode == StatusCodes.Status503ServiceUnavailable
+            Detail = exception is AIFeatureDisabledException
+                ? exception.Message
+                : statusCode == StatusCodes.Status503ServiceUnavailable
                 ? "The request could not be persisted. Please retry after service recovery."
                 : exception.Message,
             Instance = httpContext.Request.Path

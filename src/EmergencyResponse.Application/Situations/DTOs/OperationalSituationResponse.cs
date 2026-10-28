@@ -63,9 +63,9 @@ public sealed record OperationalSituationIncidentItem
 
     public double Longitude { get; init; }
 
-    public int PeopleAffected { get; init; }
+    public int? PeopleAffected { get; init; }
 
-    public int Casualties { get; init; }
+    public int? Casualties { get; init; }
 
     public bool IsPrimaryIncident { get; init; }
 
