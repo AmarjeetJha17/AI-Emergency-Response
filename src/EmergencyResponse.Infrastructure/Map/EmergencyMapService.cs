@@ -30,6 +30,7 @@ public sealed class EmergencyMapService : IEmergencyMapService
             .Include(x => x.Locations)
             .Where(x =>
                 x.Status != IncidentStatus.Closed &&
+                x.Status != IncidentStatus.Rejected &&
                 x.Locations.Any())
             .Select(x => new EmergencyMapIncident
             {

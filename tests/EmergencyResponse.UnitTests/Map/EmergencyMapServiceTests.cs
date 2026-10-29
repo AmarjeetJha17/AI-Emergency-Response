@@ -32,6 +32,46 @@ public sealed class EmergencyMapServiceTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task MapAndDashboard_UseSameActiveStates_WhileMapRequiresALocation()
+    {
+        var type = new IncidentType { Id = Guid.NewGuid(), Name = "Test", Code = "TEST" };
+        _context.IncidentTypes.Add(type);
+        var expected = new List<Guid>();
+        foreach (var status in Enum.GetValues<IncidentStatus>())
+        {
+            var incident = new Incident
+            {
+                Id = Guid.NewGuid(), IncidentNumber = $"STATE-{status}", Title = "Synthetic state test",
+                Description = "Local test only", IncidentTypeId = type.Id, Status = status,
+                ReportedAtUtc = DateTime.UtcNow, CreatedAtUtc = DateTime.UtcNow
+            };
+            incident.Locations.Add(new IncidentLocation
+            {
+                Id = Guid.NewGuid(), IncidentId = incident.Id, Latitude = 20, Longitude = 75, IsPrimary = true
+            });
+            _context.Incidents.Add(incident);
+            if (status is not (IncidentStatus.Closed or IncidentStatus.Rejected)) expected.Add(incident.Id);
+        }
+        await _context.SaveChangesAsync();
+
+        var mapped = await _service.GetIncidentsAsync();
+        var dashboard = await new EmergencyResponse.Infrastructure.Dashboard.DashboardService(_context).GetSummaryAsync();
+        Assert.Equal(expected.Order(), mapped.Select(x => x.Id).Order());
+        Assert.Equal(dashboard.ActiveIncidents, mapped.Count);
+        Assert.Contains(mapped, x => x.Status == IncidentStatus.Resolved); // Resolved is not Closed in this domain.
+
+        _context.Incidents.Add(new Incident
+        {
+            Id = Guid.NewGuid(), IncidentNumber = "NO-LOCATION", Title = "No mapped location",
+            Description = "Local test only", IncidentTypeId = type.Id, Status = IncidentStatus.Submitted,
+            ReportedAtUtc = DateTime.UtcNow, CreatedAtUtc = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+        dashboard = await new EmergencyResponse.Infrastructure.Dashboard.DashboardService(_context).GetSummaryAsync();
+        Assert.Equal(dashboard.ActiveIncidents - 1, (await _service.GetIncidentsAsync()).Count);
+    }
+
+    [Fact]
     public async Task GetIncidentsAsync_OnlyReturnsActiveIncidentsWithLocations()
     {
         // Arrange

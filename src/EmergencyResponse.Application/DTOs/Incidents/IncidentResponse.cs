@@ -61,6 +61,10 @@ public sealed record IncidentResponse
 
     public IReadOnlyList<IncidentMediaResponse> VisualEvidence { get; init; } = [];
 
+    // Nullable for compatibility with APIs that do not yet publish this capability.
+    // The Web must not assume AI is enabled when this field is absent.
+    public bool? VisualAnalysisEnabled { get; init; }
+
     public IReadOnlyList<IncidentStatusHistoryResponse> StatusHistory { get; init; } = [];
 
     public IReadOnlyList<IncidentAssignedResourceResponse> AssignedResources { get; init; } = [];

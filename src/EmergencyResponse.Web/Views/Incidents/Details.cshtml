@@ -269,7 +269,7 @@
                                        id="evidenceFile"
                                        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/x-msvideo,video/*" />
                                 <div class="form-text">
-                                    AI will automatically analyse the uploaded media.
+                                    @EvidenceAnalysisNotice.For(Model.VisualAnalysisEnabled)
                                 </div>
                             </div>
 
@@ -938,6 +938,7 @@
 
 @section Scripts {
     <script src="~/js/incident-details.js" asp-append-version="true"></script>
+    <script src="~/js/evidence-analysis-status.js" asp-append-version="true"></script>
     <script>
         // Media upload via fetch so the page stays open after upload.
         (function () {
@@ -991,7 +992,8 @@
                     });
 
                     if (resp.ok) {
-                        status.textContent = 'Upload successful \u2014 AI analysis queued.';
+                        var result = await resp.json().catch(function () { return null; });
+                        status.textContent = evidenceUploadStatus(result);
                         status.className = 'mt-2 small text-success';
                         fileInput.value = '';
                         setTimeout(function () { location.reload(); }, 2000);

@@ -342,7 +342,7 @@
         if (f.visualReview) parts.push('Visual Review');
 
         element.textContent = parts.length === 0
-            ? 'Showing all active incidents.'
+            ? 'Showing active incidents with mapped locations; closed and rejected reports are excluded.'
             : 'Filters: ' + parts.join(' • ');
     }
 

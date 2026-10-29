@@ -125,7 +125,7 @@ public class IncidentsController : ControllerBase
             return NotFound();
         }
 
-        return Ok(result);
+        return Ok(result with { VisualAnalysisEnabled = _aiEnabled });
     }
 
     [Authorize(Roles = "Responder,Operator,EmergencyAdmin,SystemAdmin")]

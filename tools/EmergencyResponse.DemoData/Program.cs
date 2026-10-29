@@ -5,6 +5,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
+if (args.Length > 0 && args[0] == "hosted-auth-check")
+    return await HostedPortfolioAuthCommand.RunAsync(args);
+
+if (args.Length > 0 && args[0] is "hosted-preview" or "hosted-seed")
+    return await HostedPortfolioCommand.RunAsync(args);
+
 if (args.Length == 0 || args[0] is not ("seed" or "cleanup"))
 {
     Console.Error.WriteLine("Usage: DemoData seed --reporter-email <existing-citizen> --operator-email <existing-reviewer> | cleanup [--apply]");

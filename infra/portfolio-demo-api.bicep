@@ -15,8 +15,9 @@ param revisionSuffix string
 @description('Azure region for the API Container App.')
 param location string = 'centralus'
 
-@description('Optional browser origin allowed by the API CORS policy.')
-param webOrigin string = ''
+@description('Exact trusted portfolio Web origin for credentialed SignalR CORS. No trailing slash or wildcard.')
+@minLength(1)
+param webOrigin string = 'https://ca-er-web-portfolio.blacksand-fa4db74f.centralus.azurecontainerapps.io'
 
 @description('Portfolio-only JWT HMAC signing key. Supply at deployment time through a secure parameter channel; use at least 32 random ASCII bytes.')
 @secure()
@@ -140,7 +141,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('1.0')
             memory: '2Gi'
           }
-          env: concat([
+          env: [
             { name: 'ASPNETCORE_ENVIRONMENT', value: 'Staging' }
             { name: 'ASPNETCORE_HTTP_PORTS', value: '8080' }
             { name: 'AI__Enabled', value: 'false' }
@@ -157,9 +158,8 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'Storage__BlobServiceUri', value: 'https://${storage.name}.${environment().suffixes.storage}' }
             { name: 'Storage__IncidentMediaContainer', value: incidentMediaContainer.name }
             { name: 'Storage__KnowledgeContainer', value: knowledgeDocumentsContainer.name }
-          ], empty(webOrigin) ? [] : [
             { name: 'Cors__AllowedOrigins__0', value: webOrigin }
-          ])
+          ]
           probes: [
             {
               type: 'Liveness'

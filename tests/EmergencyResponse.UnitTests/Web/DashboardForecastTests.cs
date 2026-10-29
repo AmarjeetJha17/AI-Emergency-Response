@@ -14,6 +14,47 @@ namespace EmergencyResponse.UnitTests.Web;
 public sealed class DashboardForecastTests
 {
     [Fact]
+    public async Task SafeDiagnostics_DistinguishFailureLayers_WithoutSensitiveExceptionText()
+    {
+        const string sensitive = "Password=do-not-log;Bearer token-do-not-log;Server=private";
+        foreach (var (exception, expectedCode) in new (Exception, string)[]
+        {
+            (new HttpRequestException(sensitive, null, HttpStatusCode.InternalServerError), "FC001"),
+            (new HttpRequestException(sensitive), "FC002"),
+            (new JsonException(sensitive), "FC003"),
+            (new TaskCanceledException(sensitive), "FC004")
+        })
+        {
+            var client = new Mock<IDashboardApiClient>();
+            client.Setup(x => x.GetIncidentVolumeAsync(It.IsAny<CancellationToken>())).ThrowsAsync(exception);
+            var logger = new CapturingLogger();
+            var response = Assert.IsType<ObjectResult>(await new DashboardController(client.Object, logger).IncidentVolume(default));
+            Assert.Equal(503, response.StatusCode);
+            Assert.Contains(expectedCode, JsonSerializer.Serialize(response.Value));
+            Assert.Contains(expectedCode, logger.Text);
+            Assert.DoesNotContain(sensitive, JsonSerializer.Serialize(response));
+            Assert.DoesNotContain(sensitive, logger.Text);
+            Assert.DoesNotContain("Password", logger.Text);
+            Assert.DoesNotContain("Bearer", logger.Text);
+            Assert.False(logger.ExceptionWasLogged);
+        }
+    }
+
+    private sealed class CapturingLogger : Microsoft.Extensions.Logging.ILogger<DashboardController>
+    {
+        public string Text { get; private set; } = "";
+        public bool ExceptionWasLogged { get; private set; }
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel level) => true;
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel level, Microsoft.Extensions.Logging.EventId eventId,
+            TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            Text += formatter(state, exception);
+            ExceptionWasLogged |= exception is not null;
+        }
+    }
+
+    [Fact]
     public async Task UnavailableForecast_IsReturnedWithoutInventingValues()
     {
         var result = new ForecastResult { IsAvailable = false, UnavailableReason = "Insufficient history" };

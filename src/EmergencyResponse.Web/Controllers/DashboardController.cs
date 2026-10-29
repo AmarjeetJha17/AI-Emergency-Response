@@ -11,31 +11,46 @@ namespace EmergencyResponse.Web.Controllers;
 public sealed class DashboardController : Controller
 {
     private readonly IDashboardApiClient _dashboardApiClient;
+    private readonly ILogger<DashboardController> _logger;
 
-    public DashboardController(IDashboardApiClient dashboardApiClient)
+    public DashboardController(IDashboardApiClient dashboardApiClient, ILogger<DashboardController>? logger = null)
     {
         _dashboardApiClient = dashboardApiClient;
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<DashboardController>.Instance;
     }
 
     [HttpGet]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public Task<IActionResult> IncidentVolume(CancellationToken cancellationToken) =>
-        GetForecastAsync(() => _dashboardApiClient.GetIncidentVolumeAsync(cancellationToken), cancellationToken);
+        GetForecastAsync(() => _dashboardApiClient.GetIncidentVolumeAsync(cancellationToken), "IncidentVolume", cancellationToken);
 
     [HttpGet]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public Task<IActionResult> Hotspots(CancellationToken cancellationToken) =>
-        GetForecastAsync(() => _dashboardApiClient.GetHotspotsAsync(cancellationToken), cancellationToken);
+        GetForecastAsync(() => _dashboardApiClient.GetHotspotsAsync(cancellationToken), "Hotspots", cancellationToken);
 
     // Reuse the existing bearer-token HTTP client; never send an API token to page scripts.
-    private async Task<IActionResult> GetForecastAsync<T>(Func<Task<T>> request, CancellationToken cancellationToken)
+    private async Task<IActionResult> GetForecastAsync<T>(Func<Task<T>> request, string operation, CancellationToken cancellationToken)
     {
         try { return Json(await request()); }
         catch (HttpRequestException error) when (error.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
         { return StatusCode((int)error.StatusCode.Value); }
-        catch (Exception error) when (error is HttpRequestException or System.Text.Json.JsonException ||
-            error is OperationCanceledException && !cancellationToken.IsCancellationRequested)
-        { return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Forecast data is unavailable." }); }
+        catch (HttpRequestException error)
+        { return ForecastUnavailable(operation, error.StatusCode.HasValue ? "FC001" : "FC002", (int?)error.StatusCode); }
+        catch (System.Text.Json.JsonException)
+        { return ForecastUnavailable(operation, "FC003"); }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        { return ForecastUnavailable(operation, "FC004"); }
+    }
+
+    private IActionResult ForecastUnavailable(string operation, string code, int? upstreamStatus = null)
+    {
+        // Fixed operation names/codes and HTTP status only. Never log exception
+        // objects, upstream bodies, tokens, connection strings or arbitrary messages.
+        _logger.LogWarning("Forecast unavailable. Operation={Operation}; Code={Code}; UpstreamStatus={UpstreamStatus}",
+            operation, code, upstreamStatus);
+        return StatusCode(StatusCodes.Status503ServiceUnavailable,
+            new { message = "Forecast data is unavailable.", code });
     }
 
     [HttpGet]

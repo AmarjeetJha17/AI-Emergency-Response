@@ -16,6 +16,7 @@ using EmergencyResponse.Infrastructure.Notifications;
 using EmergencyResponse.Api.Health;
 using EmergencyResponse.Api.Middleware;
 using EmergencyResponse.Api.Common;
+using EmergencyResponse.Api.Configuration;
 using EmergencyResponse.Application.Observability;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -441,29 +442,7 @@ builder.Services.AddScoped<
     IIncidentNotificationService,
     IncidentNotificationService>();
 
-builder.Services.AddCors(
-    options =>
-    {
-        var configuredOrigins = builder.Configuration
-            .GetSection("Cors:AllowedOrigins")
-            .Get<string[]>() ?? [];
-        var allowedOrigins = configuredOrigins.Length > 0
-            ? configuredOrigins
-            : builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Test")
-                ? ["http://localhost:5021", "https://localhost:7201"]
-                : [];
-
-        options.AddPolicy(
-            "WebClient",
-            policy =>
-            {
-                policy
-                    .WithOrigins(allowedOrigins)
-                    .AllowAnyHeader()
-                    .AllowAnyMethod()
-                    .AllowCredentials();
-            });
-    });
+builder.Services.AddWebClientCors(builder.Configuration, builder.Environment);
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddScoped<AIEnabledActionFilter>();
@@ -575,7 +554,7 @@ app.UseWhen(
     context => !context.Request.Path.StartsWithSegments("/health"),
     redirect => redirect.UseHttpsRedirection());
 
-app.UseCors("WebClient");
+app.UseCors(WebClientCors.PolicyName);
 
 app.UseRateLimiter();
 
