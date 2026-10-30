@@ -19,9 +19,12 @@ $appName = "ca-er-$Component-portfolio"
 $containerName = $Component
 $origin = 'https://ca-er-web-portfolio.blacksand-fa4db74f.centralus.azurecontainerapps.io'
 $oldImages = @{
-    api = 'acerportfoliobxwiyolb.azurecr.io/emergencyresponse-api@sha256:c09b299562f3eaae4786b2361f73e9a214c157f3d6d863b6ca1858e070a8cb4a'
+    # ACA reports the deployed API image by its configured immutable release tag.
+    # The tag's ACR digest is checked separately below before accepting it as rollback.
+    api = 'acerportfoliobxwiyolb.azurecr.io/emergencyresponse-api:portfolio-20261024-200121-sqlclient711'
     web = 'acerportfoliobxwiyolb.azurecr.io/emergencyresponse-web@sha256:3593c2c7f55cac72ea9912b533edbf06891c90f85b58948f7567d87c51a9926b'
 }
+$oldImageDigests = @{ api = 'sha256:c09b299562f3eaae4786b2361f73e9a214c157f3d6d863b6ca1858e070a8cb4a' }
 $identityNames = @{ api = 'id-er-portfolio-api'; web = 'id-er-portfolio-web' }
 $secretNames = @{ api = @('admin-seed-password', 'jwt-signing-key'); web = @('syncfusion-license-key') }
 $expectedRegistry = 'acerportfoliobxwiyolb.azurecr.io'
@@ -74,7 +77,9 @@ function Assert-RevisionSuffix([string]$Expected, [string]$AppName, [string]$Cur
 }
 
 function Assert-ObservedRevisionSuffix([object]$Template, [string]$Expected) {
-    if ([string]$Template.revisionSuffix -cne $Expected) {
+    if ($Template -isnot [System.Collections.IDictionary] -or
+        -not $Template.Contains('revisionSuffix') -or
+        [string]$Template['revisionSuffix'] -cne $Expected) {
         throw 'Observed revision suffix did not match the approved expected suffix; comparison stopped.'
     }
 }
@@ -92,15 +97,29 @@ function Get-EnvMap([object]$Template, [string]$ExpectedContainerName) {
         if (@($item.Keys | Where-Object { $_ -notin $allowedFields }).Count -gt 0) {
             throw 'Environment entry contains an unapproved field; comparison stopped.'
         }
-        if (($item.Contains('value') -and $null -ne $item.value -and $item.value -isnot [string]) -or
-            ($item.Contains('secretRef') -and $null -ne $item.secretRef -and $item.secretRef -isnot [string])) {
+        $hasValue = $item.Contains('value')
+        $hasSecretRef = $item.Contains('secretRef')
+        $value = if ($hasValue) { $item['value'] } else { $null }
+        $secretRef = if ($hasSecretRef) { $item['secretRef'] } else { $null }
+        if (($hasValue -and $null -ne $value -and $value -isnot [string]) -or
+            ($hasSecretRef -and $null -ne $secretRef -and $secretRef -isnot [string])) {
             throw 'Environment entry has an invalid field type; comparison stopped.'
         }
-        if (-not $item.name -or $map.ContainsKey([string]$item.name)) {
+        if ([string]::IsNullOrWhiteSpace([string]$item['name']) -or $map.ContainsKey([string]$item['name'])) {
             throw 'Missing or duplicate environment variable name; comparison stopped.'
         }
+        $hasUsableValue = $hasValue -and $null -ne $value
+        $hasUsableSecretRef = $hasSecretRef -and $null -ne $secretRef
+        if ($hasUsableValue -eq $hasUsableSecretRef) {
+            throw 'Environment entry must contain exactly one non-null value or secret reference; comparison stopped.'
+        }
         # Values stay in this process only and are never serialized or emitted.
-        $map[[string]$item.name] = @{ value = $item.value; secretRef = $item.secretRef }
+        $map[[string]$item['name']] = @{
+            hasValue = $hasValue
+            value = $value
+            hasSecretRef = $hasSecretRef
+            secretRef = $secretRef
+        }
     }
     return ,$map
 }
@@ -167,6 +186,13 @@ if ($context.id -ne $subscription -or $context.name -ne 'Azure subscription 1' -
 
 $before = Get-Snapshot
 if ($before.revisions[0].image -ne $oldImages[$Component]) { throw 'Healthy rollback image differs from the reviewed baseline; comparison stopped.' }
+if ($oldImageDigests.ContainsKey($Component)) {
+    $imageName = 'emergencyresponse-api:portfolio-20261024-200121-sqlclient711'
+    $observedRollbackDigest = Invoke-AzJson @('acr','repository','show','--name','acerportfoliobxwiyolb','--image',$imageName,'--query','digest','--output','json','--only-show-errors')
+    if ($observedRollbackDigest -cne $oldImageDigests[$Component]) {
+        throw 'Rollback image tag no longer resolves to its reviewed digest; comparison stopped.'
+    }
+}
 Assert-RevisionSuffix $RevisionSuffix $appName $before.app.properties.latestRevisionName $before.allRevisionNames
 $approved = if ($Component -eq 'api') {
     @{
@@ -221,13 +247,14 @@ foreach ($name in $names) {
     $old = $before.env[$name]; $new = $after.env[$name]
     if ($null -eq $old -or $null -eq $new) {
         if (-not $approved.ContainsKey($name) -or $null -eq $new) { $failures.Add("environment variable inventory: $name") }
-        elseif ($new.secretRef -or $new.value -cne $approved[$name]) { $failures.Add("environment variable binding/value: $name") }
+        elseif ($new.hasSecretRef -or $new.value -cne $approved[$name]) { $failures.Add("environment variable binding/value: $name") }
         else { $changedEnvNames.Add($name) }
         continue
     }
-    if ($old.secretRef -cne $new.secretRef) { $failures.Add("environment secret reference: $name"); continue }
+    if ($old.hasSecretRef -ne $new.hasSecretRef -or $old.secretRef -cne $new.secretRef) { $failures.Add("environment secret reference: $name"); continue }
+    if ($old.hasValue -ne $new.hasValue) { $failures.Add("environment value presence: $name"); continue }
     if ($old.value -cne $new.value) {
-        if (-not $approved.ContainsKey($name) -or $new.value -cne $approved[$name] -or $new.secretRef) { $failures.Add("environment variable value: $name") }
+        if (-not $approved.ContainsKey($name) -or $new.value -cne $approved[$name] -or $new.hasSecretRef) { $failures.Add("environment variable value: $name") }
         else { $changedEnvNames.Add($name) }
     }
 }
