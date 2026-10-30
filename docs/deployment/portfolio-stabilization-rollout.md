@@ -246,17 +246,21 @@ $sub = '0a05d5ff-7fef-4886-8e72-22a6cafd5567'
 $rg = 'rg-er-portfolio-demo-centralus'
 $apiImage = 'acerportfoliobxwiyolb.azurecr.io/emergencyresponse-api@sha256:<verified-api-digest>'
 $webImage = 'acerportfoliobxwiyolb.azurecr.io/emergencyresponse-web@sha256:<verified-web-digest>'
+# Choose a new, lowercase ACA revision suffix for each app update. The comparator
+# validates the format and confirms the full suffix is not already in use.
+$apiRevisionSuffix = 'api-261030-r1'
+$webRevisionSuffix = 'web-261030-r1'
 
 # Terminal A: capture the API baseline; after the separately approved update, type COMPARE.
-rtk proxy pwsh -NoProfile -File scripts/deployment/compare-portfolio-stabilization-update.ps1 -Component api -Image $apiImage
+rtk proxy pwsh -NoProfile -File scripts/deployment/compare-portfolio-stabilization-update.ps1 -Component api -Image $apiImage -RevisionSuffix $apiRevisionSuffix
 
 # Terminal B, only after source/image/digest and baseline reviews are complete:
-rtk proxy az containerapp update --subscription $sub -g $rg -n ca-er-api-portfolio --container-name api --image $apiImage --set-env-vars AI__Enabled=false Forecasting__BackgroundWorkerEnabled=false DataRetention__BackgroundWorkerEnabled=false AzureMaps__Enabled=false Cors__AllowedOrigins__0=https://ca-er-web-portfolio.blacksand-fa4db74f.centralus.azurecontainerapps.io --output none --only-show-errors
+rtk proxy az containerapp update --subscription $sub -g $rg -n ca-er-api-portfolio --container-name api --image $apiImage --revision-suffix $apiRevisionSuffix --set-env-vars AI__Enabled=false Forecasting__BackgroundWorkerEnabled=false DataRetention__BackgroundWorkerEnabled=false AzureMaps__Enabled=false Cors__AllowedOrigins__0=https://ca-er-web-portfolio.blacksand-fa4db74f.centralus.azurecontainerapps.io --output none --only-show-errors
 
 # After API readiness, auth/CORS and dashboard checks pass, repeat the comparator for Web,
 # then run only the Web image update (no environment or secret arguments).
-rtk proxy pwsh -NoProfile -File scripts/deployment/compare-portfolio-stabilization-update.ps1 -Component web -Image $webImage
-rtk proxy az containerapp update --subscription $sub -g $rg -n ca-er-web-portfolio --container-name web --image $webImage --output none --only-show-errors
+rtk proxy pwsh -NoProfile -File scripts/deployment/compare-portfolio-stabilization-update.ps1 -Component web -Image $webImage -RevisionSuffix $webRevisionSuffix
+rtk proxy az containerapp update --subscription $sub -g $rg -n ca-er-web-portfolio --container-name web --image $webImage --revision-suffix $webRevisionSuffix --output none --only-show-errors
 ```
 
 `--set-env-vars` adds or updates only named environment entries; it does not remove

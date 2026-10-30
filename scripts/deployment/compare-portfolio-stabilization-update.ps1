@@ -2,7 +2,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][ValidateSet('api', 'web')][string]$Component,
-    [Parameter(Mandatory)][ValidatePattern('^acerportfoliobxwiyolb\.azurecr\.io/emergencyresponse-(api|web)@sha256:[a-f0-9]{64}$')][string]$Image
+    [Parameter(Mandatory)][ValidatePattern('^acerportfoliobxwiyolb\.azurecr\.io/emergencyresponse-(api|web)@sha256:[a-f0-9]{64}$')][string]$Image,
+    [Parameter(Mandatory)][ValidatePattern('^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$')][string]$RevisionSuffix
 )
 
 # Read-only, interactive before/after guard. Run this in one terminal, perform the
@@ -38,12 +39,63 @@ function Convert-ComparableJson([object]$Value) {
     return ConvertTo-Json -InputObject $Value -Depth 100 -Compress
 }
 
-function Get-EnvMap([object]$Template) {
-    if (@($Template.containers).Count -ne 1 -or $Template.containers[0].name -ne $containerName) {
+function ConvertTo-SafeComparable([object]$Value, [string]$PropertyName = '', [string]$ParentPath = '') {
+    # Sanitize secret-bearing fields before any serialization/comparison. Values
+    # remain in process memory only and are never included in output or errors.
+    $credentialField = $PropertyName -match '(?i)^(password|token|clientSecret|secretValue|accessKey|connectionString|licenseKey)$'
+    $secretValueField = $PropertyName -ceq 'value' -and $ParentPath -match '(?i)(^|\.)secrets($|\.)'
+    if ($credentialField -or $secretValueField) {
+        if ($null -eq $Value -or [string]::IsNullOrEmpty([string]$Value)) { return $null }
+        return '<redacted-present>'
+    }
+    if ($Value -is [System.Collections.IDictionary]) {
+        $safe = [ordered]@{}
+        foreach ($key in @($Value.Keys | Sort-Object)) {
+            $safe[[string]$key] = ConvertTo-SafeComparable $Value[$key] ([string]$key) $(if ($ParentPath) { "$ParentPath.$key" } else { [string]$key })
+        }
+        return $safe
+    }
+    if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
+        $items = @()
+        foreach ($item in $Value) { $items += ,(ConvertTo-SafeComparable $item $PropertyName $ParentPath) }
+        return ,$items
+    }
+    return $Value
+}
+
+function Assert-RevisionSuffix([string]$Expected, [string]$AppName, [string]$CurrentRevision, [string[]]$ExistingRevisionNames) {
+    if ([string]::IsNullOrWhiteSpace($Expected) -or $Expected -notmatch '^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$') {
+        throw 'Expected revision suffix is missing or invalid; comparison stopped.'
+    }
+    $revisionName = "$AppName--$Expected"
+    if ($CurrentRevision -eq $revisionName -or @($ExistingRevisionNames | Where-Object { $_ -ceq $revisionName }).Count -gt 0) {
+        throw 'Expected revision suffix is already in use; comparison stopped.'
+    }
+}
+
+function Assert-ObservedRevisionSuffix([object]$Template, [string]$Expected) {
+    if ([string]$Template.revisionSuffix -cne $Expected) {
+        throw 'Observed revision suffix did not match the approved expected suffix; comparison stopped.'
+    }
+}
+
+function Get-EnvMap([object]$Template, [string]$ExpectedContainerName) {
+    if (@($Template.containers).Count -ne 1 -or $Template.containers[0].name -ne $ExpectedContainerName) {
         throw 'Unexpected container inventory; comparison stopped.'
     }
     $map = @{}
     foreach ($item in @($Template.containers[0].env)) {
+        if ($item -isnot [System.Collections.IDictionary]) {
+            throw 'Environment entry has an unsupported structure; comparison stopped.'
+        }
+        $allowedFields = @('name', 'value', 'secretRef')
+        if (@($item.Keys | Where-Object { $_ -notin $allowedFields }).Count -gt 0) {
+            throw 'Environment entry contains an unapproved field; comparison stopped.'
+        }
+        if (($item.Contains('value') -and $null -ne $item.value -and $item.value -isnot [string]) -or
+            ($item.Contains('secretRef') -and $null -ne $item.secretRef -and $item.secretRef -isnot [string])) {
+            throw 'Environment entry has an invalid field type; comparison stopped.'
+        }
         if (-not $item.name -or $map.ContainsKey([string]$item.name)) {
             throw 'Missing or duplicate environment variable name; comparison stopped.'
         }
@@ -54,12 +106,13 @@ function Get-EnvMap([object]$Template) {
 }
 
 function Get-Snapshot {
-    $appQuery = '{location:location,identity:identity,properties:{provisioningState:properties.provisioningState,environmentId:properties.environmentId,latestRevisionName:properties.latestRevisionName,latestReadyRevisionName:properties.latestReadyRevisionName,configuration:{activeRevisionsMode:properties.configuration.activeRevisionsMode,secrets:properties.configuration.secrets[].{name:name,keyVaultUrl:keyVaultUrl,identity:identity},registries:properties.configuration.registries[].{server:server,identity:identity,username:username,passwordSecretRef:passwordSecretRef},ingress:properties.configuration.ingress},template:properties.template}}'
+    $appQuery = '{location:location,identity:identity,properties:{provisioningState:properties.provisioningState,environmentId:properties.environmentId,latestRevisionName:properties.latestRevisionName,latestReadyRevisionName:properties.latestReadyRevisionName,configuration:properties.configuration,template:properties.template}}'
     $app = Invoke-AzJson @('containerapp','show','--subscription',$subscription,'--resource-group',$resourceGroup,'--name',$appName,'--query',$appQuery,'--output','json','--only-show-errors')
-    $environmentQuery = '{location:location,provisioningState:properties.provisioningState,internal:properties.vnetConfiguration.internal,infrastructureSubnetId:properties.vnetConfiguration.infrastructureSubnetId,publicNetworkAccess:properties.publicNetworkAccess}'
+    $environmentQuery = '{location:location,provisioningState:properties.provisioningState,vnetConfiguration:properties.vnetConfiguration,publicNetworkAccess:properties.publicNetworkAccess,zoneRedundant:properties.zoneRedundant,workloadProfiles:properties.workloadProfiles,staticIp:properties.staticIp,peerAuthentication:properties.peerAuthentication,peerTrafficEncryption:properties.peerTrafficEncryption}'
     $environment = Invoke-AzJson @('containerapp','env','show','--subscription',$subscription,'--resource-group',$resourceGroup,'--name',$environmentName,'--query',$environmentQuery,'--output','json','--only-show-errors')
-    $revisionsQuery = '[?properties.active].{name:name,traffic:properties.trafficWeight,health:properties.healthState,state:properties.provisioningState,image:properties.template.containers[0].image}'
-    $revisions = @(Invoke-AzJson @('containerapp','revision','list','--subscription',$subscription,'--resource-group',$resourceGroup,'--name',$appName,'--query',$revisionsQuery,'--output','json','--only-show-errors'))
+    $revisionsQuery = '[].{name:name,active:properties.active,traffic:properties.trafficWeight,health:properties.healthState,state:properties.provisioningState,image:properties.template.containers[0].image}'
+    $allRevisions = @(Invoke-AzJson @('containerapp','revision','list','--subscription',$subscription,'--resource-group',$resourceGroup,'--name',$appName,'--query',$revisionsQuery,'--output','json','--only-show-errors'))
+    $revisions = @($allRevisions | Where-Object { $_.active -eq $true })
 
     if ($app.location -replace '\s','' -ine 'centralus' -or
         $app.properties.environmentId -notmatch '/managedEnvironments/cae-er-portfolio-demo$' -or
@@ -90,11 +143,15 @@ function Get-Snapshot {
         throw 'Revision and app image references disagree; comparison stopped.'
     }
 
+    # Normalize the full app configuration before comparing it. This catches
+    # unknown configuration drift while reducing secret values to presence only.
+    $app.properties.configuration = ConvertTo-SafeComparable $app.properties.configuration
     return @{
         app = $app
         environment = $environment
         revisions = $revisions
-        env = Get-EnvMap $app.properties.template
+        allRevisionNames = @($allRevisions | ForEach-Object { [string]$_.name })
+        env = Get-EnvMap $app.properties.template $containerName
     }
 }
 
@@ -110,6 +167,7 @@ if ($context.id -ne $subscription -or $context.name -ne 'Azure subscription 1' -
 
 $before = Get-Snapshot
 if ($before.revisions[0].image -ne $oldImages[$Component]) { throw 'Healthy rollback image differs from the reviewed baseline; comparison stopped.' }
+Assert-RevisionSuffix $RevisionSuffix $appName $before.app.properties.latestRevisionName $before.allRevisionNames
 $approved = if ($Component -eq 'api') {
     @{
         'AI__Enabled' = 'false'
@@ -139,17 +197,16 @@ if ($confirmation -cne 'COMPARE') { throw 'Comparison not authorized; no Azure u
 $after = Get-Snapshot
 $failures = [System.Collections.Generic.List[string]]::new()
 if ($after.revisions[0].image -ne $Image) { $failures.Add('revision image') }
+try { Assert-ObservedRevisionSuffix $after.app.properties.template $RevisionSuffix }
+catch { $failures.Add('revision suffix') }
 Assert-Same 'app location' $before.app.location $after.app.location $failures
 Assert-Same 'managed environment ID' $before.app.properties.environmentId $after.app.properties.environmentId $failures
 Assert-Same 'managed identities' $before.app.identity $after.app.identity $failures
-Assert-Same 'revision mode' $before.app.properties.configuration.activeRevisionsMode $after.app.properties.configuration.activeRevisionsMode $failures
-Assert-Same 'native secret names and safe reference metadata' $before.app.properties.configuration.secrets $after.app.properties.configuration.secrets $failures
-Assert-Same 'registry configuration' $before.app.properties.configuration.registries $after.app.properties.configuration.registries $failures
-Assert-Same 'ingress and traffic configuration' $before.app.properties.configuration.ingress $after.app.properties.configuration.ingress $failures
+Assert-Same 'complete sanitized app configuration' $before.app.properties.configuration $after.app.properties.configuration $failures
 Assert-Same 'environment networking' $before.environment $after.environment $failures
 
-$beforeTemplate = $before.app.properties.template | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
-$afterTemplate = $after.app.properties.template | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
+$beforeTemplate = ConvertTo-SafeComparable $before.app.properties.template | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
+$afterTemplate = ConvertTo-SafeComparable $after.app.properties.template | ConvertTo-Json -Depth 100 | ConvertFrom-Json -AsHashtable
 [void]$beforeTemplate.Remove('revisionSuffix'); [void]$afterTemplate.Remove('revisionSuffix')
 foreach ($template in @($beforeTemplate, $afterTemplate)) {
     if (@($template.containers).Count -ne 1) { throw 'Unexpected post-update container inventory; comparison stopped.' }
@@ -182,4 +239,4 @@ if ($failures.Count) {
 }
 Write-Host ("PASS: only intended image{0} changed." -f $(if ($changedEnvNames.Count) { ' and approved API environment settings' } else { '' }))
 if ($changedEnvNames.Count) { Write-Host ("Changed environment variable names: {0}" -f (@($changedEnvNames | Sort-Object -Unique) -join ', ')) }
-Write-Host 'PASS: secrets/references, identity, registry, ingress/traffic, scale, probes, networking, and all other environment entries are unchanged.'
+Write-Host ("PASS: approved revision suffix {0}; secrets/references, identity, registry, ingress/traffic, scale, probes, networking, and all other environment entries are unchanged." -f $RevisionSuffix)
