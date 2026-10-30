@@ -8,6 +8,10 @@ using EmergencyResponse.Application.Exceptions;
 using EmergencyResponse.Application.Situations;
 using EmergencyResponse.Api.Common.ErrorHandling;
 using EmergencyResponse.Infrastructure.AI;
+using EmergencyResponse.Infrastructure.Predictive;
+using EmergencyResponse.Infrastructure.BackgroundJobs;
+using EmergencyResponse.Infrastructure.Knowledge;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +25,81 @@ namespace EmergencyResponse.UnitTests.Configuration;
 
 public sealed class AIRegistrationTests
 {
+    [Fact]
+    public void ForecastWorkerRegistration_IsOptInForPortfolio_AndPreservesOtherWorkers()
+    {
+        foreach (var enabled in new[] { false, true })
+        {
+            var configuration = CreateConfiguration();
+            configuration["AI:Enabled"] = "false";
+            configuration["Forecasting:BackgroundWorkerEnabled"] = enabled.ToString();
+            var services = CreateServices(configuration);
+            services.AddAI(configuration);
+
+            var hostedTypes = services
+                .Where(d => d.ServiceType == typeof(IHostedService))
+                .Select(d => d.ImplementationType)
+                .ToArray();
+
+            Assert.Equal(enabled, hostedTypes.Contains(typeof(ForecastGenerationBackgroundWorker)));
+            Assert.DoesNotContain(typeof(IncidentAIBackgroundWorker), hostedTypes);
+            Assert.DoesNotContain(typeof(VisualAnalysisBackgroundWorker), hostedTypes);
+            Assert.DoesNotContain(typeof(KnowledgeDocumentBackgroundWorker), hostedTypes);
+            Assert.Contains(typeof(PredictiveAnalysisBackgroundWorker), hostedTypes);
+        }
+    }
+
+    [Fact]
+    public void EnabledAI_RegistersAIQueueWorkers()
+    {
+        var configuration = CreateConfiguration();
+        configuration["AI:Enabled"] = "true";
+        var services = CreateServices(configuration);
+        services.AddAI(configuration);
+
+        var hostedTypes = services
+            .Where(d => d.ServiceType == typeof(IHostedService))
+            .Select(d => d.ImplementationType)
+            .ToArray();
+
+        Assert.Contains(typeof(IncidentAIBackgroundWorker), hostedTypes);
+        Assert.Contains(typeof(VisualAnalysisBackgroundWorker), hostedTypes);
+        Assert.Contains(typeof(KnowledgeDocumentBackgroundWorker), hostedTypes);
+        Assert.Contains(typeof(PredictiveAnalysisBackgroundWorker), hostedTypes);
+    }
+
+    [Fact]
+    public void DataRetentionWorkerRegistration_RespectsExplicitPortfolioOptOutAndPreservesDefault()
+    {
+        foreach (var enabled in new bool?[] { false, true, null })
+        {
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(
+                enabled is null
+                    ? new Dictionary<string, string?>()
+                    : new Dictionary<string, string?>
+                    {
+                        ["DataRetention:BackgroundWorkerEnabled"] = enabled.Value.ToString()
+                    }).Build();
+            var services = new ServiceCollection();
+            services.AddDataRetentionBackgroundWorker(configuration);
+
+            var registered = services.Any(d => d.ServiceType == typeof(IHostedService) &&
+                d.ImplementationType == typeof(DataRetentionBackgroundWorker));
+            Assert.Equal(enabled ?? true, registered);
+        }
+    }
+
+    [Fact]
+    public void ForecastWorkerRegistration_DefaultsToExistingBehavior()
+    {
+        var configuration = CreateConfiguration();
+        var services = CreateServices(configuration);
+        services.AddAI(configuration);
+
+        Assert.Contains(services, d => d.ServiceType == typeof(IHostedService) &&
+            d.ImplementationType == typeof(ForecastGenerationBackgroundWorker));
+    }
+
     [Fact]
     public void DisabledAIOptions_DoNotRequireProviderSettings()
     {

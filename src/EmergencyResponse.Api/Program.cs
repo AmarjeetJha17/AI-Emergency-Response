@@ -114,8 +114,7 @@ builder.Services.AddOptions<EmergencyResponse.Application.Common.Configuration.R
                          options.CleanupIntervalHours > 0,
         "Retention values must be positive engineering defaults.")
     .ValidateOnStart();
-builder.Services.AddHostedService<
-    EmergencyResponse.Infrastructure.BackgroundJobs.DataRetentionBackgroundWorker>();
+builder.Services.AddDataRetentionBackgroundWorker(builder.Configuration);
 
 builder.Services
     .AddIdentityCore<ApplicationUser>(options =>

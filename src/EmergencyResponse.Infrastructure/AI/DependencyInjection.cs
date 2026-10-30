@@ -114,7 +114,10 @@ public static class DependencyInjection
             KnowledgeDocumentService>();
         services.AddSingleton<IKnowledgeDocumentQueue,
             InMemoryKnowledgeDocumentQueue>();
-        services.AddHostedService<KnowledgeDocumentBackgroundWorker>();
+        if (aiEnabled)
+        {
+            services.AddHostedService<KnowledgeDocumentBackgroundWorker>();
+        }
         if (aiEnabled)
         {
             services.AddScoped<IEmergencyCopilotService,
@@ -214,8 +217,10 @@ public static class DependencyInjection
             IIncidentAIJobProcessor,
             IncidentAIJobProcessor>();
 
-        services.AddHostedService<
-            IncidentAIBackgroundWorker>();
+        if (aiEnabled)
+        {
+            services.AddHostedService<IncidentAIBackgroundWorker>();
+        }
 
         services.AddSingleton<
             IAIReviewPolicy,
@@ -255,8 +260,10 @@ public static class DependencyInjection
         services.AddScoped<
             VisualAnalysisOrchestrationService>();
 
-        services.AddHostedService<
-            VisualAnalysisBackgroundWorker>();
+        if (aiEnabled)
+        {
+            services.AddHostedService<VisualAnalysisBackgroundWorker>();
+        }
 
         services.AddScoped<
             IEscalationPredictionFeatureBuilder,
@@ -281,8 +288,12 @@ public static class DependencyInjection
         services.AddHostedService<
             PredictiveAnalysisBackgroundWorker>();
 
-        services.AddHostedService<
-            ForecastGenerationBackgroundWorker>();
+        // Keep historical behavior in ordinary environments, while allowing
+        // portfolio deployments to opt out of startup/hourly forecast writes.
+        if (configuration.GetValue<bool?>("Forecasting:BackgroundWorkerEnabled") ?? true)
+        {
+            services.AddHostedService<ForecastGenerationBackgroundWorker>();
+        }
 
         services.AddScoped<
             IForecastingService,

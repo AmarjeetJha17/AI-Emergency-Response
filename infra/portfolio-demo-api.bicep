@@ -145,6 +145,9 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'ASPNETCORE_ENVIRONMENT', value: 'Staging' }
             { name: 'ASPNETCORE_HTTP_PORTS', value: '8080' }
             { name: 'AI__Enabled', value: 'false' }
+            { name: 'Forecasting__BackgroundWorkerEnabled', value: 'false' }
+            { name: 'DataRetention__BackgroundWorkerEnabled', value: 'false' }
+            { name: 'AzureMaps__Enabled', value: 'false' }
             { name: 'AZURE_CLIENT_ID', value: apiIdentity.properties.clientId }
             { name: 'ConnectionStrings__DefaultConnection', value: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=${sqlDatabase.name};Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;' }
             { name: 'Jwt__Issuer', value: 'EmergencyResponse.Api' }
