@@ -7,7 +7,7 @@ $ast = [Management.Automation.Language.Parser]::ParseFile($comparatorPath, [ref]
 if ($errors.Count) { throw 'Comparator syntax validation failed.' }
 
 # Load only pure comparison helpers; the Azure snapshot entry point is not run.
-$helperNames = @('Convert-ComparableJson', 'ConvertTo-SafeComparable', 'Assert-RevisionSuffix', 'Assert-ObservedRevisionSuffix', 'Get-EnvMap', 'Assert-Same')
+$helperNames = @('Convert-ComparableJson', 'ConvertTo-SafeComparable', 'Assert-RevisionSuffix', 'Assert-ObservedRevisionSuffix', 'Get-EnvMap', 'Assert-SecretReferencesResolve', 'Assert-Same')
 foreach ($name in $helperNames) {
     $helperName = $name
     $functionAst = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $helperName }, $true)
@@ -36,6 +36,18 @@ $secretMap = Get-EnvMap $secretTemplate 'api'
 if ($secretMap['SECRET_SETTING'].secretRef -cne 'runtime-secret' -or $secretMap['SECRET_SETTING'].hasValue -or -not $secretMap['SECRET_SETTING'].hasSecretRef) {
     throw 'secretRef environment entry without optional value was not normalized.'
 }
+$azureSecretTemplate = '{"containers":[{"name":"api","env":[{"name":"SECRET_SETTING","value":"","secretRef":"runtime-secret"}]}]}' | ConvertFrom-Json -AsHashtable
+$azureSecretMap = Get-EnvMap $azureSecretTemplate 'api'
+if ($azureSecretMap['SECRET_SETTING'].value -cne '' -or $azureSecretMap['SECRET_SETTING'].secretRef -cne 'runtime-secret') {
+    throw 'Azure empty-value plus secretRef representation was not accepted.'
+}
+Assert-SecretReferencesResolve $azureSecretMap @('runtime-secret')
+Assert-Rejected { Assert-SecretReferencesResolve $azureSecretMap @('different-secret') } 'unresolved secret reference'
+$emptyLiteralTemplate = '{"containers":[{"name":"api","env":[{"name":"EMPTY_SETTING","value":""}]}]}' | ConvertFrom-Json -AsHashtable
+$emptyLiteralMap = Get-EnvMap $emptyLiteralTemplate 'api'
+if (-not $emptyLiteralMap['EMPTY_SETTING'].hasValue -or $emptyLiteralMap['EMPTY_SETTING'].value -cne '' -or $emptyLiteralMap['EMPTY_SETTING'].hasSecretRef) {
+    throw 'Valid empty literal environment value was not accepted.'
+}
 $nullTemplate = '{"containers":[{"name":"api","env":[{"name":"SECRET_SETTING","value":null,"secretRef":"runtime-secret"}]}]}' | ConvertFrom-Json -AsHashtable
 $nullMap = Get-EnvMap $nullTemplate 'api'
 if (-not $nullMap['SECRET_SETTING'].hasValue -or $nullMap['SECRET_SETTING'].value -ne $null -or -not $nullMap['SECRET_SETTING'].hasSecretRef) {
@@ -50,6 +62,12 @@ Assert-Rejected {
 Assert-Rejected {
     Get-EnvMap @{ containers = @(@{ name = 'api'; env = @(@{ name = 'SETTING'; value = $null }) }) } 'api'
 } 'null-only environment binding'
+Assert-Rejected {
+    Get-EnvMap ('{"containers":[{"name":"api","env":[{"name":"SETTING"}]}]}' | ConvertFrom-Json -AsHashtable) 'api'
+} 'environment entry without a binding'
+Assert-Rejected {
+    Get-EnvMap ('{"containers":[{"name":"api","env":[{"name":"SETTING","value":"literal","secretRef":"runtime-secret"}]}]}' | ConvertFrom-Json -AsHashtable) 'api'
+} 'conflicting literal and secret bindings'
 
 $canary = 'SENSITIVE_DO_NOT_EMIT'
 $safe = ConvertTo-SafeComparable @{ secrets = @(@{ name = 'jwt-signing-key'; value = $canary; identity = 'system' }) }

@@ -108,10 +108,18 @@ function Get-EnvMap([object]$Template, [string]$ExpectedContainerName) {
         if ([string]::IsNullOrWhiteSpace([string]$item['name']) -or $map.ContainsKey([string]$item['name'])) {
             throw 'Missing or duplicate environment variable name; comparison stopped.'
         }
-        $hasUsableValue = $hasValue -and $null -ne $value
-        $hasUsableSecretRef = $hasSecretRef -and $null -ne $secretRef
-        if ($hasUsableValue -eq $hasUsableSecretRef) {
-            throw 'Environment entry must contain exactly one non-null value or secret reference; comparison stopped.'
+        $hasReference = $hasSecretRef -and $secretRef -is [string] -and -not [string]::IsNullOrWhiteSpace($secretRef)
+        if ($hasReference) {
+            # ACA's GET representation may include value="" beside secretRef.
+            # A non-empty literal value beside a secret reference is ambiguous.
+            if ($hasValue -and $null -ne $value -and [string]$value -cne '') {
+                throw 'Environment entry has conflicting literal and secret bindings; comparison stopped.'
+            }
+        }
+        elseif (-not $hasValue -or $null -eq $value) {
+            # Literal empty strings are valid, but an absent/null value without
+            # an effective secret reference is not a usable environment entry.
+            throw 'Environment entry is missing a literal value or secret reference; comparison stopped.'
         }
         # Values stay in this process only and are never serialized or emitted.
         $map[[string]$item['name']] = @{
@@ -122,6 +130,15 @@ function Get-EnvMap([object]$Template, [string]$ExpectedContainerName) {
         }
     }
     return ,$map
+}
+
+function Assert-SecretReferencesResolve([hashtable]$EnvironmentMap, [string[]]$SecretNames) {
+    foreach ($entry in $EnvironmentMap.Values) {
+        if ($entry.hasSecretRef -and -not [string]::IsNullOrWhiteSpace([string]$entry.secretRef) -and
+            $entry.secretRef -cnotin $SecretNames) {
+            throw 'Environment entry references a missing Container Apps secret; comparison stopped.'
+        }
+    }
 }
 
 function Get-Snapshot {
@@ -161,6 +178,8 @@ function Get-Snapshot {
     if ($revisions[0].image -ne $app.properties.template.containers[0].image) {
         throw 'Revision and app image references disagree; comparison stopped.'
     }
+    $environmentMap = Get-EnvMap $app.properties.template $containerName
+    Assert-SecretReferencesResolve $environmentMap $observedSecretNames
 
     # Normalize the full app configuration before comparing it. This catches
     # unknown configuration drift while reducing secret values to presence only.
@@ -170,7 +189,7 @@ function Get-Snapshot {
         environment = $environment
         revisions = $revisions
         allRevisionNames = @($allRevisions | ForEach-Object { [string]$_.name })
-        env = Get-EnvMap $app.properties.template $containerName
+        env = $environmentMap
     }
 }
 
