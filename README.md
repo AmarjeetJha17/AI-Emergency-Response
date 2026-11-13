@@ -112,6 +112,8 @@ The deployed Web app runs in `PortfolioDemo` and persists Data Protection keys t
 
 The hosted homepage/login, health endpoints, SQL connectivity, and AI-disabled configuration have been verified by the maintainer. Full end-to-end workflows, real AI provider behavior, emergency-authority integration, durable-job recovery, alert delivery, and restoration are not established. This project is **not approved for real-world emergency operations**.
 
+See the [Azure portfolio deployment closeout](docs/deployment/portfolio-deployment-closeout.md) for resource details, evidence categories, remaining application-acceptance checks, synthetic-data restrictions, and intermittent-demo operations guidance.
+
 - In environments where AI is enabled, classifications, forecasts, and Copilot answers are advisory and require verification. AI is disabled in the hosted demo.
 - Authorization gaps, process-local jobs, retry semantics, and crash recovery require correction before a pilot.
 - Video runtime dependencies and malware-scanning integration are incomplete.
